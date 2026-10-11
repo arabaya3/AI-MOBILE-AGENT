@@ -1,0 +1,185 @@
+import { useState, type ReactNode } from 'react';
+import { 
+  AppBar, 
+  Box, 
+  CssBaseline, 
+  Drawer, 
+  IconButton, 
+  Stack,
+  Toolbar, 
+  Typography, 
+  useTheme,
+  useMediaQuery
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import FolderIcon from '@mui/icons-material/Folder';
+import SettingsIcon from '@mui/icons-material/Settings';
+import { ModelSelector } from './ModelSelector';
+
+const drawerWidth = 280;
+
+export interface MainLayoutProps {
+  children: ReactNode;
+  sidebarContent: ReactNode; // Content for the sidebar (Spaces + History)
+  models: string[];
+  currentModel: string;
+  onModelChange: (model: string) => void;
+  onOpenFiles: () => void;
+  onOpenSettings: () => void;
+  modelSelectorDisabled?: boolean;
+}
+
+export const MainLayout = ({ 
+  children, 
+  sidebarContent, 
+  models, 
+  currentModel, 
+  onModelChange, 
+  onOpenFiles, 
+  onOpenSettings,
+  modelSelectorDisabled
+}: MainLayoutProps) => {
+  const theme = useTheme();
+  // We use the theme breakpoints to determine if we are on mobile
+  // Note: Standard checks use theme.breakpoints.down('sm') or 'md'
+  const isMobile = useMediaQuery(theme.breakpoints.down('md')); 
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleDrawerClose = () => {
+    setIsClosing(true);
+    setMobileOpen(false);
+  };
+
+  const handleDrawerTransitionEnd = () => {
+    setIsClosing(false);
+  };
+
+  const handleDrawerToggle = () => {
+    if (!isClosing) {
+      setMobileOpen(!mobileOpen);
+    }
+  };
+
+  // Drawer Content Container
+  const drawer = (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+       {/* Sidebar content (Spaces, History) passed from parent */}
+       {sidebarContent}
+    </Box>
+  );
+
+  return (
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <CssBaseline />
+      
+      {/* Header */}
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          bgcolor: 'background.paper',
+          color: 'text.primary',
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <Toolbar sx={{ justifyContent: 'space-between', minHeight: { xs: 56, sm: 64 } }}>
+          {/* Left: Hamburger & Logo */}
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { md: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 700, display: { xs: 'none', sm: 'block' } }}>
+              TEIA
+            </Typography>
+          </Stack>
+
+          {/* Center: Model Selector */}
+          <Box sx={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+            <ModelSelector 
+              models={models} 
+              value={currentModel} 
+              onChange={onModelChange} 
+              disabled={modelSelectorDisabled}
+            />
+          </Box>
+
+          {/* Right: Actions */}
+          <Stack direction="row" spacing={1}>
+            <IconButton color="inherit" onClick={onOpenFiles} title="Files">
+              <FolderIcon />
+            </IconButton>
+            <IconButton color="inherit" onClick={onOpenSettings} title="Space Settings">
+              <SettingsIcon />
+            </IconButton>
+          </Stack>
+        </Toolbar>
+      </AppBar>
+
+      {/* Sidebar */}
+      <Box
+        component="nav"
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+        aria-label="mailbox folders"
+      >
+        {/* Mobile Sidebar (Temporary) */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onTransitionEnd={handleDrawerTransitionEnd}
+          onClose={handleDrawerClose}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+        >
+          {drawer}
+        </Drawer>
+        
+        {/* Desktop Sidebar (Permanent) */}
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              borderRight: `1px solid ${theme.palette.divider}`,
+              bgcolor: 'background.paper',
+            },
+          }}
+          open
+        >
+          <Toolbar /> {/* Spacer for clipped sidebar (pushes content down below AppBar) */}
+          {drawer}
+        </Drawer>
+      </Box>
+
+      {/* Main Content */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          overflow: 'hidden', // Prevent main content from scrolling the whole page if chat handles scroll
+        }}
+      >
+        <Toolbar /> {/* Spacer for fixed AppBar */}
+        {children}
+      </Box>
+    </Box>
+  );
+};

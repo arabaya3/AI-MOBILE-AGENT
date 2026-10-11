@@ -1,0 +1,426 @@
+name: Deploy AI Agents
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+env:
+  DEPLOY_HOST: 87.106.87.218
+  DEPLOY_USER: root
+  BACKEND_PORT: 8001
+  FRONTEND_PORT: 5174
+  REPO_URL: https://github.com/TEIA-2026/AI-Agents.git
+  APP_DIR: /root/AI-Agents
+  BACKUP_DIR: /root/AI-Agents-backup
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY_B64: ${{ secrets.SSH_PRIVATE_KEY_B64 }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          
+          # Check if at least one secret is available
+          if [ -z "$SSH_PRIVATE_KEY_B64" ] && [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "❌ ERROR: Neither SSH_PRIVATE_KEY_B64 nor SSH_PRIVATE_KEY is set in GitHub Secrets."
+            echo ""
+            echo "To fix this, add your SSH private key to GitHub repository secrets:"
+            echo "1. Go to: https://github.com/TEIA-2026/AI-Agents/settings/secrets/actions"
+            echo "2. Click 'New repository secret'"
+            echo "3. Name: SSH_PRIVATE_KEY_B64 (recommended) or SSH_PRIVATE_KEY"
+            echo "4. Value: Your SSH private key (base64 encoded for SSH_PRIVATE_KEY_B64)"
+            echo ""
+            echo "To encode your key: cat ~/.ssh/id_ed25519 | base64 -w 0"
+            exit 1
+          fi
+          
+          # Use SSH_PRIVATE_KEY_B64 if available, otherwise SSH_PRIVATE_KEY
+          if [ -n "$SSH_PRIVATE_KEY_B64" ]; then
+            echo "Using SSH_PRIVATE_KEY_B64..."
+            echo "$SSH_PRIVATE_KEY_B64" | base64 --decode > ~/.ssh/id_ed25519
+          else
+            echo "Using SSH_PRIVATE_KEY..."
+            echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          fi
+          
+          chmod 600 ~/.ssh/id_ed25519
+          
+          # Verify the key is valid
+          if ! ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null 2>&1; then
+            echo "❌ ERROR: SSH key is invalid or corrupted"
+            exit 1
+          fi
+          
+          echo "✓ SSH key validated"
+          
+          # Add host to known_hosts
+          ssh-keyscan -H ${{ env.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          echo "✓ SSH setup complete"
+      
+      - name: Create backup of current deployment
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            if [ -d "${{ env.APP_DIR }}" ]; then
+              echo "Creating backup of current deployment..."
+              rm -rf ${{ env.BACKUP_DIR }}
+              cp -r ${{ env.APP_DIR }} ${{ env.BACKUP_DIR }}
+              echo "Backup created at ${{ env.BACKUP_DIR }}"
+            else
+              echo "No existing deployment to backup"
+            fi
+          EOF
+      
+      - name: Stop running services
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            echo "Stopping backend on port ${{ env.BACKEND_PORT }}..."
+            BACKEND_PID=$(lsof -ti:${{ env.BACKEND_PORT }} || true)
+            if [ ! -z "$BACKEND_PID" ]; then
+              kill -9 $BACKEND_PID || true
+              echo "Backend stopped"
+            else
+              echo "No backend process found"
+            fi
+            
+            echo "Stopping frontend on port ${{ env.FRONTEND_PORT }}..."
+            if command -v pm2 &> /dev/null; then
+              pm2 stop frontend || true
+              pm2 delete frontend || true
+            else
+              echo "pm2 not found, skipping pm2 stop"
+            fi
+            echo "Frontend stopped"
+            
+            # Wait for ports to be released
+            sleep 5
+          EOF
+      
+      - name: Deploy new code
+        id: deploy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUBTOKEN }}
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            
+            # Remove old deployment
+            echo "Removing old deployment..."
+            rm -rf ${{ env.APP_DIR }}
+            
+            # Clone new code using token authentication
+            echo "Cloning repository..."
+            git clone -b ${{ github.ref_name }} \
+              https://oauth2:${{ secrets.GITHUBTOKEN }}@github.com/TEIA-2026/AI-Agents.git \
+              ${{ env.APP_DIR }}
+            
+            cd ${{ env.APP_DIR }}
+            echo "Deployment successful"
+          EOF
+      - name: Create .env file
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.APP_DIR }}
+            echo "Creating .env file..."
+            
+            # Function to safely append variables, removing accidental newlines from secrets
+            add_var() {
+              local key="$1"
+              local val="$2"
+              # Print key='val', strip all newlines/returns, append to file
+              echo "${key}='${val}'" | tr -d '\n\r' >> .env
+              # Append a real newline to the file
+              echo "" >> .env
+            }
+            
+            # Clear .env file
+            > .env
+            
+            add_var "APP_NAME" "${{ secrets.APP_NAME || 'TEIA-AI-Agents' }}"
+            add_var "APP_VERSION" "${{ secrets.APP_VERSION || '0.1.0' }}"
+            add_var "APP_ENV" "production"
+            add_var "DEBUG" "false"
+            add_var "LOG_LEVEL" "INFO"
+            add_var "API_HOST" "0.0.0.0"
+            add_var "API_PORT" "${{ env.BACKEND_PORT }}"
+            add_var "API_WORKERS" "${{ secrets.API_WORKERS || '4' }}"
+            
+            # Security
+            add_var "SECRET_KEY" "${{ secrets.SECRET_KEY }}"
+            add_var "JWT_SECRET_KEY" "${{ secrets.JWT_SECRET_KEY }}"
+            add_var "JWT_ALGORITHM" "${{ secrets.JWT_ALGORITHM || 'HS256' }}"
+            add_var "JWT_EXPIRATION_HOURS" "${{ secrets.JWT_EXPIRATION_HOURS || '24' }}"
+            
+            # OpenAI
+            add_var "OPENAI_API_KEY" "${{ secrets.OPENAI_API_KEY }}"
+            add_var "OPENAI_ORG_ID" "${{ secrets.OPENAI_ORG_ID }}"
+            add_var "OPENAI_MODEL" "${{ secrets.OPENAI_MODEL || 'gpt-4' }}"
+            add_var "OPENAI_CHAT_MODEL" "${{ secrets.OPENAI_CHAT_MODEL || 'gpt-4o-mini' }}"
+            add_var "OPENAI_ORGANIZATION" "${{ secrets.OPENAI_ORGANIZATION }}"
+            add_var "OPENAI_PROJECT" "${{ secrets.OPENAI_PROJECT }}"
+            add_var "OPENAI_BASE_URL" "${{ secrets.OPENAI_BASE_URL || 'https://api.openai.com/v1/' }}"
+            add_var "OPENAI_EMBEDDING_MODEL" "${{ secrets.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-large' }}"
+
+            # Anthropic
+            add_var "ANTHROPIC_MODEL" "${{ secrets.ANTHROPIC_MODEL || 'claude-3-opus-20240229' }}"
+            add_var "ANTHROPIC_BASE_URL" "${{ secrets.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1/' }}"
+            add_var "ANTHROPIC_API_KEY" "${{ secrets.ANTHROPIC_API_KEY }}"
+
+            # AWS
+            add_var "AWS_ACCESS_KEY_ID" "${{ secrets.AWS_ACCESS_KEY_ID }}"
+            add_var "AWS_SECRET_ACCESS_KEY" "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+            add_var "AWS_REGION" "${{ secrets.AWS_REGION || 'eu-central-1' }}"
+            add_var "AWS_S3_BUCKET" "${{ secrets.AWS_S3_BUCKET }}"
+            
+            # QDRANR
+
+            add_var "QDRANT_URL" "${{ secrets.QDRANT_URL || 'http://87.106.87.218:6333' }}"
+            add_var "QDRANT_COLLECTION" "${{ secrets.QDRANT_COLLECTION || 'documents' }}"
+            add_var "QDRANT_API_KEY" "${{ secrets.QDRANT_API_KEY }}"
+            add_var "QDRANT_VECTOR_SIZE" "${{ secrets.QDRANT_VECTOR_SIZE || '3072' }}"
+            add_var "QDRANT_DISTANCE" "${{ secrets.QDRANT_DISTANCE || 'Cosine' }}"
+
+            # Milvus
+            add_var "MILVUS_URI" "${{ secrets.MILVUS_URI || 'tcp://localhost:19530' }}"
+            add_var "MILVUS_USERNAME" "${{ secrets.MILVUS_USERNAME || 'admin' }}"
+            add_var "MILVUS_PASSWORD" "${{ secrets.MILVUS_PASSWORD }}"
+            add_var "MILVUS_COLLECTION" "${{ secrets.MILVUS_COLLECTION || 'documents' }}"
+            add_var "MILVUS_SECURE" "${{ secrets.MILVUS_SECURE || 'false' }}"
+            
+            # Other LLM Providers
+            add_var "TAVILY_API_KEY" "${{ secrets.TAVILY_API_KEY }}"
+            add_var "DEEPSEEK_API_KEY" "${{ secrets.DEEPSEEK_API_KEY }}"
+            add_var "DEEPSEEK_BASE_URL" "${{ secrets.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1' }}"
+            add_var "QWEN_API_KEY" "${{ secrets.QWEN_API_KEY }}"
+            add_var "QWEN_BASE_URL" "${{ secrets.QWEN_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' }}"
+            add_var "DASHSCOPE_API_KEY" "${{ secrets.DASHSCOPE_API_KEY }}"
+            add_var "DASHSCOPE_BASE_URL" "${{ secrets.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' }}"
+            add_var "GOOGLE_API_KEY" "${{ secrets.GOOGLE_API_KEY }}"
+            add_var "GEMINI_API_KEY" "${{ secrets.GEMINI_API_KEY }}"
+            add_var "GEMINI_BASE_URL" "${{ secrets.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/' }}"
+            
+            # Database
+            add_var "POSTGRES_HOST" "${{ secrets.POSTGRES_HOST || 'localhost' }}"
+            add_var "POSTGRES_PORT" "${{ secrets.POSTGRES_PORT || '5432' }}"
+            add_var "POSTGRES_DB" "${{ secrets.POSTGRES_DB || 'teia_agents' }}"
+            add_var "POSTGRES_USER" "${{ secrets.POSTGRES_USER || 'postgres_admin' }}"
+            add_var "POSTGRES_PASSWORD" "${{ secrets.POSTGRES_PASSWORD }}"
+            
+            # Neo4j & Redis
+            add_var "NEO4J_URI" "${{ secrets.NEO4J_URI || 'bolt://localhost:7687' }}"
+            add_var "NEO4J_USER" "${{ secrets.NEO4J_USER || 'neo4j' }}"
+            add_var "NEO4J_PASSWORD" "${{ secrets.NEO4J_PASSWORD }}"
+            add_var "REDIS_HOST" "${{ secrets.REDIS_HOST || 'localhost' }}"
+            add_var "REDIS_PORT" "${{ secrets.REDIS_PORT || '6379' }}"
+            add_var "REDIS_DB" "${{ secrets.REDIS_DB || '0' }}"
+            add_var "REDIS_SSL" "${{ secrets.REDIS_SSL || 'false' }}"
+
+            # Observability & Rate Limiting
+            add_var "ENABLE_METRICS" "${{ secrets.ENABLE_METRICS || 'true' }}"
+            add_var "ENABLE_TRACING" "${{ secrets.ENABLE_TRACING || 'true' }}"
+            add_var "OTEL_EXPORTER_OTLP_ENDPOINT" "${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4317' }}"
+            add_var "RATE_LIMIT_ENABLED" "${{ secrets.RATE_LIMIT_ENABLED || 'true' }}"
+            add_var "RATE_LIMIT_PER_MINUTE" "${{ secrets.RATE_LIMIT_PER_MINUTE || '60' }}"
+            
+            # Langfuse
+            add_var "LANGFUSE_SECRET_KEY" "${{ secrets.LANGFUSE_SECRET_KEY }}"
+            add_var "LANGFUSE_PUBLIC_KEY" "${{ secrets.LANGFUSE_PUBLIC_KEY }}"
+            add_var "LANGFUSE_BASE_URL" "${{ secrets.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com' }}"
+            
+            # Email & Frontend
+            add_var "EMAIL_ENABLED" "${{ secrets.EMAIL_ENABLED || 'true' }}"
+            add_var "SMTP_HOST" "${{ secrets.SMTP_HOST }}"
+            add_var "SMTP_PORT" "${{ secrets.SMTP_PORT || '587' }}"
+            add_var "SMTP_USER" "${{ secrets.SMTP_USER }}"
+            add_var "SMTP_PASSWORD" "${{ secrets.SMTP_PASSWORD }}"
+            add_var "SMTP_USE_TLS" "${{ secrets.SMTP_USE_TLS || 'true' }}"
+            add_var "EMAIL_FROM" "${{ secrets.EMAIL_FROM }}"
+            add_var "EMAIL_FROM_NAME" "${{ secrets.EMAIL_FROM_NAME || 'TEIA AI Agents' }}"
+            add_var "FRONTEND_URL" "${{ secrets.FRONTEND_URL || 'http://87.106.87.218:5174' }}"
+            
+            echo ".env created successfully"
+          EOF
+      
+      - name: Install backend dependencies
+        id: backend_install
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.APP_DIR }}
+            
+            echo "Installing backend dependencies..."
+            poetry lock --no-update
+            poetry install --no-interaction --no-ansi
+            
+            echo "Backend dependencies installed"
+          EOF
+      
+      - name: Run database migrations
+        id: migrate
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.APP_DIR }}
+            
+            echo "Running database migrations..."
+            poetry run python scripts/migrate_db.py
+            
+            echo "Migrations complete"
+          EOF
+      
+      - name: Start backend
+        id: start_backend
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.APP_DIR }}
+            
+            echo "Starting backend..."
+            nohup poetry run python run.py > output.log 2>&1 &
+            
+            # Wait and verify backend is running
+            sleep 10
+            if lsof -ti:${{ env.BACKEND_PORT }} > /dev/null; then
+              echo "Backend started successfully on port ${{ env.BACKEND_PORT }}"
+            else
+              echo "ERROR: Backend failed to start"
+              echo "Last 50 lines of output.log:"
+              tail -n 50 output.log
+              exit 1
+            fi
+          EOF
+      
+      - name: Install frontend dependencies
+        id: frontend_install
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.APP_DIR }}/Front-End
+            
+            echo "Installing frontend dependencies..."
+            npm install --force
+            npm audit fix --force || true
+            
+            # Ensure pm2 is installed globally
+            if ! command -v pm2 &> /dev/null; then
+              echo "Installing pm2 globally..."
+              npm install -g pm2
+            else
+              echo "pm2 already installed"
+            fi
+            
+            echo "Frontend dependencies installed"
+          EOF
+      
+      - name: Start frontend
+        id: start_frontend
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.APP_DIR }}/Front-End
+            
+            echo "Starting frontend with PM2..."
+            pm2 start npm --name frontend -- run dev
+            pm2 save
+            
+            # Wait and verify
+            sleep 5
+            if pm2 list | grep -q "frontend.*online"; then
+              echo "Frontend started successfully"
+            else
+              echo "ERROR: Frontend failed to start"
+              exit 1
+            fi
+          EOF
+      
+      - name: Verify deployment
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            
+            echo "Verifying deployment..."
+            
+            # Check backend health
+            if curl -f http://localhost:${{ env.BACKEND_PORT }}/health > /dev/null 2>&1; then
+              echo "✓ Backend health check passed"
+            else
+              echo "✗ Backend health check failed"
+              exit 1
+            fi
+            
+            # Check frontend
+            if pm2 list | grep -q "frontend.*online"; then
+              echo "✓ Frontend is running"
+            else
+              echo "✗ Frontend check failed"
+              exit 1
+            fi
+            
+            echo "Deployment verified successfully!"
+          EOF
+      
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          ssh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            echo "Deployment failed! Rolling back to previous version..."
+            
+            # Stop failed deployment
+            BACKEND_PID=$(lsof -ti:${{ env.BACKEND_PORT }} || true)
+            if [ -n "$BACKEND_PID" ]; then
+              kill -9 $BACKEND_PID || true
+            fi
+            
+            if command -v pm2 &> /dev/null; then
+              pm2 stop frontend || true
+              pm2 delete frontend || true
+            fi
+            
+            # Restore backup
+            if [ -d "${{ env.BACKUP_DIR }}" ]; then
+              rm -rf ${{ env.APP_DIR }}
+              cp -r ${{ env.BACKUP_DIR }} ${{ env.APP_DIR }}
+              
+              # Start old version
+              cd ${{ env.APP_DIR }}
+              nohup poetry run python run.py > output.log 2>&1 &
+              sleep 10
+              
+              if [ -d "Front-End" ]; then
+                cd Front-End
+                if command -v pm2 &> /dev/null; then
+                  pm2 start npm --name frontend -- run dev
+                  pm2 save
+                fi
+              fi
+              
+              echo "Rollback complete. Previous version restored."
+            else
+              echo "No backup found. Manual intervention required!"
+              exit 1
+            fi
+          EOF
+      
+      - name: Send notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment to ${{ github.ref_name }} successful!"
+          else
+            echo "❌ Deployment to ${{ github.ref_name }} failed and rolled back"
+          fi

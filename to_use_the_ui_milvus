@@ -1,0 +1,37 @@
+1- run the 
+curl -sfL https://raw.githubusercontent.com/milvus-io/milvus/master/scripts/standalone_embed.sh -o standalone_embed.sh
+
+bash standalone_embed.sh start
+
+2- update the password 
+
+cd "/Users/khalidkhader/Desktop/my docs/Work/TEIA/AI Agents" && python - <<'PY'
+from pymilvus import connections, utility
+
+connections.connect(
+    alias="default",  # or change 'using' below
+    host="87.106.87.218",
+    port="19530",
+    user="root",
+    password="Milvus",
+)
+
+try:
+    utility.reset_password("root", "Milvus", "TEIA@2026KH", using="default")
+    print("root password updated")
+except Exception as exc:
+    print(f"reset_password failed: {exc}")
+
+try:
+    utility.create_user("admin", "TEIA@2026KH", using="default")
+    print("admin user created")
+except Exception as exc:
+    print(f"create_user failed: {exc}")
+
+PY
+
+3- run docker run -p 8000:3000 -e MILVUS_URL=localhost:19530 zilliz/attu:v2.6
+4- http://localhost:8000/#/ use:
+Address: host.docker.internal:19530
+Username: admin
+Password: teia@2026
