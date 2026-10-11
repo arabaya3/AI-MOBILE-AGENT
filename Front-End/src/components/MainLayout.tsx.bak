@@ -1,0 +1,182 @@
+import { useState, type ReactNode } from 'react';
+import { 
+  AppBar, 
+  Box, 
+  CssBaseline, 
+  Drawer, 
+  IconButton, 
+  Stack,
+  Toolbar, 
+  Typography, 
+  useTheme 
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import FolderIcon from '@mui/icons-material/Folder';
+import SettingsIcon from '@mui/icons-material/Settings';
+import { ModelSelector } from './ModelSelector';
+
+const drawerWidth = 280;
+
+export interface MainLayoutProps {
+  children: ReactNode;
+  sidebarContent: ReactNode; // Content for the sidebar (Spaces + History)
+  models: string[];
+  currentModel: string;
+  onModelChange: (model: string) => void;
+  onOpenFiles: () => void;
+  onOpenSettings: () => void;
+  modelSelectorDisabled?: boolean;
+}
+
+export const MainLayout = ({ 
+  children, 
+  sidebarContent, 
+  models, 
+  currentModel, 
+  onModelChange, 
+  onOpenFiles, 
+  onOpenSettings,
+  modelSelectorDisabled
+}: MainLayoutProps) => {
+  const theme = useTheme();
+  // const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const drawer = (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+       {/* Sidebar content (Spaces, History) passed from parent */}
+       {sidebarContent}
+    </Box>
+  );
+
+  return (
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <CssBaseline />
+      
+      {/* Header */}
+      <AppBar
+        position="fixed"
+        sx={{
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          bgcolor: 'background.paper',
+          color: 'text.primary',
+          boxShadow: 'none',
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          {/* Left: Hamburger & Logo */}
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 700, display: { xs: 'none', sm: 'block' } }}>
+              Lex-Tech
+            </Typography>
+          </Stack>
+
+          {/* Center: Model Selector */}
+          <Box sx={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+            <ModelSelector 
+              models={models} 
+              value={currentModel} 
+              onChange={onModelChange} 
+              disabled={modelSelectorDisabled}
+            />
+          </Box>
+
+          {/* Right: Actions */}
+          <Stack direction="row" spacing={1}>
+            <IconButton color="inherit" onClick={onOpenFiles} title="Files">
+              <FolderIcon />
+            </IconButton>
+            <IconButton color="inherit" onClick={onOpenSettings} title="Space Settings">
+              <SettingsIcon />
+            </IconButton>
+          </Stack>
+        </Toolbar>
+      </AppBar>
+
+      {/* Sidebar */}
+      <Box
+        component="nav"
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        aria-label="mailbox folders"
+      >
+        {/* Mobile Sidebar (Temporary) */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
+          sx={{
+            display: { xs: 'block', sm: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+        >
+          {drawer}
+        </Drawer>
+        
+        {/* Desktop Sidebar (Permanent) */}
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              borderRight: `1px solid ${theme.palette.divider}`,
+              bgcolor: 'background.paper',
+            },
+          }}
+          open
+        >
+          <Toolbar /> {/* Spacer for clipped sidebar (pushes content down below AppBar) */}
+          {drawer}
+        </Drawer>
+      </Box>
+
+      {/* Main Content */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          paddingTop: '64px', // Height of AppBar
+        }}
+      >
+        <Toolbar sx={{ display: { sm: 'none' } }} /> {/* Mobile spacer? No, padding top handles it or toolbar mixin */}
+         {/* Actually, if using pt: 64px, we don't need Toolbar spacer on mobile if AppBar is fixed. 
+             If AppBar is fixed, content goes behind it. 'paddingTop' handles it. 
+             However, checking standard MUI clipped drawer pattern:
+             The 'Toolbar' component inside 'main' acts as spacer. 
+             But I manually added paddingTop. I'll remove paddingTop and use Toolbar spacer if consistent.
+             Wait, standard pattern for Clipped Drawer is `zIndex.drawer + 1` for AppBar, and the Drawer sits *under* it. 
+             The main content also needs to respect the AppBar height. 
+             Using `<Toolbar />` inside `<Box component="main">` is the standard way to add that spacing.
+             But I also added specific styling. Let's use Toolbar spacer for consistency.
+         */}
+         {/* <Toolbar /> */ /* Already accounted for by p-top or toolbar spacer. 
+            Let's stick to Toolbar spacer in Main only if I remove pt.
+            I will remove pt and add Toolbar inside main.
+         */}
+        {children}
+      </Box>
+    </Box>
+  );
+};

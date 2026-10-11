@@ -1,0 +1,1 @@
+"""Vector search API endpoints."""

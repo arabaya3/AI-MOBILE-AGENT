@@ -1,0 +1,138 @@
+AI Agents/
+├── configs/
+│   └── README.md
+├── data/
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── DEVELOPMENT.md
+│   └── QUICKSTART.md
+├── logs/
+├── scripts/
+│   ├── run.sh
+│   ├── setup.sh
+│   └── test.sh
+├── src/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── concurrency/
+│   │   │   ├── __init__.py
+│   │   │   ├── async_manager.py
+│   │   │   └── thread_pool.py
+│   │   ├── exceptions/
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   └── handlers.py
+│   │   ├── memory/
+│   │   │   ├── __init__.py
+│   │   │   ├── cache.py
+│   │   │   ├── memory_manager.py
+│   │   │   └── queue.py
+│   │   ├── observability/
+│   │   │   ├── __init__.py
+│   │   │   ├── metrics.py
+│   │   │   ├── observability.py
+│   │   │   └── tracing.py
+│   │   ├── security/
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py
+│   │   │   ├── encryption.py
+│   │   │   └── rate_limiter.py
+│   │   └── settings/
+│   │       ├── __init__.py
+│   │       ├── config.py
+│   │       └── logging_config.py
+│   ├── modules/
+│   │   ├── __init__.py
+│   │   ├── agents/
+│   │   │   ├── __init__.py
+│   │   │   ├── agent_types/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── README.md
+│   │   │   └── common/
+│   │   │       ├── __init__.py
+│   │   │       ├── base_agent.py
+│   │   │       ├── llm_factory.py
+│   │   │       ├── schemas.py
+│   │   │       ├── tools.py
+│   │   │       └── utils.py
+│   │   └── apis/
+│   │       ├── __init__.py
+│   │       ├── dependencies.py
+│   │       ├── health/
+│   │       │   ├── __init__.py
+│   │       │   ├── router.py
+│   │       │   └── schemas.py
+│   │       └── v1/
+│   │           ├── __init__.py
+│   │           └── README.md
+│   └── services/
+│       ├── __init__.py
+│       ├── cloud/
+│       │   ├── __init__.py
+│       │   ├── aws/
+│       │   │   ├── __init__.py
+│       │   │   ├── auth.py
+│       │   │   └── client.py
+│       │   ├── azure/
+│       │   │   ├── __init__.py
+│       │   │   ├── auth.py
+│       │   │   └── client.py
+│       │   └── gcp/
+│       │       ├── __init__.py
+│       │       ├── auth.py
+│       │       └── client.py
+│       ├── databases/
+│       │   ├── __init__.py
+│       │   ├── neo4j/
+│       │   │   ├── __init__.py
+│       │   │   ├── auth.py
+│       │   │   ├── client.py
+│       │   │   └── queries.py
+│       │   ├── postgresql/
+│       │   │   ├── __init__.py
+│       │   │   ├── auth.py
+│       │   │   ├── client.py
+│       │   │   └── models.py
+│       │   └── redis/
+│       │       ├── __init__.py
+│       │       ├── auth.py
+│       │       └── client.py
+│       └── llm_providers/
+│           ├── __init__.py
+│           ├── anthropic/
+│           │   ├── __init__.py
+│           │   ├── auth.py
+│           │   ├── client.py
+│           │   ├── schemas.py
+│           │   └── utils.py
+│           └── openai/
+│               ├── __init__.py
+│               ├── auth.py
+│               ├── client.py
+│               ├── schemas.py
+│               └── utils.py
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── e2e/
+│   │   └── __init__.py
+│   ├── integration/
+│   │   └── __init__.py
+│   └── unit/
+│       └── __init__.py
+├── .env.example
+├── .gitignore
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── Dockerfile
+├── docker-compose.yml
+├── INSTALLATION.md
+├── Makefile
+├── PROJECT_STRUCTURE.md
+├── pyproject.toml
+└── README.md
+
+Total: 27 directories, 92 files

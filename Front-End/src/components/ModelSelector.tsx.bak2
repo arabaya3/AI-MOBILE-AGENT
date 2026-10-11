@@ -1,0 +1,87 @@
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { Button, Menu, MenuItem, Typography, Box } from '@mui/material';
+import { useState, type MouseEvent } from 'react';
+
+export interface ModelSelectorProps {
+  models: string[];
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+}
+
+export const ModelSelector = ({ models = [], value, onChange, disabled }: ModelSelectorProps) => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSelect = (model: string) => {
+    onChange(model);
+    handleClose();
+  };
+
+  return (
+    <>
+      <Button
+        id="model-selector-button"
+        aria-controls={open ? 'model-selector-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? 'true' : undefined}
+        color="inherit"
+        endIcon={<KeyboardArrowDownIcon />}
+        onClick={handleClick}
+        disabled={disabled}
+        sx={{ 
+          textTransform: 'none', 
+          fontWeight: 600,
+          color: 'text.primary',
+          borderRadius: 2,
+          px: 2,
+          backgroundColor: (theme) => theme.palette.action.hover,
+          '&:hover': {
+            backgroundColor: (theme) => theme.palette.action.selected,
+          }
+        }}
+      >
+        {value || 'Select Model'}
+      </Button>
+      <Menu
+        id="model-selector-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        MenuListProps={{
+          'aria-labelledby': 'model-selector-button',
+        }}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        sx={{ mt: 1 }}
+      >
+        {models.map((model) => (
+          <MenuItem 
+            key={model} 
+            onClick={() => handleSelect(model)} 
+            selected={model === value}
+            sx={{ minWidth: 200 }}
+          >
+            <Box>
+                <Typography variant="body2" fontWeight={500}>{model}</Typography>
+            </Box>
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
+  );
+};

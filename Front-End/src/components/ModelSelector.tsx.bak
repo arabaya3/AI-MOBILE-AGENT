@@ -1,0 +1,74 @@
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { Button, Menu, MenuItem, Typography } from '@mui/material';
+import { useState, type MouseEvent } from 'react';
+
+export interface ModelSelectorProps {
+  models: string[];
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  pricing?: any;
+  tier?: any;
+  errorText?: any;
+}
+
+export const ModelSelector = ({ models, value, onChange, disabled }: ModelSelectorProps) => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSelect = (model: string) => {
+    onChange(model);
+    handleClose();
+  };
+
+  return (
+    <>
+      <Button
+        color="inherit"
+        endIcon={<KeyboardArrowDownIcon />}
+        onClick={handleClick}
+        disabled={disabled}
+        sx={{ 
+          textTransform: 'none', 
+          fontWeight: 600,
+          color: 'text.primary',
+          borderRadius: 2,
+        }}
+      >
+        {value || 'Select Model'}
+      </Button>
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+      >
+        {models.map((model) => (
+          <MenuItem 
+            key={model} 
+            onClick={() => handleSelect(model)} 
+            selected={model === value}
+            sx={{ minWidth: 200 }}
+          >
+            <Typography variant="body2">{model}</Typography>
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
+  );
+};
