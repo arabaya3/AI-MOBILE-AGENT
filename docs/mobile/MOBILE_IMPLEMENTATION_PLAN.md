@@ -1,0 +1,408 @@
+# TEIA Mobile — Implementation Plan
+
+| | |
+|---|---|
+| Product | TEIA AI Assistant |
+| Baseline | `origin/dev` @ `a02aa7191485041981b1f166ee517195cf210482` |
+| Repository | `arabaya3/AI-MOBILE-AGENT` (no changes to any original TEIA repository) |
+| Decisions | D1–D11 resolved 2026-10-11 (§9) |
+| Current phase | Security preparation (§6, Phase S) |
+
+API evidence for every statement here is in [MOBILE_DISCOVERY.md](MOBILE_DISCOVERY.md).
+
+Every item in this plan carries one of three labels:
+
+- **[Confirmed]**: a requirement verified in the existing product or decided by the owner.
+- **[Recommended]**: an engineering proposal.
+- **[Open]**: an external dependency that is still unresolved.
+
+---
+
+## 1. Scope
+
+**[Confirmed]** The app is a native Flutter client for Android and iOS, built against the existing FastAPI backend. It covers all of the following:
+
+- Authentication.
+- Spaces.
+- Chat with streaming.
+- Model selection.
+- Documents and citations.
+- Message actions.
+- Export and share.
+- In-app notifications.
+- Requests.
+- Usage and invoices.
+- Profile, theme and language.
+- **Space administration**, which means members, roles, document permissions, approved models and tools, quotas, requests, usage and workspace system prompts (D1, D5).
+
+**[Confirmed]** The following stay on the web for v1 and are recorded in the parity matrix (§10):
+
+- Global super-admin operations.
+- Global system prompts.
+- Background push notifications (D4).
+
+**[Confirmed]** The app never holds AI-provider keys or backend secrets. The backend enforces authorization, model policy and quotas; hiding a control in the UI is never treated as enforcement.
+
+---
+
+## 2. Architecture
+
+### 2.1 Location and layout
+
+```
+mobile/
+  lib/
+    main_dev.dart / main_staging.dart / main_prod.dart
+    app/            app widget, router, theme, localization setup
+    core/
+      config/       AppConfig + release-safety validation
+      network/      ApiClient (Dio), interceptors, ApiException, SseClient
+      storage/      SecureTokenStore, Preferences
+      auth/         session state (token, expiry, current user)
+      widgets/      shared state views (loading/empty/error/offline)
+    features/
+      auth/ spaces/ chat/ documents/ notifications/ requests/ usage/ profile/ space_admin/
+        data/           DTOs, API class, repository
+        application/    Riverpod notifiers
+        presentation/   screens and widgets
+    l10n/           app_en.arb, app_ar.arb
+  test/  integration_test/
+```
+
+Widgets never call the network directly. Repositories return typed models and throw a sealed `ApiException`.
+
+### 2.2 Library choices
+
+| Concern | Choice | Justification |
+|---|---|---|
+| State and DI | `flutter_riverpod` with `riverpod_annotation` | Compile-safe providers and test overrides. `AsyncValue` maps directly onto the loading, error and data states. |
+| Routing | `go_router` | Redirect guards for auth and space selection. Deep links for password reset, invite accept and shared conversation. |
+| HTTP | `dio` | Interceptors for the `Authorization` and `X-Space-Id` headers, cancel tokens, multipart progress, and `ResponseType.stream` for SSE. |
+| SSE | In-house incremental parser over the Dio byte stream | The endpoint is a POST with headers. The parser handles arbitrary byte and UTF-8 boundaries, CRLF/LF/CR line endings, multi-line `data:` fields, comments and cancellation, and is fully unit-tested. |
+| Models and state unions | `freezed` + `json_serializable` | Used for API DTOs and for stream events and states, where exhaustive unions prevent unhandled cases. Not used for trivial classes. |
+| Token storage | `flutter_secure_storage` | iOS Keychain and Android Keystore. |
+| Preferences | `shared_preferences` | Theme, locale, last space, model and `top_k`. No secrets. |
+| Files | `file_picker`, `path_provider`, `open_filex`, `share_plus` | Downloads require the Bearer header, so files are fetched to temporary storage and then opened or shared. |
+| Markdown | `flutter_markdown_plus` | Assistant replies are Markdown. |
+| Connectivity | `connectivity_plus` | Offline banner. |
+| i18n | `flutter_localizations` + `intl` (gen-l10n) | First-party tooling with RTL support. |
+| Tests | `flutter_test`, `mocktail`, `integration_test` | |
+
+There is no Firebase in v1 (D4), no second state-management library and no local database (§5).
+
+**Compatibility (D11).** The installed toolchain is Flutter 3.41.6 / Dart 3.11.4. Flutter's own minimums are Android API 24 and iOS 13. The targets, Android 8.0 (API 26) and iOS 15, sit above both, so no increase is required by Flutter. Package minimums are re-verified when Phase 0 is scaffolded, and any package that needs a higher floor will be reported before it is adopted.
+
+### 2.3 Configuration and identity (D2, D9)
+
+| Flavor | Application ID / bundle ID | Display name | API base URL |
+|---|---|---|---|
+| dev | `com.teia.aiassistant.dev` | TEIA AI Dev | `http://10.0.2.2:8001/api/v1` (Android emulator) or `http://localhost:8001/api/v1` (iOS simulator), overridable |
+| staging | `com.teia.aiassistant.staging` | TEIA AI Staging | **[Open]** owner-controlled HTTPS URL |
+| prod | `com.teia.aiassistant` | TEIA AI | **[Open]** owner-controlled HTTPS URL |
+
+- **URL source.** The URL is supplied with `--dart-define-from-file=config/<flavor>.json`. The config files contain URLs only, never secrets.
+- **Startup validation.** `AppConfig.validate()` runs at startup. In staging, in prod, and in any release build, it rejects a non-`https` scheme, an empty host, `localhost` / `10.0.2.2` and raw IP literals. The build fails fast instead of shipping an insecure configuration.
+- **Cleartext traffic.** It is allowed only in the dev flavor: through the Android debug `network_security_config`, and through an iOS ATS exception in the Debug configuration only.
+- **Placeholders.** Domains are never invented and the production IP is never reused as staging. Missing HTTPS endpoints block release only (§8).
+- **Identifiers.** All IDs are provisional and must be checked for availability and ownership before store submission. A simple temporary icon is used until approved brand assets arrive.
+
+### 2.4 Networking rules
+
+- **Headers.** An interceptor adds `Authorization: Bearer` and `X-Space-Id`.
+- **401.** The token is cleared and the user is routed to login with a "session expired" message. There is no refresh token, which was verified, so there is no retry loop.
+- **Proactive sign-out.** Scheduled from `expires_in`, with the JWT `exp` claim as a cross-check.
+- **429.** Both the plain-text rate-limiter body and the JSON quota body map to `RateLimited` / `QuotaExceeded`.
+- **`ApiException` cases:** `Unauthorized`, `Forbidden`, `NotFound`, `Validation`, `RateLimited`, `QuotaExceeded`, `PayloadTooLarge`, `Server`, `Network`, `Timeout`.
+- **Uploads (D6).**
+  - The client validates the file type and the 25 MiB limit before sending.
+  - The receive timeout is configurable, 5 minutes by default.
+  - **Uploads are never retried automatically.** A timeout after the bytes were sent shows "status unknown — refresh documents"; the server de-duplicates by content hash.
+  - There is no fake processing percentage. Upload progress is real, and server processing is shown as an indeterminate state.
+
+### 2.5 Streaming design
+
+`ChatStreamController` consumes `Stream<ChatStreamEvent>`:
+
+| Event | Handling |
+|---|---|
+| `Meta(sessionId, sources)` | Attach the session and citations. |
+| `Delta(text)` | Append text, coalescing rebuilds per frame. |
+| `Done` | Mark complete, then refetch the session for server message IDs. |
+| `Error(detail)` | Show an inline error with retry. A detail starting with `429:` maps to a quota message. |
+| Delta text containing `[stream_error]` | Render as a failed message. The marker is removed and the content is kept, because the server stores it. |
+| Connection lost before `done` | Mark as interrupted and offer retry. |
+| Stop | Cancel the Dio request and warn that the partial answer is not saved, because the server rolls it back. |
+
+### 2.6 Security
+
+- The token lives in secure storage only and is never logged. Logging is disabled outside dev.
+- Android sets `allowBackup=false`.
+- Downloaded and exported files go to temporary storage and are cleared on sign-out.
+- Deep-link tokens are used once and never persisted.
+- No screenshot or recording blocking (D7).
+
+---
+
+## 3. Navigation and screens
+
+**Entry routing:**
+
+- Not signed in → Auth stack.
+- Signed in with no space → Space picker.
+- Otherwise → app shell: bottom navigation on phones, navigation rail on tablets.
+
+| Area | Screens |
+|---|---|
+| Auth | Login, Register, Forgot password, Reset password (deep link `…/auth?token=`) |
+| Space | Switcher sheet, Accept invite (deep link), Request access |
+| Chat | Sessions list → Conversation (composer, model selector, document chips, `top_k`), message actions (copy, regenerate, edit-and-resend, branch, react), citation sheet → document viewer, summary, export, share link management (create / copy / revoke) |
+| Documents | Accessible list, upload (validation and progress), detail (open, chunks) |
+| Notifications | List, unread badge, mark read / all, delete, link navigation |
+| Account | Profile, change password, preferences (theme, app language, response language, industry), usage and invoice PDF, my requests, personal instructions (only if the backend scopes them to the user, §D5), sign out |
+| Space admin (role-gated in the UI, enforced by the backend) | Members and roles, upload rights, document permissions, allowed models and tools, quotas and overrides, requests review, invites, space usage, workspace system prompts |
+
+**Required states:**
+
+- Loading, with skeletons and pull-to-refresh.
+- Empty, with the primary action.
+- Error, with retry and the safe server `detail`.
+- Session expired.
+- Offline, as a banner; sending and uploading are disabled.
+- Interrupted stream.
+- Forbidden.
+
+**Localization (D3).**
+
+- Arabic and English UI, with English as the fallback.
+- Full RTL mirroring via the locale.
+- Each message gets its own direction from its first strong character, so mixed-language messages render correctly.
+- Directional (start/end) layout throughout.
+- Text scaling up to 200% without clipping.
+- Translations are written and reviewed during implementation. Uncertain terminology is collected in `mobile/l10n/REVIEW.md` for owner sign-off.
+
+**Accessibility.**
+
+- Semantics labels.
+- 48 dp touch targets.
+- WCAG AA contrast in both themes.
+- `SafeArea` and a keyboard-aware composer.
+- Reduced motion is respected.
+
+---
+
+## 4. Testing and quality gates
+
+Every mobile PR must pass these gates:
+
+1. `dart format --set-exit-if-changed`
+2. `flutter analyze`
+3. `flutter test`
+4. Android build
+5. iOS build, on macOS CI only
+
+iOS is never reported as verified from this Windows environment.
+
+**Mobile tests:**
+
+- **Unit tests:**
+  - The SSE parser: split bytes, split UTF-8, CRLF, multi-line data, comments, `[stream_error]`, `error` events, a missing `done`, and cancellation.
+  - Config validation.
+  - Error mapping.
+  - Token-expiry scheduling.
+  - Repositories against a mocked Dio.
+- **Widget tests:** every state of every screen, RTL goldens, and role gating.
+- **Integration tests:** run against a local docker-compose backend with seeded data. They never touch production.
+
+**Backend tests:**
+
+- Every contract change ships with pytest coverage.
+- The security suite runs in `.github/workflows/backend-tests.yml`. It uses a disposable Postgres service container, read-only permissions and no secrets, and has no deployment steps.
+
+---
+
+## 5. Offline
+
+v1 is online-first, with in-memory caching of the last session list and the open conversation. Sending, uploading and admin actions require connectivity. There is no local database.
+
+---
+
+## 6. Phased delivery
+
+All work goes on feature branches from `origin/dev`, through PRs that target `dev`. There is no direct push, no auto-merge and no deployment (D8).
+
+### Phase S — Security preparation (current)
+- **Scope:**
+  - Replace session-id sharing with hashed, expiring, revocable share tokens (R2).
+  - Fix password recovery so tokens go by email only, with a generic response and single-use hashed tokens (R3).
+  - Explicit SQL migration.
+  - Regression tests and backend CI.
+  - Web callers updated.
+  - Narrow `deploy.yml` fix: mobile-only pushes cannot deploy.
+- **Acceptance:**
+  - A session ID never grants access.
+  - Unshared, expired, revoked and invalid tokens all return 404.
+  - Reset tokens never appear in responses or logs.
+  - Known and unknown accounts get identical responses.
+  - Replay and expiry are rejected.
+  - The tests pass in a clean container.
+  - No production system was touched.
+
+### Phase 0 — Flutter foundation and CI
+- **Scope:** `mobile/` with the three flavors and identifiers, config validation, theme, en/ar localization scaffolding with RTL, router, ApiClient and error model, secure storage, shared state widgets, and the `mobile.yml` workflow (Ubuntu for Android, macOS for iOS; no secrets).
+- **Acceptance:**
+  - The gates are green.
+  - The dev flavor runs on the Android emulator against the local backend.
+  - A release build with an `http` or IP URL fails validation, proven by a test.
+  - The iOS build passes on macOS CI, or is reported as unverified.
+
+### Phase 1 — Authentication and spaces
+- **Scope:** login, register, forgot/reset password with a deep link, session expiry, sign-out, space switcher with `X-Space-Id`, accept invite, request access. Backend: R4 (`GET /auth/me`) and S1.
+- **Acceptance:**
+  - Expiry always lands on login with no loops.
+  - Switching spaces refreshes all space-scoped data.
+  - The token appears in secure storage only.
+  - Backend tests cover `/auth/me` and the change-password status code.
+
+### Phase 2 — Chat and streaming
+- **Scope:** sessions, conversation, SSE streaming, stop and retry, model selector, message actions, summary, Markdown, mixed-direction rendering, share-link management. Backend: S2, S5, S6.
+- **Acceptance:**
+  - Rendering is incremental.
+  - The error, `[stream_error]`, quota and interrupted cases each have a distinct UI state.
+  - Reactions and branching work right after streaming.
+  - The SSE parser has full unit coverage.
+  - The integration test for login → stream → history passes.
+
+### Phase 3 — Documents and citations
+- **Scope:**
+  - List documents.
+  - Upload with 25 MiB and type validation.
+  - Document selection for chat, with `top_k`.
+  - Citation sheet.
+  - Authenticated open of documents.
+  - Chunks view.
+- **Backend:**
+  - S3: enforce 25 MiB while streaming the request body, including chunked requests without `Content-Length`, and return 413.
+  - A configurable processing timeout.
+  - S4: persist citations.
+  - S8: chunk permission check.
+- **Acceptance:**
+  - Oversized files are rejected on both client and server.
+  - Timeouts never trigger a duplicate upload.
+  - Citations survive a restart.
+  - The integration test for upload → ask → open citation passes.
+
+### Phase 4 — Remaining user features
+- **Scope:** in-app notifications (list, badge, foreground SSE while open, refresh on resume), my requests, usage and invoice PDF, export through the share sheet, profile and preferences, and personal instructions as scoped by D5.
+- **Acceptance:** every end-user item in §10 is marked "Mobile v1" and works.
+
+### Phase 5 — Space administration
+- **Scope:** all D1 space-admin items, plus workspace system prompts as specified by D5.
+- **Backend:**
+  - Verify each route's authorization with tests.
+  - Add space-scoped system-prompt storage with a space-admin check.
+  - S7 fix.
+- **Acceptance:**
+  - A non-admin receives 403 from the backend for every admin route (tested).
+  - The UI hides the controls as well.
+
+### Phase 6 — Verification and release preparation
+- **Scope:** full integration suite on Android (emulator and a device) and iOS (macOS), plus accessibility, RTL and performance passes, icons and splash, signing outside the repository, store metadata, privacy forms, and production HTTPS configuration.
+- **Acceptance:**
+  - Signed release builds.
+  - No cleartext traffic and no secrets in the binary.
+  - Release checklist signed off.
+  - Blocked until the §8 dependencies are resolved.
+
+---
+
+## 7. Backend change register
+
+| ID | Change | Phase | Status |
+|---|---|---|---|
+| R1 | Owner-controlled HTTPS endpoints | 6 | **External dependency** |
+| R2 | Secure share tokens with expiry and revocation | S | **Done in this phase** |
+| R3 | Email-only reset tokens, generic response, single use | S | **Done in this phase** |
+| R4 | `GET /auth/me` | 1 | Planned |
+| S1 | change-password returns 400, not 401, for a wrong password | 1 | Planned |
+| S2 | Rename and delete sessions | 2 | Planned |
+| S3 | 25 MiB streaming upload limit (413) and processing timeout | 3 | Planned |
+| S4 | Persist citations | 3 | Planned |
+| S5 | `message_id` in `done` | 2 | Planned |
+| S6 | Provider failure as an `error` event | 2 | Planned |
+| S7 | Super-admin usage route order (web feature) | 5 | Planned |
+| S8 | Per-user check on `/documents/{id}/chunks` | 3 | Planned |
+| S9 | Workspace system prompts, space-admin only (D5) | 5 | Planned |
+
+Deferred: refresh tokens, push device registration (D4), document delete, async upload status, stream cancellation, pagination.
+
+---
+
+## 8. Release dependencies and risks
+
+**External release dependencies** (none of them block local implementation):
+
+- Staging and production HTTPS endpoints under owner control (D2).
+- Availability and ownership of the `com.teia.aiassistant*` identifiers on Google Play and the Apple Developer account (D9).
+- Approved brand assets (D9).
+- Owner review of flagged Arabic terminology (D3).
+- A macOS environment for iOS builds and signing.
+- Configured SMTP for password-reset email in each environment. Without it, reset requests are accepted silently and nothing is sent, by design.
+- Rotation of the provider keys that were committed to the upstream repository history.
+
+**Risks:**
+
+- **Synchronous uploads.** Mitigated by the 25 MiB limit, the timeout, and no auto-retry.
+- **In-memory notification broadcaster.** It only reaches clients on the same worker, so mobile treats SSE as best-effort and refreshes the list on resume.
+- **Production deploys on merge.** A merge of a backend PR into `dev` still triggers `deploy.yml`, which is pre-existing behavior. Only mobile-only changes are excluded. Merges remain owner-controlled.
+- **Startup DDL.** The backend runs `Base.metadata.create_all` at startup, so a deployment would also create `chat_shares` implicitly. The explicit SQL migration is the reviewed path, and it is idempotent.
+
+---
+
+## 9. Resolved decisions
+
+| ID | Decision |
+|---|---|
+| D1 | Mobile includes space administration: members, roles, document permissions, approved models and tools, quotas, requests, usage. Global super-admin operations stay on the web for v1. The backend enforces all authorization. |
+| D2 | Development uses the local backend, with HTTP allowed in dev only. Staging and production use owner-controlled HTTPS; no invented domains and no reuse of the production IP. Release builds reject insecure configuration. Missing endpoints are a release dependency. |
+| D3 | Arabic and English, with English as the fallback. Full localization, RTL, mixed-language messages and text scaling. Uncertain terms are flagged for owner review. |
+| D4 | Authenticated in-app notifications with unread state. Background push is deferred, with no Firebase in v1. |
+| D5 | Workspace system prompts are a space-admin feature. Global prompts belong to web super-admins. Personal instructions stay user-scoped. **Verified:** today `GET/PUT /system-prompts` is per-user with no role check and no space scope, so workspace prompts need backend work (S9). |
+| D6 | 25 MiB per file, enforced by the server while reading the body, with matching client validation. Processing timeout is configurable, 5 minutes by default. No automatic retries. File types and server-side validation are unchanged. No fake processing percentage. |
+| D7 | No screenshot protection in v1. |
+| D8 | Feature branches from `origin/dev`, PRs to `dev`, no direct push, no auto-merge, no deployment. The local `Front-End/package-lock.json` change is preserved and stays uncommitted. `deploy.yml` ignores pushes that only touch `mobile/**` or `docs/mobile/**`. |
+| D9 | Display name "TEIA AI". IDs `com.teia.aiassistant`, with the suffixes `.dev` and `.staging`. All provisional. Temporary icon. |
+| D10 | Backend changes go into `arabaya3/AI-MOBILE-AGENT` on feature branches from `dev`. No original TEIA repository is modified. |
+| D11 | Android 8.0+ (API 26) and iOS 15+. Compatible with Flutter 3.41.6; package floors are checked in Phase 0. |
+
+---
+
+## 10. Feature parity matrix
+
+| Capability | Web (dev) | Mobile v1 | Notes |
+|---|---|---|---|
+| Login / register / logout | ✔ | ✔ | |
+| Forgot / reset password | ✔ (fixed in S) | ✔ | Email link, deep link |
+| Email verification | ✘ (model only) | ✘ | Not implemented in the backend |
+| Profile view and edit | Local only | ✔ (after R4) | |
+| Change password | ✔ | ✔ | |
+| Space list / switch / accept invite / request access | ✔ | ✔ | |
+| Chat sessions, history, streaming | ✔ | ✔ | |
+| Rename / delete session | ✘ | ✔ (after S2) | |
+| Model selection | ✔ | ✔ | Server policy |
+| Copy / regenerate / edit / branch / react | Partial | ✔ | |
+| Citations | ✔ (ephemeral) | ✔ | Persisted after S4 |
+| Summary | ✔ | ✔ | |
+| Export md/json | ✔ | ✔ | Share sheet |
+| Share links (create / revoke) | ✔ (create; fixed in S) | ✔ | Revocation UI on mobile; web gets the API |
+| Document upload / list / open / chunks | ✔ | ✔ | 25 MiB |
+| Document delete | ✘ | ✘ | No backend endpoint |
+| In-app notifications | Broken stream | ✔ | |
+| Background push | ✘ | ✘ (deferred, D4) | |
+| Requests (space) | ✔ | ✔ | |
+| Usage and invoice PDF | ✔ | ✔ | |
+| Personal instructions | ✔ (per-user prompts) | ✔ if kept user-scoped (D5) | |
+| **Space admin**: members, roles, upload rights, document permissions, models/tools, quotas, requests review, invites, usage, dashboard | ✔ | ✔ | D1 |
+| Workspace system prompts | ✘ (per-user only) | ✔ (after S9) | D5 |
+| **Super admin**: all spaces, global usage, global admin dashboard, global user requests, user list | ✔ | ✘ **Web only in v1** | D1 |
+| Global system prompts | ✔ (as per-user today) | ✘ **Web only** | D5 |
+| Create space (global admin) | ✔ | ✘ **Web only in v1** | Global operation |

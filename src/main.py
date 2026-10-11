@@ -1,5 +1,6 @@
 """Main entry point for the Agentic AI application."""
 
+import logging
 import os
 
 os.environ.setdefault("LANGFUSE_OTEL_ENABLED", "false")
@@ -18,6 +19,7 @@ from src.core.settings.logging_config import setup_logging
 from src.modules.apis.health.router import router as health_router
 from src.modules.apis.v1.auth.router import router as auth_router
 from src.modules.apis.v1.chat.router import router as chat_router
+from src.modules.apis.v1.sharing.router import ShareTokenLogFilter, redact_share_path, router as chat_sharing_router
 from src.modules.apis.v1.documents import router as documents_router
 from src.modules.apis.v1.spaces.router import router as spaces_router
 from src.modules.apis.v1.system_prompts.router import router as system_prompts_router
@@ -64,6 +66,8 @@ async def lifespan(app: FastAPI):
 
 
 # Initialize FastAPI app
+logging.getLogger("uvicorn.access").addFilter(ShareTokenLogFilter())
+
 app = FastAPI(
     title="TEIA AI Agents API",
     description="Production-ready Agentic AI System with multi-agent orchestration",
@@ -86,10 +90,11 @@ async def request_middleware(request: Request, call_next):
     import time
 
     # Rate limiting (apply to API routes only)
-    if request.url.path.startswith("/api/") and settings.RATE_LIMIT_ENABLED:
+    path = redact_share_path(request.url.path)
+    if path.startswith("/api/") and settings.RATE_LIMIT_ENABLED:
         limit = settings.RATE_LIMIT_PER_MINUTE or settings.MAX_REQUESTS_PER_MINUTE
         client_ip = request.client.host if request.client else "unknown"
-        key = f"rate:{client_ip}:{request.url.path}"
+        key = f"rate:{client_ip}:{path}"
         result = await rate_limiter.hit(key, limit)
         if not result.allowed:
             return FastAPIResponse(
@@ -106,17 +111,17 @@ async def request_middleware(request: Request, call_next):
 
     try:
         start = time.perf_counter()
-        logger.debug("HTTP request start", extra={"method": request.method, "path": request.url.path})
+        logger.debug("HTTP request start", extra={"method": request.method, "path": path})
         response = await call_next(request)
         elapsed = time.perf_counter() - start
         if settings.ENABLE_METRICS:
-            record_http_request(request.method, request.url.path, response.status_code, elapsed)
+            record_http_request(request.method, path, response.status_code, elapsed)
         response.headers["X-Process-Time"] = f"{elapsed:.6f}"
         logger.info(
             "HTTP request complete",
             extra={
                 "method": request.method,
-                "path": request.url.path,
+                "path": path,
                 "status": response.status_code,
                 "elapsed_s": round(elapsed, 6),
             },
@@ -125,7 +130,7 @@ async def request_middleware(request: Request, call_next):
     except Exception as exc:  # noqa: BLE001
         logger.error(
             "HTTP request failed",
-            extra={"method": request.method, "path": request.url.path, "error": str(exc)},
+            extra={"method": request.method, "path": path, "error": str(exc)},
         )
         raise
 
@@ -133,6 +138,7 @@ async def request_middleware(request: Request, call_next):
 # Include routers
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(chat_sharing_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")
 app.include_router(spaces_router, prefix="/api/v1")

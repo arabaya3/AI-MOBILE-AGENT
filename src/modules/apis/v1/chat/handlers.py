@@ -1744,36 +1744,3 @@ async def handle_usage_invoice_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
-
-
-async def handle_share_session(session_id: str, user: User, db: AsyncSession, *, space_id: str) -> dict:
-    """Create a shareable link for a conversation."""
-    session = await chat_service.get_session(db, session_id)
-    if not session or session.user_id != user.id or session.space_id != space_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    
-    # Simple implementation: use session_id as share_id
-    # In production, you might want a separate share_id with expiration
-    return {
-        "share_id": session_id,
-        "share_url": f"/api/v1/chat/shared/{session_id}",
-    }
-
-
-async def handle_get_shared_session(share_id: str, db: AsyncSession) -> ChatSessionDetail:
-    """Get a shared conversation."""
-    session = await chat_service.get_session(db, share_id)
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shared session not found")
-    
-    history = await chat_service.get_history(db, session_id=session.id)
-    
-    return ChatSessionDetail(
-        session=ChatSessionSummary(
-            id=session.id,
-            title=session.title or "Shared Conversation",
-            created_at=session.created_at,
-            updated_at=session.updated_at,
-        ),
-        history=[ConversationMessage.model_validate(msg) for msg in history],
-    )

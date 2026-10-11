@@ -101,13 +101,20 @@ class ForgotPasswordResponse(BaseModel):
     """Response after initiating password reset."""
 
     message: str
-    reset_token: Optional[str] = None
+
+
+class ValidateResetTokenRequest(BaseModel):
+    token: str = Field(..., min_length=1, max_length=256)
+
+
+class ValidateResetTokenResponse(BaseModel):
+    valid: bool
 
 
 class ResetPasswordRequest(BaseModel):
     """Reset an account password via provided token."""
 
-    token: str
+    token: str = Field(..., min_length=1, max_length=256)
     new_password: str = Field(..., min_length=8)
 
 

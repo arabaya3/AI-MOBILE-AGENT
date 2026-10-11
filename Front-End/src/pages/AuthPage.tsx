@@ -203,15 +203,9 @@ export const AuthPage = () => {
     try {
       setSubmitting(true);
       const response = await requestPasswordReset(resetForm.email);
-      if (response.reset_token) {
-        setResetForm((prev) => ({ ...prev, token: response.reset_token ?? prev.token }));
-        setFeedback({ type: "success", message: "Reset token created. Continue to set a new password." });
-        setActiveTab("reset-final");
-      } else {
-        setFeedback({ type: "success", message: response.message });
-      }
+      setFeedback({ type: "success", message: response.message });
     } catch (error) {
-      setFeedback({ type: "error", message: "Could not request reset token." });
+      setFeedback({ type: "error", message: "Could not request a password reset." });
     } finally {
       setSubmitting(false);
     }
@@ -590,7 +584,7 @@ export const AuthPage = () => {
                 {activeTab === "reset-request" && (
                   <Stack spacing={2}>
                      <Typography variant="body2" color="text.secondary">
-                        Enter your email to receive a password reset token.
+                        Enter your email to receive a password reset link.
                       </Typography>
                     <TextField
                       label="Email"

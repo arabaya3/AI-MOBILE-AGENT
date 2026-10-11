@@ -609,11 +609,11 @@ const ChatPage = ({ toggleTheme, currentPalette: _currentPalette, onChangePalett
   const handleShareConversation = async () => {
     if (!activeSessionId) return;
     try {
-      const { shareConversation } = await import("../api/share");
+      const { buildShareUrl, shareConversation } = await import("../api/share");
       const { data } = await shareConversation(activeSessionId);
-      const shareUrl = `${window.location.origin}/api/v1${data.share_url}`;
-      await navigator.clipboard.writeText(shareUrl);
-      setSnackbar({ severity: "success", message: "Share link copied to clipboard." });
+      await navigator.clipboard.writeText(buildShareUrl(data.token));
+      const expires = new Date(data.expires_at).toLocaleDateString();
+      setSnackbar({ severity: "success", message: `Share link copied. It expires on ${expires}.` });
     } catch (error) {
       setSnackbar({ severity: "error", message: extractErrorMessage(error, "Failed to create share link.") });
     }

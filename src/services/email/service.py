@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
+from urllib.parse import urlencode
 
 from src.core.settings.config import settings
 
@@ -106,7 +107,7 @@ class EmailService:
 
     def send_password_reset_email(self, to_email: str, reset_token: str, user_name: Optional[str] = None) -> bool:
         """Send password reset link."""
-        reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+        reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/auth?{urlencode({'token': reset_token})}"
         
         subject = "Reset your password"
         

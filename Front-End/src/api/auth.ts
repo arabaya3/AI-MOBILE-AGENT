@@ -45,7 +45,6 @@ export interface ForgotPasswordRequest {
 
 export interface ForgotPasswordResponse {
   message: string;
-  reset_token?: string;
 }
 
 export interface ResetPasswordRequest {

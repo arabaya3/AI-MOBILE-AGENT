@@ -2,11 +2,12 @@
 
 from typing import Optional
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.security.auth import create_access_token
 from src.core.settings.config import settings
+from src.core.settings.logging import logger
 from src.modules.apis.v1.auth.schemas import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
@@ -18,9 +19,12 @@ from src.modules.apis.v1.auth.schemas import (
     TokenResponse,
     UserResponse,
     UserRole,
+    ValidateResetTokenRequest,
+    ValidateResetTokenResponse,
 )
 from src.modules.apis.v1.auth.service import auth_service
 from src.services.databases.postgresql.models import User
+from src.services.email.service import email_service
 
 
 async def handle_signup(
@@ -71,18 +75,27 @@ async def handle_login(payload: LoginRequest, db: AsyncSession) -> TokenResponse
     return TokenResponse(access_token=token, expires_in=expires_in)
 
 
-async def handle_forgot_password(payload: ForgotPasswordRequest, db: AsyncSession) -> ForgotPasswordResponse:
-    """Initiate password reset and return opaque token for local use."""
+FORGOT_PASSWORD_MESSAGE = "If an account exists for this email, a password reset link has been sent."
+
+
+async def handle_forgot_password(
+    payload: ForgotPasswordRequest, db: AsyncSession, background_tasks: BackgroundTasks
+) -> ForgotPasswordResponse:
+    """Issue a reset link by email; the response never reveals whether the account exists."""
 
     user = await auth_service.get_user_by_email(db, payload.email)
-    if user is None:
-        # Do not leak which emails exist
-        return ForgotPasswordResponse(message="If the email exists, a reset token has been created.")
-    token = await auth_service.create_password_reset_token(db, user)
-    return ForgotPasswordResponse(
-        message="Reset token created. Provide it to /reset-password to complete the flow.",
-        reset_token=token,
-    )
+    if user is not None and user.is_active:
+        if not email_service.enabled:
+            logger.warning("Password reset requested but email delivery is disabled", extra={"user_id": user.id})
+        else:
+            token = await auth_service.create_password_reset_token(db, user)
+            await db.commit()
+            background_tasks.add_task(email_service.send_password_reset_email, user.email, token, user.first_name)
+    return ForgotPasswordResponse(message=FORGOT_PASSWORD_MESSAGE)
+
+
+async def handle_validate_reset_token(payload: ValidateResetTokenRequest, db: AsyncSession) -> ValidateResetTokenResponse:
+    return ValidateResetTokenResponse(valid=await auth_service.is_reset_token_valid(db, payload.token))
 
 
 async def handle_reset_password(payload: ResetPasswordRequest, db: AsyncSession) -> dict[str, str]:

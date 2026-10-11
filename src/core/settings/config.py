@@ -152,6 +152,14 @@ class Settings(BaseSettings):
     # Frontend URL for email links
     FRONTEND_URL: str = "http://localhost:5174"
 
+    # Password reset
+    PASSWORD_RESET_TTL_MINUTES: int = 60
+
+    # Conversation sharing
+    CHAT_SHARE_ENABLED: bool = True
+    CHAT_SHARE_DEFAULT_TTL_HOURS: int = 168
+    CHAT_SHARE_MAX_TTL_HOURS: int = 720
+
     # Neo4j
     NEO4J_URI: str = "bolt://localhost:7687"
     NEO4J_USER: str = "neo4j"

@@ -8,13 +8,19 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.security.encryption import hash_password, verify_password
+from src.core.settings.config import settings
 from src.services.databases.postgresql.models import PasswordResetToken, User
 
-RESET_TOKEN_TTL_HOURS = 1
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class AuthService:
@@ -81,34 +87,46 @@ class AuthService:
         await db.flush()
 
     async def create_password_reset_token(self, db: AsyncSession, user: User) -> str:
+        await self._invalidate_reset_tokens(db, user.id)
         token = secrets.token_urlsafe(32)
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
-        record = PasswordResetToken(
-            user_id=user.id,
-            token_hash=token_hash,
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=RESET_TOKEN_TTL_HOURS),
+        db.add(
+            PasswordResetToken(
+                user_id=user.id,
+                token_hash=_hash_token(token),
+                expires_at=_utcnow() + timedelta(minutes=settings.PASSWORD_RESET_TTL_MINUTES),
+            )
         )
-        db.add(record)
         await db.flush()
         return token
 
+    async def _find_valid_reset_token(
+        self, db: AsyncSession, token: str, *, for_update: bool = False
+    ) -> Optional[PasswordResetToken]:
+        stmt = select(PasswordResetToken).where(PasswordResetToken.token_hash == _hash_token(token))
+        if for_update:
+            stmt = stmt.with_for_update()
+        record = (await db.execute(stmt)).scalar_one_or_none()
+        if record is None or record.used or record.expires_at <= _utcnow():
+            return None
+        return record
+
+    async def is_reset_token_valid(self, db: AsyncSession, token: str) -> bool:
+        return await self._find_valid_reset_token(db, token) is not None
+
     async def reset_password(self, db: AsyncSession, *, token: str, new_password: str) -> None:
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
-        stmt = select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
-        result = await db.execute(stmt)
-        reset_token = result.scalar_one_or_none()
-        if (
-            reset_token is None
-            or reset_token.used
-            or reset_token.expires_at < datetime.now(timezone.utc)
-        ):
+        record = await self._find_valid_reset_token(db, token, for_update=True)
+        user = await self.get_user_by_id(db, record.user_id) if record else None
+        if record is None or user is None or not user.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
-        user = await self.get_user_by_id(db, reset_token.user_id)
-        if user is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         await self.set_user_password(db, user, new_password)
-        reset_token.used = True
-        await db.flush()
+        await self._invalidate_reset_tokens(db, user.id)
+
+    async def _invalidate_reset_tokens(self, db: AsyncSession, user_id: str) -> None:
+        await db.execute(
+            update(PasswordResetToken)
+            .where(PasswordResetToken.user_id == user_id, PasswordResetToken.used.is_(False))
+            .values(used=True)
+        )
 
 
 auth_service = AuthService()
