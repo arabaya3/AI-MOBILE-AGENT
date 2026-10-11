@@ -6,7 +6,7 @@
 | Baseline | `origin/dev` @ `a02aa7191485041981b1f166ee517195cf210482` |
 | Repository | `arabaya3/AI-MOBILE-AGENT` (no changes to any original TEIA repository) |
 | Decisions | D1–D11 resolved 2026-10-11 (§9) |
-| Current phase | Security preparation (§6, Phase S) |
+| Current phase | Phase 0 complete (§6). Phase S merged in `180a1de`. |
 
 API evidence for every statement here is in [MOBILE_DISCOVERY.md](MOBILE_DISCOVERY.md).
 
@@ -79,7 +79,7 @@ Widgets never call the network directly. Repositories return typed models and th
 | Routing | `go_router` | Redirect guards for auth and space selection. Deep links for password reset, invite accept and shared conversation. |
 | HTTP | `dio` | Interceptors for the `Authorization` and `X-Space-Id` headers, cancel tokens, multipart progress, and `ResponseType.stream` for SSE. |
 | SSE | In-house incremental parser over the Dio byte stream | The endpoint is a POST with headers. The parser handles arbitrary byte and UTF-8 boundaries, CRLF/LF/CR line endings, multi-line `data:` fields, comments and cancellation, and is fully unit-tested. |
-| Models and state unions | `freezed` + `json_serializable` | Used for API DTOs and for stream events and states, where exhaustive unions prevent unhandled cases. Not used for trivial classes. |
+| Models and state unions | Dart 3 `sealed` classes; `freezed` + `json_serializable` when API DTOs arrive (Phase 1+) | Phase 0 needs only small exhaustive unions (`ApiException`, `ChatStreamEvent`), and sealed classes cover them without code generation. Freezed will be added once copyWith/equality on DTOs saves real code. |
 | Token storage | `flutter_secure_storage` | iOS Keychain and Android Keystore. |
 | Preferences | `shared_preferences` | Theme, locale, last space, model and `top_k`. No secrets. |
 | Files | `file_picker`, `path_provider`, `open_filex`, `share_plus` | Downloads require the Bearer header, so files are fetched to temporary storage and then opened or shared. |
@@ -90,7 +90,7 @@ Widgets never call the network directly. Repositories return typed models and th
 
 There is no Firebase in v1 (D4), no second state-management library and no local database (§5).
 
-**Compatibility (D11).** The installed toolchain is Flutter 3.41.6 / Dart 3.11.4. Flutter's own minimums are Android API 24 and iOS 13. The targets, Android 8.0 (API 26) and iOS 15, sit above both, so no increase is required by Flutter. Package minimums are re-verified when Phase 0 is scaffolded, and any package that needs a higher floor will be reported before it is adopted.
+**Compatibility (D11).** The installed toolchain is Flutter 3.41.6 / Dart 3.11.4. Flutter's own minimums are Android API 24 and iOS 13. The targets, Android 8.0 (API 26) and iOS 15, sit above both, so no increase is required by Flutter. **Verified in Phase 0:** every chosen package resolves and builds with Android `minSdk = 26` and an iOS 15 deployment target. Two newer major versions need Dart ≥ 3.12, which is a newer SDK than the pinned one: Riverpod 3.4 and go_router 18. The resolved versions are therefore Riverpod **3.3.2**, go_router **17.5**, Dio **5.11** and flutter_secure_storage **11.2**. Upgrading means raising the pinned Flutter SDK, which is a deliberate later step.
 
 ### 2.3 Configuration and identity (D2, D9)
 
@@ -254,6 +254,46 @@ All work goes on feature branches from `origin/dev`, through PRs that target `de
   - The dev flavor runs on the Android emulator against the local backend.
   - A release build with an `http` or IP URL fails validation, proven by a test.
   - The iOS build passes on macOS CI, or is reported as unverified.
+
+**Phase 0 results (2026-10-11, branch `feature/mobile-foundation`):**
+
+Implemented:
+- **Project:** a `mobile/` Flutter project with Android and iOS targets only.
+- **Flavors:**
+  - `dev`, `staging` and `prod` flavors with the identifiers `com.teia.aiassistant[.dev|.staging]`, on Android (`productFlavors`) and on iOS (`Debug/Release/Profile-<flavor>` configurations and schemes).
+  - Minimums: Android API 26 and iOS 15.0.
+- **Configuration:**
+  - Typed `AppConfig` with startup validation. Release builds and staging/prod reject `http`, IP literals and local hosts.
+  - Dev allows cleartext only to local development hosts. The Android dev network-security config and the iOS dev-only ATS build phase match this.
+- **Networking:**
+  - `ApiClient` (Dio) with the Bearer and `X-Space-Id` headers, three request kinds (`authenticated`, `public`, `credentialCheck`), timeouts, cancellation, and normalized `ApiException` types.
+  - Errors handled: FastAPI string detail, FastAPI validation arrays, plain-text versus JSON 429, transport failures.
+- **Session expiry:** `SessionManager` ends the session once even when many 401s arrive together. It ignores stale tokens and never retries. A `TokenStore` abstraction has a secure implementation and an in-memory one for tests.
+- **Streaming:**
+  - Incremental `SseParser`, following the WHATWG rules: arbitrary byte and UTF-8 boundaries, CR/LF/CRLF line endings, multi-line data, comments and ids, a BOM, and cancellation propagated to the source.
+  - `ChatStreamDecoder` for `meta`, `delta` (including the `[stream_error]` marker), `done` and `error` (including quota errors).
+- **UI foundation:**
+  - Arabic and English localization with English as the fallback, a persisted locale choice, RTL, and per-message direction for mixed content.
+  - Light and dark themes with neutral surfaces and one accent, 48 dp targets, and AA contrast.
+  - Shared state widgets.
+  - An honest preview screen: upcoming destinations are disabled and labelled "Not available yet", and developer details appear only in dev debug builds.
+- **CI:** `mobile.yml` with read-only permissions and no secrets. It runs on PRs and on pushes to `dev` that touch `mobile/**` or the workflow itself. It checks formatting, analysis, tests, generated localizations, the Android dev debug APK, and an iOS simulator build on macOS without signing.
+
+Verified locally on Windows:
+- `dart format --set-exit-if-changed`: clean.
+- `flutter analyze`: no issues.
+- `flutter test`: 67 tests passing.
+- `flutter build apk --debug --flavor dev`: succeeds.
+- **On the Pixel 5 emulator (API 36), at a compact 360×760 dp size:**
+  - Launch, English/light rendering, switching to Arabic/dark, RTL layout and mixed-direction samples.
+  - The choices persist across a restart.
+  - Screenshots are in `docs/mobile/screenshots/phase0/`.
+
+Not verified:
+- iOS on this Windows machine; that is left to the macOS CI job.
+- Any backend integration, since no backend calls exist yet.
+
+Intentionally deferred: login, chat, uploads, administration, and Freezed DTOs. These belong to Phases 1–5.
 
 ### Phase 1 — Authentication and spaces
 - **Scope:** login, register, forgot/reset password with a deep link, session expiry, sign-out, space switcher with `X-Space-Id`, accept invite, request access. Backend: R4 (`GET /auth/me`) and S1.
