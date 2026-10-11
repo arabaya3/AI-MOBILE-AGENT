@@ -8,6 +8,7 @@ on:
       - "migrations/**"
       - "pyproject.toml"
       - ".github/workflows/backend-tests.yml"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 permissions:
