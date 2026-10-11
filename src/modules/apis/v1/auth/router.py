@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from .handlers import (
     handle_login,
     handle_reset_password,
     handle_signup,
+    handle_validate_reset_token,
 )
 from .schemas import (
     ForgotPasswordRequest,
@@ -27,6 +28,8 @@ from .schemas import (
     TokenResponse,
     UserListResponse,
     UserResponse,
+    ValidateResetTokenRequest,
+    ValidateResetTokenResponse,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -84,11 +87,21 @@ async def token(
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 async def forgot_password(
     payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> ForgotPasswordResponse:
     """Start the password reset flow."""
 
-    return await handle_forgot_password(payload, db)
+    return await handle_forgot_password(payload, db, background_tasks)
+
+
+@router.post("/reset-password/validate", response_model=ValidateResetTokenResponse)
+async def validate_reset_token(
+    payload: ValidateResetTokenRequest, db: AsyncSession = Depends(get_db)
+) -> ValidateResetTokenResponse:
+    """Check whether a reset token is still usable without consuming it."""
+
+    return await handle_validate_reset_token(payload, db)
 
 
 @router.post("/reset-password")

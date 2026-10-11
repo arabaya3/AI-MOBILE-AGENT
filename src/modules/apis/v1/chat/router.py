@@ -252,33 +252,3 @@ async def usage_invoice_pdf(
     space_id: str = Depends(get_current_space_id),
 ):
     return await handle_usage_invoice_pdf(current_user, db, space_id=space_id, days=days)
-
-
-@router.post(
-    "/sessions/{session_id}/share",
-    response_model=dict,
-    summary="Create a shareable link for a conversation",
-)
-async def share_session(
-    session_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    space_id: str = Depends(get_current_space_id),
-):
-    """Create a shareable link for a conversation."""
-    from .handlers import handle_share_session
-    return await handle_share_session(session_id, current_user, db, space_id=space_id)
-
-
-@router.get(
-    "/shared/{share_id}",
-    response_model=ChatSessionDetail,
-    summary="View a shared conversation",
-)
-async def get_shared_session(
-    share_id: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """View a shared conversation without authentication."""
-    from .handlers import handle_get_shared_session
-    return await handle_get_shared_session(share_id, db)

@@ -5,6 +5,9 @@ on:
     branches:
       - dev
       - main
+    paths-ignore:
+      - "mobile/**"
+      - "docs/mobile/**"
   workflow_dispatch:
 
 env:

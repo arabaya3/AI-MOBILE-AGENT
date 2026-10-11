@@ -141,6 +141,21 @@ class ChatMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class ChatShare(Base):
+    """Revocable, expiring public link to a conversation snapshot."""
+
+    __tablename__ = "chat_shares"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    session_id = Column(String, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    space_id = Column(String, ForeignKey("spaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by_user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+
+
 class ChatMessageReaction(Base):
     """User feedback on assistant messages."""
 
