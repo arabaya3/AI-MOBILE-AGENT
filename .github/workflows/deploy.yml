@@ -21,6 +21,7 @@ env:
 
 jobs:
   deploy:
+    if: github.repository == 'TEIA-2026/AI-Agents'
     runs-on: ubuntu-latest
     environment: dev
     
