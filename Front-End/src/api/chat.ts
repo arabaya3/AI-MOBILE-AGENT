@@ -62,7 +62,7 @@ export const listChatModelPricing = () => apiClient.get<ModelPricingResponse>("/
 type StreamEvent =
   | { type: "meta"; data: { session_id: string; sources: VectorSearchMatch[] } }
   | { type: "delta"; data: { text: string } }
-  | { type: "done" }
+  | { type: "done"; data: StreamDoneIds }
   | { type: "error"; data: { detail?: string } };
 
 const parseSseEvent = (raw: string): StreamEvent | null => {
@@ -74,8 +74,6 @@ const parseSseEvent = (raw: string): StreamEvent | null => {
   const eventName = eventLine.slice(6).trim();
   const dataText = dataLines.join("\n");
 
-  if (eventName === "done") return { type: "done" };
-
   let data: any = undefined;
   if (dataText) {
     try {
@@ -85,11 +83,19 @@ const parseSseEvent = (raw: string): StreamEvent | null => {
     }
   }
 
+  if (eventName === "done") return { type: "done", data: data && typeof data === "object" ? data : {} };
   if (eventName === "meta") return { type: "meta", data };
   if (eventName === "delta") return { type: "delta", data };
   if (eventName === "error") return { type: "error", data };
   return null;
 };
+
+/** Server IDs sent with `done` (absent on older backends). */
+export interface StreamDoneIds {
+  session_id?: string;
+  user_message_id?: string;
+  message_id?: string;
+}
 
 export async function streamChatMessage(
   payload: ChatQueryPayload,
@@ -97,7 +103,7 @@ export async function streamChatMessage(
     onMeta?: (meta: { session_id: string; sources: VectorSearchMatch[] }) => void;
     onDelta?: (text: string) => void;
     onError?: (detail?: string) => void;
-    onDone?: () => void;
+    onDone?: (ids: StreamDoneIds) => void;
   },
 ) {
   const baseUrl = API_BASE_URL;
@@ -146,7 +152,7 @@ export async function streamChatMessage(
       if (evt.type === "meta") handlers.onMeta?.(evt.data);
       if (evt.type === "delta") handlers.onDelta?.(evt.data.text);
       if (evt.type === "error") handlers.onError?.(evt.data.detail);
-      if (evt.type === "done") handlers.onDone?.();
+      if (evt.type === "done") handlers.onDone?.(evt.data);
     }
   }
 }

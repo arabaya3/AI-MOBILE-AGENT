@@ -14,3 +14,12 @@ These translations were written during Phase 0. The terms below are uncertain or
 | `resetCodeLabel` | Reset link | رابط إعادة التعيين | The users paste a link from the email. Confirm "رابط" rather than "رمز". |
 | `signOutConfirmBody` | …stays valid on the server until it expires | تبقى الجلسة الصادرة سابقًا صالحة على الخادم حتى تنتهي صلاحيتها | A technical but honest statement. Confirm the tone for end users. |
 | `accessPending` | Request pending | الطلب قيد المراجعة | Confirm the wording for a pending join request. |
+| `chatTitle` / `newConversation` | Conversations / New conversation | المحادثات / محادثة جديدة | Confirm "محادثة" for a chat session. |
+| `turnStopped` | You stopped this reply… | أوقفت هذا الرد… | Explains that stopping is device-only. Confirm the tone. |
+| `turnInterrupted` | The connection ended before the reply finished… | انقطع الاتصال قبل اكتمال الرد… | Confirm. |
+| `branchAction` | Continue in a new conversation | المتابعة في محادثة جديدة | Product term for "branch". Confirm. |
+| `sourcesSessionOnly` | Sources appear only in this view… | تظهر المصادر في هذا العرض فقط… | Temporary until citations are persisted (S4). |
+| `summaryCost` | The model writes the summary… | يكتب النموذج الملخص… | Confirm how usage cost should be described. |
+| `shareExplain` | Anyone with the link can read… | يستطيع أي شخص لديه الرابط… | Legal/privacy wording. Owner review required. |
+| `attachmentsUnavailable` | Attachments and documents arrive in a later release. | سيتوفر إرفاق الملفات والمستندات في إصدار لاحق. | Confirm. |
+

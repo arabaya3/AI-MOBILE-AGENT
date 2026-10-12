@@ -172,4 +172,55 @@ void main() {
       expect(await second, RestoreResult.empty);
     },
   );
+
+  test(
+    'a failing delete plus fallback cannot erase a sign-in queued meanwhile',
+    () async {
+      final store = ControlledTokenStore('old')..failDeletes = true;
+      final session = SessionManager(store);
+
+      final signOut = session.signOut();
+      final signIn = session.start('new');
+      await store.completeNext(); // delete fails
+      await store
+          .completeNext(); // fallback overwrite runs inside the same operation
+      await store.completeNext(); // the new sign-in write runs last
+      await Future.wait([signOut, signIn]);
+
+      expect(store.log, ['delete', 'write:', 'write:new']);
+      expect(store.value, 'new');
+      expect(session.token, 'new');
+      expect(session.current.persistenceFailed, isFalse);
+    },
+  );
+
+  test(
+    'when delete and fallback both fail the session is still ended and flagged',
+    () async {
+      final store = ControlledTokenStore('old')
+        ..failDeletes = true
+        ..failWrites = true;
+      final session = SessionManager(store);
+      final signOut = session.signOut();
+      await store.completeNext();
+      await store.completeNext();
+      await signOut;
+      expect(session.token, isNull);
+      expect(session.current.persistenceFailed, isTrue);
+    },
+  );
+
+  test(
+    'a successful sign-in survives a slow successful cleanup of the old session',
+    () async {
+      final store = ControlledTokenStore('old');
+      final session = SessionManager(store);
+      final signOut = session.signOut();
+      final signIn = session.start('new');
+      await store.completeNext();
+      await store.completeNext();
+      await Future.wait([signOut, signIn]);
+      expect(store.value, 'new');
+    },
+  );
 }

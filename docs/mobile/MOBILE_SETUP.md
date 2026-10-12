@@ -95,6 +95,23 @@ Then run the backend from this branch's `src/` **without an `.env` file**, passi
 
 Publish the backend on port 8001; the Android emulator reaches it at `http://10.0.2.2:8001/api/v1`. Create synthetic users through `POST /api/v1/auth/signup`.
 
+### Chat without a paid provider
+
+For chat checks, add `APP_ENV=development`, `CHAT_PROVIDER_STUB=true`, `DEFAULT_ALLOWED_MODELS='["teia-stub-1","teia-stub-2"]'` and `OPENAI_CHAT_MODEL=teia-stub-1`, and set `QDRANT_URL` to an unreachable local address. The stub answers deterministically and never calls the network. The backend refuses to start with the stub in any other `APP_ENV`, including the default `production`.
+
+Put a directive in the prompt to pick a scenario:
+
+| Directive | Result |
+|---|---|
+| none | `Echo: <prompt>` |
+| `[[md]]` | Markdown with a list, a link and code |
+| `[[slow]]` | 40 chunks, 250 ms apart (Stop and disconnect checks) |
+| `[[long]]` | 200 quick chunks (scrolling) |
+| `[[fail-before]]` / `[[fail-after]]` | Provider failure before or after some text |
+| `[[raise]]` | Unexpected server exception (generic `internal` error) |
+
+The backend test suite sets the same variables in `tests/conftest.py`.
+
 ## Reset and invitation links
 
 | Build | Accepted links |

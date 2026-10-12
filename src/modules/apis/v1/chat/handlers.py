@@ -34,7 +34,7 @@ from src.modules.apis.v1.chat.service import chat_service
 from src.modules.apis.v1.documents.service import document_service
 from src.services.databases.postgresql.models import ChatSession, LLMUsageEvent, Space, User
 from src.services.databases.postgresql.models import ChatMessage, ChatMessageReaction
-from src.services.llm_providers.openai.chat import openai_chat_service
+from src.services.llm_providers.provider import get_chat_provider
 from src.core.settings.config import settings
 from src.core.settings.logging import logger
 
@@ -296,7 +296,7 @@ async def handle_list_all_models(user: User, db: AsyncSession, *, space_id: str)
     space, member = await _get_space_and_member(db, space_id=space_id, user=user)
     policy = _effective_policy(space, member)
     # Remote list (chat-capable + priced, per OpenAI account + server settings)
-    remote = await openai_chat_service.list_models()
+    remote = await get_chat_provider().list_models()
 
     # Configured options (show everything we support/configure, even if OpenAI listing is unavailable)
     supported = getattr(settings, "SUPPORTED_CHAT_MODELS", []) or []
@@ -317,7 +317,7 @@ async def handle_list_all_models(user: User, db: AsyncSession, *, space_id: str)
 
     # Keep only chat-capable-looking IDs to avoid clutter.
     candidates = set(remote) | set(supported) | set(catalog) | set(priced) | set(alias_targets) | set(defaults)
-    filtered = [m for m in candidates if openai_chat_service._is_chat_model_id(m)]
+    filtered = [m for m in candidates if get_chat_provider()._is_chat_model_id(m)]
 
     packages = getattr(settings, "MODEL_PACKAGES", []) or []
     packages = [str(x).strip() for x in packages if str(x).strip()]
@@ -380,7 +380,7 @@ def _is_openai_compatible_model(model_id: str | None) -> bool:
         return True
     if _is_package_token(mid):
         return False
-    return openai_chat_service._is_chat_model_id(mid)
+    return get_chat_provider()._is_chat_model_id(mid)
 
 
 def _model_allowed_by_policy(model_id: str, allowed_models: list[str]) -> bool:
@@ -565,7 +565,7 @@ async def handle_chat_query(
         await _enforce_conversation_quota(db, space_id=space_id, user_id=user.id, policy=policy)
 
     allowed_models: list[str] = policy.get("allowed_models") or []
-    selected_model = payload.model or openai_chat_service.model
+    selected_model = payload.model or get_chat_provider().model
     is_prompt_enhancement = _is_prompt_enhancement_request(payload.message)
     if payload.model and _is_package_token(payload.model):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Select a concrete model ID")
@@ -674,7 +674,7 @@ async def handle_chat_query(
                 normalized_web.append("web_search_tavily")
         web_tools = normalized_web
         if web_tools:
-            decision = await openai_chat_service.decide_web_search(
+            decision = await get_chat_provider().decide_web_search(
                 question=payload.message,
                 has_context=bool(contexts),
                 available_tools=web_tools,
@@ -769,7 +769,7 @@ async def handle_list_models(user: User, db: AsyncSession, *, space_id: str) -> 
     policy = _effective_policy(space, member)
     allowed = policy.get("allowed_models") or []
 
-    models = await openai_chat_service.list_models()
+    models = await get_chat_provider().list_models()
 
     # If no policy restrictions, return all available models
     if not allowed:
@@ -810,6 +810,22 @@ async def handle_list_models(user: User, db: AsyncSession, *, space_id: str) -> 
     return sorted(deduped)
 
 
+PROVIDER_ERROR_MARKER = "[stream_error]"
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _sse_error(detail: str, code: str, **extra) -> str:
+    """Terminal SSE error. `detail` stays for existing clients; `code` is machine-readable."""
+    return _sse("error", {"detail": detail, "code": code, **extra})
+
+
+def _sse_done(session_id: str, user_message_id: str, message_id: str) -> str:
+    return _sse("done", {"session_id": session_id, "user_message_id": user_message_id, "message_id": message_id})
+
+
 async def handle_chat_query_stream(
     payload: ChatQueryRequest,
     user: User,
@@ -830,23 +846,23 @@ async def handle_chat_query_stream(
                 await _enforce_conversation_quota(db, space_id=space_id, user_id=user.id, policy=policy)
 
             allowed_models: list[str] = policy.get("allowed_models") or []
-            selected_model = payload.model or openai_chat_service.model
+            selected_model = payload.model or get_chat_provider().model
             is_prompt_enhancement = _is_prompt_enhancement_request(payload.message)
             if payload.model and _is_package_token(payload.model):
-                yield "event: error\ndata: {\"detail\": \"Select a concrete model ID\"}\n\n"
+                yield _sse_error("Select a concrete model ID", "policy")
                 return
             if allowed_models:
                 if payload.model and not _model_allowed_by_policy(payload.model, allowed_models):
-                    yield "event: error\ndata: {\"detail\": \"Model not allowed in this space\"}\n\n"
+                    yield _sse_error("Model not allowed in this space", "policy")
                     return
                 if not _model_allowed_by_policy(selected_model, allowed_models):
                     if getattr(settings, "STRICT_MODEL_SELECTION", True):
-                        yield "event: error\ndata: {\"detail\": \"Select an allowed model\"}\n\n"
+                        yield _sse_error("Select an allowed model", "policy")
                         return
                     selected_model = _pick_default_allowed_model(allowed_models) or selected_model
 
             if not _is_openai_compatible_model(selected_model):
-                yield "event: error\ndata: {\"detail\": \"Selected model is not supported by this deployment.\"}\n\n"
+                yield _sse_error("Selected model is not supported by this deployment.", "policy")
                 return
 
             logger.info(
@@ -867,7 +883,7 @@ async def handle_chat_query_stream(
                     session_id=payload.session_id,
                 )
             except PermissionError as exc:  # noqa: PERF203
-                yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
+                yield _sse_error(str(exc), "session_not_found")
                 return
 
             await _ensure_session_trace(db, session=session, user=user, space_id=space_id)
@@ -880,13 +896,13 @@ async def handle_chat_query_stream(
             if payload.document_ids:
                 invalid = set(payload.document_ids) - allowed_ids
                 if invalid:
-                    yield "event: error\ndata: {\"detail\": \"Document access denied\"}\n\n"
+                    yield _sse_error("Document access denied", "document_access_denied")
                     return
                 document_filter = payload.document_ids
             else:
                 document_filter = list(allowed_ids)
 
-            await chat_service.append_message(
+            user_message = await chat_service.append_message(
                 db,
                 session=session,
                 role="user",
@@ -906,10 +922,11 @@ async def handle_chat_query_stream(
                 try:
                     await _enforce_tool_quota(db, space_id=space_id, user_id=user.id, policy=policy)
                 except HTTPException as exc:
-                    yield f"event: error\ndata: {json.dumps({'detail': exc.detail})}\n\n"
+                    yield _sse_error(str(exc.detail), "quota_exceeded")
                     return
             contexts: list[dict] = []
-            if not is_prompt_enhancement:
+            # With no accessible documents retrieval is always empty; skip the embedding call.
+            if not is_prompt_enhancement and document_filter:
                 effective_top_k = payload.top_k
                 if _looks_exhaustive(payload.message):
                     effective_top_k = min(30, max(effective_top_k, 20))
@@ -945,7 +962,7 @@ async def handle_chat_query_stream(
                     normalized_web.append("web_search_tavily")
             web_tools = normalized_web
             if web_tools:
-                decision = await openai_chat_service.decide_web_search(
+                decision = await get_chat_provider().decide_web_search(
                     question=payload.message,
                     has_context=bool(contexts),
                     available_tools=web_tools,
@@ -959,10 +976,10 @@ async def handle_chat_query_stream(
                         num_results=6,
                     )
                     reply = _format_web_search_results(tool_result)
-                    meta = {"session_id": session.id, "sources": []}
+                    meta = {"session_id": session.id, "user_message_id": user_message.id, "sources": []}
                     yield f"event: meta\ndata: {json.dumps(meta, ensure_ascii=False)}\n\n"
                     yield f"event: delta\ndata: {json.dumps({'text': reply}, ensure_ascii=False)}\n\n"
-                    await chat_service.append_message(
+                    assistant_message = await chat_service.append_message(
                         db,
                         session=session,
                         role="assistant",
@@ -982,15 +999,16 @@ async def handle_chat_query_stream(
                         tool_usage={tool_name: 1} if tool_name else None,
                     )
                     await db.commit()
-                    yield "event: done\ndata: {}\n\n"
+                    yield _sse_done(session.id, user_message.id, assistant_message.id)
                     return
 
-            meta = {"session_id": session.id, "sources": contexts}
+            meta = {"session_id": session.id, "user_message_id": user_message.id, "sources": contexts}
             yield f"event: meta\ndata: {json.dumps(meta, ensure_ascii=False)}\n\n"
 
             collected: list[str] = []
             usage_sink: dict[str, int] = {}
-            async for delta in openai_chat_service.stream_with_memory(
+            provider_error: str | None = None
+            async for delta in get_chat_provider().stream_with_memory(
                 history=[{"role": item.role, "content": item.content} for item in history],
                 question=payload.message,
                 contexts=contexts,
@@ -999,11 +1017,42 @@ async def handle_chat_query_stream(
                 user_industry=getattr(payload, "user_industry", None),
                 user_language=getattr(payload, "user_language", None),
             ):
+                if PROVIDER_ERROR_MARKER in delta:
+                    # The provider reports failures in-band; never stream or store them as an answer.
+                    before, _, provider_error = delta.partition(PROVIDER_ERROR_MARKER)
+                    if before.strip():
+                        collected.append(before)
+                        yield _sse("delta", {"text": before})
+                    break
                 collected.append(delta)
-                yield f"event: delta\ndata: {json.dumps({'text': delta}, ensure_ascii=False)}\n\n"
+                yield _sse("delta", {"text": delta})
 
             reply = "".join(collected).strip()
-            await chat_service.append_message(
+            if provider_error is not None:
+                logger.warning(
+                    "Chat provider failed during stream",
+                    extra={"session_id": session.id, "model": selected_model, "partial": bool(reply)},
+                )
+                await chat_service.record_usage_event(
+                    db,
+                    space_id=space_id,
+                    user_id=user.id,
+                    session_id=session.id,
+                    endpoint="chat.query.stream",
+                    model=selected_model,
+                    usage_details=usage_sink,
+                    cost_usd=None,
+                    meta_payload={"source_count": len(contexts), "provider_error": True},
+                )
+                await db.commit()
+                yield _sse_error(
+                    "The model provider could not complete the reply.",
+                    "provider_error",
+                    partial=bool(reply),
+                )
+                return
+
+            assistant_message = await chat_service.append_message(
                 db,
                 session=session,
                 role="assistant",
@@ -1024,14 +1073,20 @@ async def handle_chat_query_stream(
             )
             await db.commit()
 
-            yield "event: done\ndata: {}\n\n"
+            yield _sse_done(session.id, user_message.id, assistant_message.id)
             return
         except asyncio.CancelledError:
             await db.rollback()
             raise
-        except Exception as exc:
+        except HTTPException as exc:
             await db.rollback()
-            yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
+            code = {429: "quota_exceeded", 403: "forbidden", 404: "not_found"}.get(exc.status_code, "request_failed")
+            yield _sse_error(str(exc.detail), code)
+            return
+        except Exception:
+            await db.rollback()
+            logger.exception("Chat stream failed", extra={"space_id": space_id, "user_id": user.id})
+            yield _sse_error("The reply could not be completed.", "internal")
             return
         finally:
             tracer.end_span(turn_span)
@@ -1191,7 +1246,7 @@ async def handle_get_session_summary(
     try:
         # Summarize from the transcript. We disable tool-calling here because
         # summary generation should not trigger web search or other tools.
-        summary = await openai_chat_service.answer_with_memory(
+        summary = await get_chat_provider().answer_with_memory(
             history=[],
             question=(
                 "Write a clear executive summary of the conversation transcript.\n"
@@ -1220,7 +1275,7 @@ async def handle_get_session_summary(
             detail=f"Failed to generate summary: {str(exc)}",
         ) from exc
 
-    selected_model = openai_chat_service.model
+    selected_model = get_chat_provider().model
     cost_details = tracer.estimate_cost(selected_model, usage_sink) if usage_sink else {}
     await chat_service.record_usage_event(
         db,

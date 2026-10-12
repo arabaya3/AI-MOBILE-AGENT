@@ -568,8 +568,18 @@ const ChatPage = ({ toggleTheme, currentPalette: _currentPalette, onChangePalett
           onError: (detail) => {
             setSnackbar({ severity: "error", message: detail || "Chat stream failed." });
           },
-          onDone: async () => {
+          onDone: async (ids) => {
             setIsTyping(false);
+            // Swap temporary IDs for the persisted ones so reactions and branching work immediately.
+            if (ids.message_id || ids.user_message_id) {
+              setMessages((prev) =>
+                prev.map((msg) => {
+                  if (msg.id === assistantMessageId && ids.message_id) return { ...msg, id: ids.message_id };
+                  if (msg.id === userMessage.id && ids.user_message_id) return { ...msg, id: ids.user_message_id };
+                  return msg;
+                }),
+              );
+            }
             // Do not overwrite messages from server here to prevent losing sources 
             // and voiding the smooth streaming experience.
             // We only refresh the session list sidebar.

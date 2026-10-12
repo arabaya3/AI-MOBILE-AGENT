@@ -69,6 +69,7 @@ class ApiClient {
     bool includeSpace = true,
     CancelToken? cancelToken,
     Duration? receiveTimeout,
+    ResponseType? responseType,
   }) async {
     final token = kind == RequestKind.public ? null : _readToken();
     final spaceId = includeSpace ? _readSpaceId() : null;
@@ -83,6 +84,7 @@ class ApiClient {
           method: method,
           headers: _headers(token, spaceId),
           receiveTimeout: receiveTimeout,
+          responseType: responseType,
         ),
       );
     } on DioException catch (e) {
@@ -98,11 +100,12 @@ class ApiClient {
     Object? data,
     RequestKind kind = RequestKind.authenticated,
     bool includeSpace = true,
+    CancelToken? cancelToken,
   }) async* {
     final token = kind == RequestKind.public ? null : _readToken();
     final spaceId = includeSpace ? _readSpaceId() : null;
-    final inFlight = _track(spaceId, null);
-    final cancelToken = inFlight.cancelToken;
+    final inFlight = _track(spaceId, cancelToken);
+    final requestToken = inFlight.cancelToken;
     var finished = false;
     try {
       final Response<ResponseBody> response;
@@ -110,7 +113,7 @@ class ApiClient {
         response = await _dio.post<ResponseBody>(
           path,
           data: data,
-          cancelToken: cancelToken,
+          cancelToken: requestToken,
           options: Options(
             responseType: ResponseType.stream,
             headers: {
@@ -149,7 +152,7 @@ class ApiClient {
       finished = true;
     } finally {
       _inFlight.remove(inFlight);
-      if (!finished && !cancelToken.isCancelled) cancelToken.cancel();
+      if (!finished && !requestToken.isCancelled) requestToken.cancel();
     }
   }
 

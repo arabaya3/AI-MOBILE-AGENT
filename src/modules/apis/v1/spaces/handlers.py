@@ -259,6 +259,8 @@ async def handle_create_request(space_id: str, payload: SpaceRequestCreate, user
         pending = await spaces_service.find_pending_request(db, space_id=space_id, user_id=user.id, type_value="join")
         if pending is not None:
             return SpaceRequestSummary.model_validate(pending)
+        req = await spaces_service.create_join_request(db, space_id=space_id, user=user)
+        return SpaceRequestSummary.model_validate(req)
     else:
         await spaces_service.require_active_member(db, space_id=space_id, user=user)
     req = await spaces_service.create_request(db, space_id=space_id, user=user, type_value=type_value, payload=payload.payload)

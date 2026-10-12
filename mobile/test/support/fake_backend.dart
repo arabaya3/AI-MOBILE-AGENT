@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:teia_ai/core/storage/token_store.dart';
@@ -46,6 +47,24 @@ class FakeBackend {
   Map<String, dynamic> bodyOf(RequestOptions request) => request.data is String
       ? jsonDecode(request.data as String) as Map<String, dynamic>
       : Map<String, dynamic>.from(request.data as Map);
+}
+
+/// SSE frames for `event`/JSON `data` pairs, optionally split into byte chunks.
+ResponseBody sseBody(List<(String, Object)> events, {int? chunkSize}) {
+  final text = events
+      .map((e) => 'event: ${e.$1}\ndata: ${jsonEncode(e.$2)}\n\n')
+      .join();
+  final bytes = utf8.encode(text);
+  final size = chunkSize ?? bytes.length;
+  return streamBody(
+    200,
+    Stream.fromIterable([
+      for (var i = 0; i < bytes.length; i += size)
+        Uint8List.fromList(
+          bytes.sublist(i, i + size > bytes.length ? bytes.length : i + size),
+        ),
+    ]),
+  );
 }
 
 class HeldReply {

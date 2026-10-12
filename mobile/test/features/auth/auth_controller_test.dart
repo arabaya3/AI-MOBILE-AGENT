@@ -223,4 +223,34 @@ void main() {
       SessionEndReason.expired,
     );
   });
+
+  test(
+    'a login response that arrives after sign-out does not start a session',
+    () async {
+      backend.json('GET /auth/me', 200, userJson('u1'));
+      final store = InMemoryTokenStore('t1');
+      final c = await makeContainer(backend, store: store);
+      addTearDown(c.dispose);
+      await c.read(authControllerProvider.notifier).initialize();
+      await c.read(authControllerProvider.notifier).signOut();
+
+      final held = backend.hold('POST /auth/login');
+      final pending = c
+          .read(authControllerProvider.notifier)
+          .login('u1@example.com', 'Password123!');
+      await settle();
+      await c.read(sessionManagerProvider).signOut();
+      held.release(200, {
+        'access_token': 'late',
+        'token_type': 'bearer',
+        'expires_in': 1,
+      });
+      await pending;
+      await settle();
+
+      expect(c.read(sessionManagerProvider).token, isNull);
+      expect(await store.read(), isNull);
+      expect(c.read(authControllerProvider), isA<AuthSignedOut>());
+    },
+  );
 }

@@ -197,6 +197,8 @@ Behaviour that a client must handle:
 
 The web client parses with `fetch` + `ReadableStream` (`Front-End/src/api/chat.ts:94-152`).
 
+> Items 2 and 3 changed in Phase 2; see §9.
+
 ---
 
 ## 4. Required vs. recommended API changes for mobile
@@ -308,3 +310,25 @@ These contracts were checked against the code and exercised end to end against a
 - **Invite tokens are stored in plaintext** (`space_invites.token`), unlike reset tokens. The invite endpoint also returns the token to the inviting admin. Recommended: hash the tokens and stop returning them (register S10).
 - **The web app has no `/join-space` route**, so the emailed invite link redirects to `/auth` and loses the token, as the reset link did before Phase S. Web users currently paste the token instead (register S11).
 - **Inactive accounts:** `get_current_user` returns 401 "Inactive or unknown user" when an active session's account is deactivated, so mobile treats it as session expiry.
+
+---
+
+## 9. Phase 2 chat contract (2026-10-12)
+
+Verified against `chat/handlers.py` and changed in a backward-compatible way:
+
+| Event | Data |
+|---|---|
+| `meta` | `{"session_id", "user_message_id", "sources"}` |
+| `delta` | `{"text"}` |
+| `done` | `{"session_id", "user_message_id", "message_id"}` |
+| `error` | `{"detail", "code", "partial"?}` |
+
+- `code` is one of `policy`, `quota_exceeded`, `provider_error`, `session_not_found`, `document_access_denied`, `forbidden`, `not_found`, `request_failed`, `internal`. Older servers send no code, and quota details start with `"429:"`; the mobile parser accepts both.
+- **Provider failures** are no longer streamed as text or saved: the client gets `error` with `provider_error` and `partial` (whether text was already sent). Usage is still recorded. Old sessions may still contain stored `[stream_error]` messages; mobile shows them as failed replies, never as answers.
+- **Unexpected exceptions** return `internal` with a generic message. The exception is logged server-side and is not sent to the client.
+- **Disconnect:** unchanged. The user message stays, the assistant reply is rolled back, no usage event is recorded, and the provider call is not cancelled. A pooled connection closed by the cancellation used to make the next request fail with 500; `pool_pre_ping` fixes this.
+- **Ownership:** sessions are filtered by user and space; another user's or another space's session returns `session_not_found` (tested).
+- **Shares** expose only user and assistant messages created up to the share's creation time; sources are not included.
+- **Still missing:** rename/delete (S2), persisted citations (S4), server-side cancellation.
+

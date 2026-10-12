@@ -10,7 +10,9 @@ from sqlalchemy.orm import sessionmaker
 from src.core.settings.config import settings
 from .models import Base
 
-engine = create_async_engine(settings.database_url, echo=False)
+# pre_ping replaces connections left closed by cancelled requests (e.g. a client
+# disconnecting from a chat stream) instead of failing the next request with a 500.
+engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=True)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

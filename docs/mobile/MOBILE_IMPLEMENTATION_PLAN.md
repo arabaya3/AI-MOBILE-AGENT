@@ -360,6 +360,50 @@ Not verified: iOS on this machine (left to the macOS CI job), verified App Links
   - The SSE parser has full unit coverage.
   - The integration test for login → stream → history passes.
 
+**Phase 2 results (2026-10-12, branch `feature/mobile-chat-streaming`):**
+
+Review findings fixed first:
+- **`SessionManager._end`:** the delete and its overwrite fallback now run as one serialized storage operation, so a sign-in that follows a failed sign-out can no longer be erased by a late fallback write. Regression test reproduced the old order `[delete, write:new, write:]`.
+- **Stale side effects:** `login` drops a token that arrives after sign-out or an account change; `signOut` only reports signed-out when no newer session exists; the space controller re-checks its generation after every awaited storage call.
+- **Join-request concurrency:** a partial unique index (`uq_space_requests_pending_join`) plus an insert inside a savepoint. Concurrent requests return the same pending request. The integration test reproduced 6 duplicates before the fix. Migration `20261012_0001_unique_pending_join_request.sql` closes existing duplicates (keeping the oldest) before creating the index; it was run only on the local e2e database.
+
+Implemented:
+- **Conversations:** list, new conversation, history, model picker (saved per account), Markdown with selectable text, copy, mixed-direction rendering, and links that open only for `http(s)` after the user confirms the host.
+- **Composer:** duplicate-submit protection, Stop, drafts kept in memory per account and space, and an attachment button that says attachments arrive later.
+- **Streaming:**
+  - Tokens update a `ValueNotifier`, so the message list is not rebuilt per token.
+  - The view follows new text only when the user is already at the bottom, with a "jump to latest" button.
+  - A `[stream_error]` marker is detected even when split across deltas, and is never shown.
+  - EOF without `done` is an interruption, not a success. Malformed events fail the turn.
+  - Error events in HTTP 200 responses map to distinct states: policy, quota, provider error, session not found, document access, network, interrupted and stopped.
+  - Every event is checked against the current account and space synchronously. Sign-out, account change, space switch and leaving the screen cancel the request.
+- **After `done`:** the confirmed IDs are applied, then history is fetched again. Reactions and branching are enabled only for server IDs. Nothing is ever resent automatically; "Send again" is an explicit user action.
+- **Sources:** citations from `meta` render as chips with an excerpt sheet that says they are not saved with the conversation (S4 still open).
+- **Menu:** summary (explains that it uses the model and counts toward usage), export (copies Markdown), and share links with a plain explanation of what a link exposes, plus a list of active links with revoke.
+
+Stop and interruption behavior (precise):
+- **Stop** aborts the HTTP request on the device. The server sees the disconnect, rolls back the assistant reply and keeps the already-saved user message. No usage event is recorded for that turn, but the provider call may keep running and consume tokens (no server-side cancellation exists). The app then reloads history and shows "You stopped this reply…".
+- **Interrupted** (connection lost or EOF without `done`): the app reloads history. If the server did save the reply, the notice disappears and the saved reply is shown; otherwise the notice says the reply was not saved.
+- If history cannot be reloaded, the local view stays as it is until the user retries.
+
+Backend changes (backward compatible with the web client):
+- **S5:** `meta` carries `user_message_id`; `done` carries `session_id`, `user_message_id` and `message_id`. The web client now replaces its temporary IDs with them.
+- **S6:** provider failures are intercepted. The marker is never streamed or stored, no assistant message is saved, usage is still recorded, and the client receives `error` with `code: provider_error` and `partial`.
+- Every `error` event carries a `code`. Unexpected exceptions return a generic `internal` error and are logged server-side, without exception text.
+- Retrieval is skipped when no documents are selected.
+- `pool_pre_ping` on the database engine. Before it, the first request after a client disconnected mid-stream failed with 500 "connection is closed" (reproduced every time; after the fix 9 of 9 follow-up requests returned 200).
+- A deterministic local provider stub (below).
+
+**Provider stub:** `CHAT_PROVIDER_STUB=true` works only when `APP_ENV` is `development` or `test`. In any other environment, including the default `production`, the backend refuses to start. The stub never calls a network provider. Directives in the prompt drive scenarios: `[[md]]`, `[[slow]]`, `[[long]]`, `[[fail-before]]`, `[[fail-after]]`, `[[raise]]`.
+
+Verified:
+- **Mobile:** formatting, analysis and **147** passing Flutter tests: controller tests for split markers, EOF, malformed events, quota/policy, scope changes, stop, reconciliation, and full-app flows in en/ar × light/dark at 2× text with the keyboard open. Android dev debug APK built.
+- **Backend:** **54** pytest tests, including 12 stream tests through the real FastAPI routes (meta/done IDs, provider failure not stored, generic internal error, policy, quota, cross-user and cross-space session access, sources) and the join-request concurrency test.
+- **Web:** `tsc -b` passes; lint counts unchanged.
+- **End to end:** Android emulator against a local backend with the stub and a local database: Markdown reply and link confirmation, Stop (user message kept, no reply stored), provider failure, leaving the screen mid-stream (cancelled, no reply stored), share link created and revoked (checked on the server), and the Arabic/dark UI at 2× text and 360 dp with the keyboard open. Screenshots are in `docs/mobile/screenshots/phase2/`.
+
+Not done in Phase 2: rename/delete sessions (S2), persisted citations (S4), regenerate/edit, and attachments.
+
 ### Phase 3 — Documents and citations
 - **Scope:**
   - List documents.
@@ -412,19 +456,22 @@ Not verified: iOS on this machine (left to the macOS CI job), verified App Links
 | R3 | Email-only reset tokens, generic response, single use | S | **Done in this phase** |
 | R4 | `GET /auth/me` | 1 | **Done (Phase 1)** |
 | S1 | change-password returns 400, not 401, for a wrong password | 1 | **Done (Phase 1)** |
-| S2 | Rename and delete sessions | 2 | Planned |
+| S2 | Rename and delete sessions | 2 | Planned (not done in Phase 2) |
 | S3 | 25 MiB streaming upload limit (413) and processing timeout | 3 | Planned |
 | S4 | Persist citations | 3 | Planned |
-| S5 | `message_id` in `done` | 2 | Planned |
-| S6 | Provider failure as an `error` event | 2 | Planned |
+| S5 | Message IDs in `meta` and `done` | 2 | **Done (Phase 2)** |
+| S6 | Provider failure as an `error` event, not stored | 2 | **Done (Phase 2)** |
 | S7 | Super-admin usage route order (web feature) | 5 | Planned |
 | S8 | Per-user check on `/documents/{id}/chunks` | 3 | Planned |
 | S9 | Workspace system prompts, space-admin only (D5) | 5 | Planned |
-| S10 | Hash space invite tokens and stop returning them to the inviter | 5 | Planned (found in Phase 1) |
-| S11 | Web `/join-space` route so emailed invite links work on the web | 4 | Planned (found in Phase 1) |
-| S12 | Validate join requests (space exists and active, not already a member, idempotent) and add `GET /spaces/requests/mine` | 1 | **Done (Phase 1)** |
+| S10 | Hash space invite tokens and stop returning them to the inviter | 5 | **Open — release blocker** (found in Phase 1) |
+| S11 | Web `/join-space` route so emailed invite links work on the web | 4 | **Open — release blocker** (found in Phase 1) |
+| S12 | Validate join requests (space exists and active, not already a member, idempotent) and add `GET /spaces/requests/mine` | 1 | **Done (Phase 1)**; concurrency fixed in Phase 2 |
+| S13 | Typed `code` on every stream `error` event; generic `internal` error | 2 | **Done (Phase 2)** |
+| S14 | `pool_pre_ping` so a client disconnect does not break the next request | 2 | **Done (Phase 2)** |
+| S15 | Local chat provider stub, refused outside development and test | 2 | **Done (Phase 2)** |
 
-Deferred: refresh tokens, push device registration (D4), document delete, async upload status, stream cancellation, pagination.
+Deferred: refresh tokens, push device registration (D4), document delete, async upload status, server-side stream cancellation (the provider keeps generating after a disconnect), pagination.
 
 ---
 
@@ -439,6 +486,8 @@ Deferred: refresh tokens, push device registration (D4), document delete, async 
 - A macOS environment for iOS builds and signing.
 - Configured SMTP for password-reset email in each environment. Without it, reset requests are accepted silently and nothing is sent, by design.
 - Rotation of the provider keys that were committed to the upstream repository history.
+- **Unresolved release items found in Phase 1:** S10 (invitation tokens stored in plaintext and returned to the inviter) and S11 (web `/join-space` route missing, so emailed invite links fail on the web). Both must be fixed before release.
+- The join-request migration `20261012_0001_unique_pending_join_request.sql` must be applied by the owner in each environment; it was run only locally.
 
 **Risks:**
 
@@ -477,14 +526,14 @@ Deferred: refresh tokens, push device registration (D4), document delete, async 
 | Profile view and edit | Local only | ✔ (after R4) | |
 | Change password | ✔ | ✔ | |
 | Space list / switch / accept invite / request access | ✔ | ✔ | |
-| Chat sessions, history, streaming | ✔ | ✔ | |
-| Rename / delete session | ✘ | ✔ (after S2) | |
-| Model selection | ✔ | ✔ | Server policy |
-| Copy / regenerate / edit / branch / react | Partial | ✔ | |
-| Citations | ✔ (ephemeral) | ✔ | Persisted after S4 |
-| Summary | ✔ | ✔ | |
-| Export md/json | ✔ | ✔ | Share sheet |
-| Share links (create / revoke) | ✔ (create; fixed in S) | ✔ | Revocation UI on mobile; web gets the API |
+| Chat sessions, history, streaming | ✔ | ✔ (Phase 2) | Stop is device-only |
+| Rename / delete session | ✘ | ✘ (after S2) | Not in Phase 2 |
+| Model selection | ✔ | ✔ (Phase 2) | Server policy |
+| Copy / regenerate / edit / branch / react | Partial | Partial (Phase 2) | Copy, branch, react done; regenerate/edit later |
+| Citations | ✔ (ephemeral) | ✔ ephemeral (Phase 2) | Not kept after reload until S4 |
+| Summary | ✔ | ✔ (Phase 2) | |
+| Export md/json | ✔ | Partial (Phase 2) | Markdown copied to clipboard; share sheet later |
+| Share links (create / revoke) | ✔ (create; fixed in S) | ✔ (Phase 2) | Revocation UI on mobile; web gets the API |
 | Document upload / list / open / chunks | ✔ | ✔ | 25 MiB |
 | Document delete | ✘ | ✘ | No backend endpoint |
 | In-app notifications | Broken stream | ✔ | |
