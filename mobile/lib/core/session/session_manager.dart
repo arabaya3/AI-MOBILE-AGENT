@@ -85,16 +85,22 @@ class SessionManager {
 
   Future<void> _end(SessionEndReason reason) async {
     final epoch = _set(token: null, endReason: reason);
-    try {
-      await _serial(_store.delete);
-    } catch (_) {
+    // Deletion and its fallback form ONE queued operation: a sign-in queued
+    // later always writes after both, so the fallback cannot erase its token.
+    final erased = await _serial(() async {
       try {
-        // Never leave a usable token behind: overwrite it if deletion fails.
-        await _serial(() => _store.write(''));
+        await _store.delete();
+        return true;
       } catch (_) {
-        _markPersistenceFailed(epoch);
+        try {
+          await _store.write('');
+          return true;
+        } catch (_) {
+          return false;
+        }
       }
-    }
+    });
+    if (!erased) _markPersistenceFailed(epoch);
   }
 
   int _set({required String? token, required SessionEndReason endReason}) {

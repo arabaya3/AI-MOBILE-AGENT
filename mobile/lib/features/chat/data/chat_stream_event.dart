@@ -42,16 +42,21 @@ class Citation {
   final int? chunkIndex;
 }
 
-/// Events of `POST /api/v1/chat/query/stream` (see docs/mobile/MOBILE_DISCOVERY.md §3).
+/// Events of `POST /api/v1/chat/query/stream` (see docs/mobile/MOBILE_DISCOVERY.md §3 and §9).
 sealed class ChatStreamEvent {
   const ChatStreamEvent();
 }
 
 class ChatStreamMeta extends ChatStreamEvent {
-  const ChatStreamMeta({required this.sessionId, required this.sources});
+  const ChatStreamMeta({
+    required this.sessionId,
+    required this.sources,
+    this.userMessageId,
+  });
 
   final String sessionId;
   final List<Citation> sources;
+  final String? userMessageId;
 }
 
 class ChatStreamDelta extends ChatStreamEvent {
@@ -61,21 +66,51 @@ class ChatStreamDelta extends ChatStreamEvent {
 
   final String text;
 
-  /// The backend reports provider failures as delta text containing this marker.
+  /// Older backends report provider failures as delta text containing this marker.
   bool get isProviderError => text.contains(providerErrorMarker);
 }
 
+/// IDs are absent on backends older than Phase 2.
 class ChatStreamDone extends ChatStreamEvent {
-  const ChatStreamDone();
+  const ChatStreamDone({this.sessionId, this.userMessageId, this.messageId});
+
+  final String? sessionId;
+  final String? userMessageId;
+  final String? messageId;
+}
+
+enum ChatErrorKind {
+  quota,
+  policy,
+  provider,
+  sessionNotFound,
+  documentAccess,
+  forbidden,
+  other,
 }
 
 class ChatStreamError extends ChatStreamEvent {
-  const ChatStreamError(this.detail);
+  const ChatStreamError(this.detail, {this.code, this.partial = false});
 
   final String detail;
+  final String? code;
 
-  /// Quota failures arrive as stringified HTTP errors such as "429: Daily token limit reached".
-  bool get isQuotaExceeded => detail.trimLeft().startsWith('429');
+  /// Some text was streamed before the provider failed.
+  final bool partial;
+
+  /// Quota failures from older backends arrive as "429: Daily token limit reached".
+  bool get isQuotaExceeded => kind == ChatErrorKind.quota;
+
+  ChatErrorKind get kind => switch (code) {
+    'quota_exceeded' => ChatErrorKind.quota,
+    'policy' => ChatErrorKind.policy,
+    'provider_error' => ChatErrorKind.provider,
+    'session_not_found' || 'not_found' => ChatErrorKind.sessionNotFound,
+    'document_access_denied' => ChatErrorKind.documentAccess,
+    'forbidden' => ChatErrorKind.forbidden,
+    null when detail.trimLeft().startsWith('429') => ChatErrorKind.quota,
+    _ => ChatErrorKind.other,
+  };
 }
 
 class ChatStreamDecoder
@@ -102,8 +137,10 @@ class ChatStreamDecoder
           );
         }
         final sources = json['sources'];
+        final userMessageId = json['user_message_id'];
         return ChatStreamMeta(
           sessionId: sessionId,
+          userMessageId: userMessageId is String ? userMessageId : null,
           sources: [
             if (sources is List)
               for (final s in sources)
@@ -117,14 +154,35 @@ class ChatStreamDecoder
         }
         return ChatStreamDelta(text);
       case 'done':
-        return const ChatStreamDone();
+        // Older backends send `{}`; anything unparsable still means "finished".
+        final json = _tryObject(event) ?? const <String, dynamic>{};
+        String? id(String key) =>
+            json[key] is String ? json[key] as String : null;
+        return ChatStreamDone(
+          sessionId: id('session_id'),
+          userMessageId: id('user_message_id'),
+          messageId: id('message_id'),
+        );
       case 'error':
-        final detail = _object(event)['detail'];
+        final json = _object(event);
+        final detail = json['detail'];
+        final code = json['code'];
         return ChatStreamError(
           detail is String && detail.isNotEmpty ? detail : 'Unknown error',
+          code: code is String ? code : null,
+          partial: json['partial'] == true,
         );
     }
     return null;
+  }
+
+  static Map<String, dynamic>? _tryObject(SseEvent event) {
+    try {
+      final value = jsonDecode(event.data);
+      return value is Map<String, dynamic> ? value : null;
+    } on FormatException {
+      return null;
+    }
   }
 
   static Map<String, dynamic> _object(SseEvent event) {

@@ -522,4 +522,192 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nameLabel => 'Name';
+
+  @override
+  String get chatTitle => 'Conversations';
+
+  @override
+  String get newConversation => 'New conversation';
+
+  @override
+  String get chatEmptyTitle => 'No conversations yet';
+
+  @override
+  String get chatEmptyBody =>
+      'Start a conversation to ask a question in this space.';
+
+  @override
+  String get untitledConversation => 'Untitled conversation';
+
+  @override
+  String get composerHint => 'Ask a question';
+
+  @override
+  String get sendAction => 'Send';
+
+  @override
+  String get stopAction => 'Stop';
+
+  @override
+  String get attachmentsUnavailable =>
+      'Attachments and documents arrive in a later release.';
+
+  @override
+  String get modelLabel => 'Model';
+
+  @override
+  String get noModels => 'No models are available to you in this space.';
+
+  @override
+  String get assistantTyping => 'Writing a reply…';
+
+  @override
+  String get copyAction => 'Copy';
+
+  @override
+  String get copied => 'Copied to clipboard.';
+
+  @override
+  String get helpful => 'Helpful';
+
+  @override
+  String get notHelpful => 'Not helpful';
+
+  @override
+  String get branchAction => 'Continue in a new conversation';
+
+  @override
+  String get sourcesLabel => 'Sources';
+
+  @override
+  String get sourcesSessionOnly =>
+      'Sources are shown in this view only and aren\'t saved with the conversation.';
+
+  @override
+  String sourceExcerpt(int index) {
+    return 'Excerpt $index';
+  }
+
+  @override
+  String get turnQuota => 'You\'ve reached your usage limit in this space.';
+
+  @override
+  String get turnRateLimited =>
+      'Too many requests. Wait a moment, then send again.';
+
+  @override
+  String get turnPolicy =>
+      'This model isn\'t allowed in this space. Choose another model.';
+
+  @override
+  String get turnProvider =>
+      'The model couldn\'t finish this reply. Nothing was saved for it.';
+
+  @override
+  String get turnInterrupted =>
+      'The connection ended before the reply finished. The reply wasn\'t saved.';
+
+  @override
+  String get turnStopped =>
+      'You stopped this reply. Stopping only ends it on this device, and the partial reply isn\'t saved.';
+
+  @override
+  String get turnSessionNotFound => 'This conversation is no longer available.';
+
+  @override
+  String get turnDocumentAccess =>
+      'You don\'t have access to a selected document.';
+
+  @override
+  String get turnProtocol => 'The reply couldn\'t be read.';
+
+  @override
+  String get turnGeneric => 'The reply couldn\'t be completed.';
+
+  @override
+  String get turnUncertain =>
+      'Your question may already be saved. Check the conversation before sending it again.';
+
+  @override
+  String get sendAgain => 'Send again';
+
+  @override
+  String get dismissAction => 'Dismiss';
+
+  @override
+  String get storedReplyFailed => 'This reply failed and contains no answer.';
+
+  @override
+  String get jumpToLatest => 'Jump to latest';
+
+  @override
+  String get moreActions => 'More';
+
+  @override
+  String get summaryAction => 'Summarize';
+
+  @override
+  String get summaryTitle => 'Summary';
+
+  @override
+  String get summaryCost =>
+      'Summaries are written by the model and count toward this space\'s usage.';
+
+  @override
+  String get generateAction => 'Generate';
+
+  @override
+  String get exportAction => 'Copy as Markdown';
+
+  @override
+  String get exportDone => 'Conversation copied as Markdown.';
+
+  @override
+  String get shareAction => 'Share link';
+
+  @override
+  String get shareTitle => 'Share this conversation';
+
+  @override
+  String get shareExplain =>
+      'Anyone with the link can read this conversation\'s messages up to the moment you create it, until the link expires or you revoke it. Sources and document details aren\'t included.';
+
+  @override
+  String get createLinkAction => 'Create link';
+
+  @override
+  String shareCreated(String date) {
+    return 'Link copied. It expires on $date.';
+  }
+
+  @override
+  String get activeLinks => 'Active links';
+
+  @override
+  String get noActiveLinks => 'No active links.';
+
+  @override
+  String get revokeAction => 'Revoke';
+
+  @override
+  String get linkRevoked => 'Link revoked.';
+
+  @override
+  String expiresOn(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String get openLinkTitle => 'Open external link?';
+
+  @override
+  String openLinkBody(String host) {
+    return 'This opens $host in your browser.';
+  }
+
+  @override
+  String get openAction => 'Open';
+
+  @override
+  String get openChat => 'Open conversations';
 }

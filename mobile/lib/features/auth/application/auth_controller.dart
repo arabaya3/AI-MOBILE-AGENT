@@ -89,8 +89,11 @@ class AuthController extends Notifier<AuthState> {
   Future<ApiException?> login(String email, String password) async {
     if (_loginInFlight) return null;
     _loginInFlight = true;
+    final startedAt = _session.epoch;
     try {
       final token = await ref.read(authApiProvider).login(email, password);
+      // A sign-out or another sign-in happened meanwhile: drop this late token.
+      if (_session.epoch != startedAt || !ref.mounted) return null;
       ref.read(apiClientProvider).cancelAll();
       await _session.start(token);
       return await _verify();
@@ -106,7 +109,9 @@ class AuthController extends Notifier<AuthState> {
   Future<void> signOut() async {
     ref.read(apiClientProvider).cancelAll();
     await _session.signOut();
-    state = const AuthSignedOut(SessionEndReason.signedOut);
+    if (_session.token == null) {
+      state = const AuthSignedOut(SessionEndReason.signedOut);
+    }
   }
 
   Future<ApiException?> _verify() async {

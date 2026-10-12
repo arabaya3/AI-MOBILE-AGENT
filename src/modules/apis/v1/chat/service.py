@@ -9,7 +9,7 @@ from sqlalchemy import Select, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.databases.postgresql.models import ChatMessage, ChatSession, LLMUsageEvent
-from src.services.llm_providers.openai.chat import openai_chat_service
+from src.services.llm_providers.provider import get_chat_provider
 
 
 class ChatService:
@@ -159,7 +159,7 @@ class ChatService:
             {"role": item.role, "content": item.content}
             for item in history[-self.HISTORY_LIMIT :]
         ]
-        return await openai_chat_service.answer_with_memory(
+        return await get_chat_provider().answer_with_memory(
             history=history_payload,
             question=message,
             contexts=contexts,

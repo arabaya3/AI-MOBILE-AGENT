@@ -19,6 +19,11 @@ os.environ.update(
         "SMTP_HOST": "smtp.invalid",
         "FRONTEND_URL": "https://app.example.test",
         "RATE_LIMIT_ENABLED": "false",
+        "APP_ENV": "test",
+        "CHAT_PROVIDER_STUB": "true",
+        "DEFAULT_ALLOWED_MODELS": '["teia-stub-1", "teia-stub-2"]',
+        "OPENAI_CHAT_MODEL": "teia-stub-1",
+        "QDRANT_URL": "http://127.0.0.1:1",
         "AWS_ACCESS_KEY_ID": "test",
         "AWS_SECRET_ACCESS_KEY": "test",
         "AWS_REGION": "us-east-1",
@@ -41,6 +46,7 @@ from src.modules.apis.v1.auth.router import router as auth_router  # noqa: E402
 from src.modules.apis.v1.auth.service import auth_service  # noqa: E402
 from src.modules.apis.v1.sharing.router import router as sharing_router  # noqa: E402
 from src.modules.apis.v1.spaces.router import router as spaces_router  # noqa: E402
+from src.modules.apis.v1.chat.router import router as chat_router  # noqa: E402
 from src.services.databases.postgresql.database import get_db  # noqa: E402
 from src.services.databases.postgresql.models import (  # noqa: E402
     Base,
@@ -103,6 +109,7 @@ async def client(session_factory, email_sink):
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(sharing_router, prefix="/api/v1")
     app.include_router(spaces_router, prefix="/api/v1")
+    app.include_router(chat_router, prefix="/api/v1")
 
     async def _get_db():
         async with session_factory() as session:

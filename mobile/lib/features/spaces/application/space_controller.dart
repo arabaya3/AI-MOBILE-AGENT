@@ -103,6 +103,7 @@ class SpaceController extends Notifier<SpaceState> {
           (spaces.length == 1 ? spaces.single : null);
       if (stored != null && spaces.every((s) => s.id != stored)) {
         await _forgetSelection(userId);
+        if (generation != _generation) return;
         if (notice == SpaceNotice.none) notice = SpaceNotice.accessLost;
       }
       if (pick == null) {
@@ -165,6 +166,7 @@ class SpaceController extends Notifier<SpaceState> {
       if (generation != _generation || e is RequestCancelledException) return;
       if (e is ForbiddenException || e is NotFoundException) {
         await _forgetSelection(_userId!);
+        if (generation != _generation) return;
         _spaces = spaces.where((s) => s.id != space.id).toList();
         state = SpaceChoosing(_spaces, notice: SpaceNotice.accessLost);
       } else {

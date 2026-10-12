@@ -11,10 +11,12 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Float,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -265,6 +267,16 @@ class SpaceRequest(Base):
     """User requests inside a space that admins can approve/decline."""
 
     __tablename__ = "space_requests"
+    __table_args__ = (
+        # At most one pending join request per user and space (see migration 20261012_0001).
+        Index(
+            "uq_space_requests_pending_join",
+            "space_id",
+            "user_id",
+            unique=True,
+            postgresql_where=text("type = 'join' AND status = 'pending'"),
+        ),
+    )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
     space_id = Column(String, ForeignKey("spaces.id", ondelete="CASCADE"), nullable=False, index=True)

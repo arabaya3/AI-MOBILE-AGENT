@@ -152,6 +152,12 @@ class Settings(BaseSettings):
     # Frontend URL for email links
     FRONTEND_URL: str = "http://localhost:5174"
 
+    # Runtime environment; anything but development/test is treated as production.
+    APP_ENV: str = "production"
+
+    # Deterministic local chat provider for end-to-end tests (refused outside development/test).
+    CHAT_PROVIDER_STUB: bool = False
+
     # Password reset
     PASSWORD_RESET_TTL_MINUTES: int = 60
 

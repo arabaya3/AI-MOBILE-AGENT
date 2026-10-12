@@ -8,6 +8,8 @@ import '../features/auth/presentation/account_screens.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/password_recovery_screens.dart';
 import '../features/auth/presentation/register_screen.dart';
+import '../features/chat/presentation/chat_list_screen.dart';
+import '../features/chat/presentation/conversation_screen.dart';
 import '../features/foundation_preview/presentation/foundation_preview_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/links/pending_link.dart';
@@ -54,8 +56,11 @@ String? appRedirect({
           _transientRoutes.contains(location)) {
         return landing;
       }
-      if ((location == '/home' && !selected) ||
-          (location == '/spaces' && selected)) {
+      final needsSpace =
+          location == '/home' ||
+          location == '/chat' ||
+          location.startsWith('/chat/');
+      if ((needsSpace && !selected) || (location == '/spaces' && selected)) {
         return landing;
       }
       return null;
@@ -101,6 +106,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/spaces', builder: (_, _) => const SpacePickerScreen()),
       GoRoute(path: '/invite', builder: (_, _) => const AcceptInviteScreen()),
       GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+      GoRoute(
+        path: '/chat',
+        builder: (_, _) => const ChatListScreen(),
+        routes: [
+          GoRoute(path: 'new', builder: (_, _) => const ConversationScreen()),
+          GoRoute(
+            path: 'c/:sessionId',
+            builder: (_, state) => ConversationScreen(
+              sessionId: state.pathParameters['sessionId'],
+            ),
+          ),
+        ],
+      ),
       GoRoute(
         path: '/account',
         builder: (_, _) => const AccountScreen(),

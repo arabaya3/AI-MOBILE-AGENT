@@ -173,5 +173,89 @@
   "uploadsNotAllowed": "Not allowed",
   "selectSpaceAction": "Open",
   "continueAction": "Continue",
-  "nameLabel": "Name"
+  "nameLabel": "Name",
+  "chatTitle": "Conversations",
+  "newConversation": "New conversation",
+  "chatEmptyTitle": "No conversations yet",
+  "chatEmptyBody": "Start a conversation to ask a question in this space.",
+  "untitledConversation": "Untitled conversation",
+  "composerHint": "Ask a question",
+  "sendAction": "Send",
+  "stopAction": "Stop",
+  "attachmentsUnavailable": "Attachments and documents arrive in a later release.",
+  "modelLabel": "Model",
+  "noModels": "No models are available to you in this space.",
+  "assistantTyping": "Writing a reply…",
+  "copyAction": "Copy",
+  "copied": "Copied to clipboard.",
+  "helpful": "Helpful",
+  "notHelpful": "Not helpful",
+  "branchAction": "Continue in a new conversation",
+  "sourcesLabel": "Sources",
+  "sourcesSessionOnly": "Sources are shown in this view only and aren't saved with the conversation.",
+  "sourceExcerpt": "Excerpt {index}",
+  "@sourceExcerpt": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "turnQuota": "You've reached your usage limit in this space.",
+  "turnRateLimited": "Too many requests. Wait a moment, then send again.",
+  "turnPolicy": "This model isn't allowed in this space. Choose another model.",
+  "turnProvider": "The model couldn't finish this reply. Nothing was saved for it.",
+  "turnInterrupted": "The connection ended before the reply finished. The reply wasn't saved.",
+  "turnStopped": "You stopped this reply. Stopping only ends it on this device, and the partial reply isn't saved.",
+  "turnSessionNotFound": "This conversation is no longer available.",
+  "turnDocumentAccess": "You don't have access to a selected document.",
+  "turnProtocol": "The reply couldn't be read.",
+  "turnGeneric": "The reply couldn't be completed.",
+  "turnUncertain": "Your question may already be saved. Check the conversation before sending it again.",
+  "sendAgain": "Send again",
+  "dismissAction": "Dismiss",
+  "storedReplyFailed": "This reply failed and contains no answer.",
+  "jumpToLatest": "Jump to latest",
+  "moreActions": "More",
+  "summaryAction": "Summarize",
+  "summaryTitle": "Summary",
+  "summaryCost": "Summaries are written by the model and count toward this space's usage.",
+  "generateAction": "Generate",
+  "exportAction": "Copy as Markdown",
+  "exportDone": "Conversation copied as Markdown.",
+  "shareAction": "Share link",
+  "shareTitle": "Share this conversation",
+  "shareExplain": "Anyone with the link can read this conversation's messages up to the moment you create it, until the link expires or you revoke it. Sources and document details aren't included.",
+  "createLinkAction": "Create link",
+  "shareCreated": "Link copied. It expires on {date}.",
+  "@shareCreated": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "activeLinks": "Active links",
+  "noActiveLinks": "No active links.",
+  "revokeAction": "Revoke",
+  "linkRevoked": "Link revoked.",
+  "expiresOn": "Expires {date}",
+  "@expiresOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "openLinkTitle": "Open external link?",
+  "openLinkBody": "This opens {host} in your browser.",
+  "@openLinkBody": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "openAction": "Open",
+  "openChat": "Open conversations"
 }

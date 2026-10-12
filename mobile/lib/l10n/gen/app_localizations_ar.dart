@@ -513,4 +513,190 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get nameLabel => 'الاسم';
+
+  @override
+  String get chatTitle => 'المحادثات';
+
+  @override
+  String get newConversation => 'محادثة جديدة';
+
+  @override
+  String get chatEmptyTitle => 'لا توجد محادثات بعد';
+
+  @override
+  String get chatEmptyBody => 'ابدأ محادثة لطرح سؤال في مساحة العمل هذه.';
+
+  @override
+  String get untitledConversation => 'محادثة بلا عنوان';
+
+  @override
+  String get composerHint => 'اكتب سؤالك';
+
+  @override
+  String get sendAction => 'إرسال';
+
+  @override
+  String get stopAction => 'إيقاف';
+
+  @override
+  String get attachmentsUnavailable =>
+      'سيتوفر إرفاق الملفات والمستندات في إصدار لاحق.';
+
+  @override
+  String get modelLabel => 'النموذج';
+
+  @override
+  String get noModels => 'لا تتوفر لك نماذج في مساحة العمل هذه.';
+
+  @override
+  String get assistantTyping => 'جارٍ كتابة الرد…';
+
+  @override
+  String get copyAction => 'نسخ';
+
+  @override
+  String get copied => 'تم النسخ إلى الحافظة.';
+
+  @override
+  String get helpful => 'مفيد';
+
+  @override
+  String get notHelpful => 'غير مفيد';
+
+  @override
+  String get branchAction => 'المتابعة في محادثة جديدة';
+
+  @override
+  String get sourcesLabel => 'المصادر';
+
+  @override
+  String get sourcesSessionOnly =>
+      'تظهر المصادر في هذا العرض فقط ولا تُحفظ مع المحادثة.';
+
+  @override
+  String sourceExcerpt(int index) {
+    return 'مقتطف $index';
+  }
+
+  @override
+  String get turnQuota => 'لقد بلغت حد الاستخدام في مساحة العمل هذه.';
+
+  @override
+  String get turnRateLimited =>
+      'طلبات كثيرة جدًا. انتظر قليلًا ثم أرسل مرة أخرى.';
+
+  @override
+  String get turnPolicy =>
+      'هذا النموذج غير مسموح في مساحة العمل هذه. اختر نموذجًا آخر.';
+
+  @override
+  String get turnProvider =>
+      'تعذّر على النموذج إكمال هذا الرد. لم يُحفظ أي رد.';
+
+  @override
+  String get turnInterrupted => 'انقطع الاتصال قبل اكتمال الرد. لم يُحفظ الرد.';
+
+  @override
+  String get turnStopped =>
+      'أوقفت هذا الرد. الإيقاف ينهيه على هذا الجهاز فقط، ولا يُحفظ الجزء الظاهر منه.';
+
+  @override
+  String get turnSessionNotFound => 'لم تعد هذه المحادثة متاحة.';
+
+  @override
+  String get turnDocumentAccess =>
+      'ليست لديك صلاحية للوصول إلى أحد المستندات المحددة.';
+
+  @override
+  String get turnProtocol => 'تعذّرت قراءة الرد.';
+
+  @override
+  String get turnGeneric => 'تعذّر إكمال الرد.';
+
+  @override
+  String get turnUncertain =>
+      'ربما حُفظ سؤالك بالفعل. راجع المحادثة قبل إرساله مرة أخرى.';
+
+  @override
+  String get sendAgain => 'إرسال مرة أخرى';
+
+  @override
+  String get dismissAction => 'إغلاق';
+
+  @override
+  String get storedReplyFailed => 'فشل هذا الرد ولا يحتوي على إجابة.';
+
+  @override
+  String get jumpToLatest => 'الانتقال إلى الأحدث';
+
+  @override
+  String get moreActions => 'المزيد';
+
+  @override
+  String get summaryAction => 'تلخيص';
+
+  @override
+  String get summaryTitle => 'الملخص';
+
+  @override
+  String get summaryCost =>
+      'يكتب النموذج الملخص، ويُحتسب ضمن استخدام مساحة العمل.';
+
+  @override
+  String get generateAction => 'إنشاء';
+
+  @override
+  String get exportAction => 'نسخ بتنسيق Markdown';
+
+  @override
+  String get exportDone => 'نُسخت المحادثة بتنسيق Markdown.';
+
+  @override
+  String get shareAction => 'رابط مشاركة';
+
+  @override
+  String get shareTitle => 'مشاركة هذه المحادثة';
+
+  @override
+  String get shareExplain =>
+      'يستطيع أي شخص لديه الرابط قراءة رسائل هذه المحادثة حتى لحظة إنشائه، إلى أن تنتهي صلاحية الرابط أو تلغيه. لا تُضمَّن المصادر ولا تفاصيل المستندات.';
+
+  @override
+  String get createLinkAction => 'إنشاء رابط';
+
+  @override
+  String shareCreated(String date) {
+    return 'نُسخ الرابط. تنتهي صلاحيته في $date.';
+  }
+
+  @override
+  String get activeLinks => 'الروابط النشطة';
+
+  @override
+  String get noActiveLinks => 'لا توجد روابط نشطة.';
+
+  @override
+  String get revokeAction => 'إلغاء';
+
+  @override
+  String get linkRevoked => 'أُلغي الرابط.';
+
+  @override
+  String expiresOn(String date) {
+    return 'تنتهي في $date';
+  }
+
+  @override
+  String get openLinkTitle => 'فتح رابط خارجي؟';
+
+  @override
+  String openLinkBody(String host) {
+    return 'سيُفتح $host في المتصفح.';
+  }
+
+  @override
+  String get openAction => 'فتح';
+
+  @override
+  String get openChat => 'فتح المحادثات';
 }

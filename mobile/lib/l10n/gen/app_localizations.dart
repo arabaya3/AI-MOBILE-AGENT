@@ -1057,6 +1057,342 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name'**
   String get nameLabel;
+
+  /// No description provided for @chatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations'**
+  String get chatTitle;
+
+  /// No description provided for @newConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'New conversation'**
+  String get newConversation;
+
+  /// No description provided for @chatEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No conversations yet'**
+  String get chatEmptyTitle;
+
+  /// No description provided for @chatEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation to ask a question in this space.'**
+  String get chatEmptyBody;
+
+  /// No description provided for @untitledConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled conversation'**
+  String get untitledConversation;
+
+  /// No description provided for @composerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask a question'**
+  String get composerHint;
+
+  /// No description provided for @sendAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get sendAction;
+
+  /// No description provided for @stopAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get stopAction;
+
+  /// No description provided for @attachmentsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments and documents arrive in a later release.'**
+  String get attachmentsUnavailable;
+
+  /// No description provided for @modelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get modelLabel;
+
+  /// No description provided for @noModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No models are available to you in this space.'**
+  String get noModels;
+
+  /// No description provided for @assistantTyping.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing a reply…'**
+  String get assistantTyping;
+
+  /// No description provided for @copyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copyAction;
+
+  /// No description provided for @copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard.'**
+  String get copied;
+
+  /// No description provided for @helpful.
+  ///
+  /// In en, this message translates to:
+  /// **'Helpful'**
+  String get helpful;
+
+  /// No description provided for @notHelpful.
+  ///
+  /// In en, this message translates to:
+  /// **'Not helpful'**
+  String get notHelpful;
+
+  /// No description provided for @branchAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue in a new conversation'**
+  String get branchAction;
+
+  /// No description provided for @sourcesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sources'**
+  String get sourcesLabel;
+
+  /// No description provided for @sourcesSessionOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Sources are shown in this view only and aren\'t saved with the conversation.'**
+  String get sourcesSessionOnly;
+
+  /// No description provided for @sourceExcerpt.
+  ///
+  /// In en, this message translates to:
+  /// **'Excerpt {index}'**
+  String sourceExcerpt(int index);
+
+  /// No description provided for @turnQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached your usage limit in this space.'**
+  String get turnQuota;
+
+  /// No description provided for @turnRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Wait a moment, then send again.'**
+  String get turnRateLimited;
+
+  /// No description provided for @turnPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'This model isn\'t allowed in this space. Choose another model.'**
+  String get turnPolicy;
+
+  /// No description provided for @turnProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'The model couldn\'t finish this reply. Nothing was saved for it.'**
+  String get turnProvider;
+
+  /// No description provided for @turnInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection ended before the reply finished. The reply wasn\'t saved.'**
+  String get turnInterrupted;
+
+  /// No description provided for @turnStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'You stopped this reply. Stopping only ends it on this device, and the partial reply isn\'t saved.'**
+  String get turnStopped;
+
+  /// No description provided for @turnSessionNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation is no longer available.'**
+  String get turnSessionNotFound;
+
+  /// No description provided for @turnDocumentAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have access to a selected document.'**
+  String get turnDocumentAccess;
+
+  /// No description provided for @turnProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'The reply couldn\'t be read.'**
+  String get turnProtocol;
+
+  /// No description provided for @turnGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'The reply couldn\'t be completed.'**
+  String get turnGeneric;
+
+  /// No description provided for @turnUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'Your question may already be saved. Check the conversation before sending it again.'**
+  String get turnUncertain;
+
+  /// No description provided for @sendAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Send again'**
+  String get sendAgain;
+
+  /// No description provided for @dismissAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get dismissAction;
+
+  /// No description provided for @storedReplyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This reply failed and contains no answer.'**
+  String get storedReplyFailed;
+
+  /// No description provided for @jumpToLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to latest'**
+  String get jumpToLatest;
+
+  /// No description provided for @moreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreActions;
+
+  /// No description provided for @summaryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarize'**
+  String get summaryAction;
+
+  /// No description provided for @summaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get summaryTitle;
+
+  /// No description provided for @summaryCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Summaries are written by the model and count toward this space\'s usage.'**
+  String get summaryCost;
+
+  /// No description provided for @generateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get generateAction;
+
+  /// No description provided for @exportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as Markdown'**
+  String get exportAction;
+
+  /// No description provided for @exportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation copied as Markdown.'**
+  String get exportDone;
+
+  /// No description provided for @shareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share link'**
+  String get shareAction;
+
+  /// No description provided for @shareTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share this conversation'**
+  String get shareTitle;
+
+  /// No description provided for @shareExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with the link can read this conversation\'s messages up to the moment you create it, until the link expires or you revoke it. Sources and document details aren\'t included.'**
+  String get shareExplain;
+
+  /// No description provided for @createLinkAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create link'**
+  String get createLinkAction;
+
+  /// No description provided for @shareCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied. It expires on {date}.'**
+  String shareCreated(String date);
+
+  /// No description provided for @activeLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'Active links'**
+  String get activeLinks;
+
+  /// No description provided for @noActiveLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'No active links.'**
+  String get noActiveLinks;
+
+  /// No description provided for @revokeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get revokeAction;
+
+  /// No description provided for @linkRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Link revoked.'**
+  String get linkRevoked;
+
+  /// No description provided for @expiresOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String expiresOn(String date);
+
+  /// No description provided for @openLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open external link?'**
+  String get openLinkTitle;
+
+  /// No description provided for @openLinkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This opens {host} in your browser.'**
+  String openLinkBody(String host);
+
+  /// No description provided for @openAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get openAction;
+
+  /// No description provided for @openChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Open conversations'**
+  String get openChat;
 }
 
 class _AppLocalizationsDelegate

@@ -27,6 +27,7 @@ from src.modules.apis.v1.vector_search.router import router as vector_search_rou
 from src.modules.apis.v1.notifications.router import router as notifications_router
 from src.modules.apis.v1.requests.router import router as requests_router
 from src.services.databases.postgresql.database import init_db
+from src.services.llm_providers.provider import assert_provider_configuration
 from src.core.settings.logging import logger
 
 
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI):
     
     # Startup
     logger.info("Starting application initialization...")
+    assert_provider_configuration()
     await init_db()
     
     # Initialize tools

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:teia_ai/core/providers.dart';
 import 'package:teia_ai/core/storage/token_store.dart';
@@ -10,6 +11,7 @@ Future<ProviderContainer> makeContainer(
   FakeBackend backend, {
   TokenStore? store,
   Map<String, Object> prefs = const {},
+  List<Override> overrides = const [],
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
   final container = ProviderContainer(
@@ -20,6 +22,7 @@ Future<ProviderContainer> makeContainer(
       ),
       tokenStoreProvider.overrideWithValue(store ?? InMemoryTokenStore()),
       dioProvider.overrideWithValue(backend.dio),
+      ...overrides,
     ],
   );
   return container;

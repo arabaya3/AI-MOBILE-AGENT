@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.settings.config import settings
@@ -470,6 +471,20 @@ class SpacesService:
             extra={"space_id": space_id, "request_id": req.id, "type": type_value, "user_id": user.id},
         )
         return req
+
+    async def create_join_request(self, db: AsyncSession, *, space_id: str, user: User) -> SpaceRequest:
+        """Idempotent under concurrency: the partial unique index decides the winner."""
+        try:
+            async with db.begin_nested():
+                req = SpaceRequest(space_id=space_id, user_id=user.id, type="join", payload={}, status="pending")
+                db.add(req)
+                await db.flush()
+            return req
+        except IntegrityError:
+            existing = await self.find_pending_request(db, space_id=space_id, user_id=user.id, type_value="join")
+            if existing is None:
+                raise
+            return existing
 
     async def find_pending_request(self, db: AsyncSession, *, space_id: str, user_id: str, type_value: str) -> Optional[SpaceRequest]:
         stmt = select(SpaceRequest).where(

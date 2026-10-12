@@ -76,3 +76,22 @@ async def test_invite_accept_enforces_email_expiry_and_single_use(client, world,
     assert ok.status_code == 200 and ok.json()["space_id"] == world["open"].id
     assert (await client.post(accept, json={"token": "tok-valid-0000000000"}, headers=bob)).status_code == 404
     assert [s["name"] for s in (await client.get(SPACES, headers=bob)).json()] == ["Open"]
+
+
+async def test_concurrent_join_requests_create_a_single_pending_request(client, world, factory):
+    import asyncio
+
+    path = f"{SPACES}/{world['open'].id}/requests"
+    headers = auth_headers(world["bob"])
+    responses = await asyncio.gather(
+        *[client.post(path, json={"type": "join"}, headers=headers) for _ in range(6)]
+    )
+    assert {r.status_code for r in responses} == {201}
+    assert len({r.json()["id"] for r in responses}) == 1
+    count = (
+        await factory.execute(
+            "SELECT count(*) FROM space_requests WHERE user_id = :u AND type = 'join' AND status = 'pending'",
+            u=world["bob"].id,
+        )
+    ).scalar_one()
+    assert count == 1
