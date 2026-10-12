@@ -6,7 +6,7 @@
 | Baseline | `origin/dev` @ `a02aa7191485041981b1f166ee517195cf210482` |
 | Repository | `arabaya3/AI-MOBILE-AGENT` (no changes to any original TEIA repository) |
 | Decisions | D1–D11 resolved 2026-10-11 (§9) |
-| Current phase | Phase 0 complete (§6). Phase S merged in `180a1de`. |
+| Current phase | Phase 1 complete (§6). Phase 0 merged in `c34115e`. |
 
 API evidence for every statement here is in [MOBILE_DISCOVERY.md](MOBILE_DISCOVERY.md).
 
@@ -303,6 +303,54 @@ Intentionally deferred: login, chat, uploads, administration, and Freezed DTOs. 
   - The token appears in secure storage only.
   - Backend tests cover `/auth/me` and the change-password status code.
 
+**Phase 1 results (2026-10-12, branch `feature/mobile-auth-spaces`):**
+
+Implemented:
+- **Authentication:**
+  - Screens for sign-in, registration (the role is never sent), forgot password (generic response), reset password (token validated first), account details from `/auth/me`, change password, and local sign-out.
+  - Localized and accessible, with autofill hints and password managers supported.
+  - Inactive-account, rate-limit, network and field errors each have their own message.
+  - Duplicate submissions are blocked, and mutations are never retried automatically.
+- **Session concurrency:**
+  - `SessionManager` serializes secure-storage writes and deletes in the same order as the in-memory changes.
+  - An epoch counter discards stale restores, stale `/me` responses and 401s for older tokens.
+  - A failed deletion overwrites the stored token instead of leaving it behind.
+  - `ApiClient` cancels every in-flight request on sign-out or account change, and only the space-scoped ones on a space switch.
+  - The session state is available immediately to late subscribers.
+- **Restore:**
+  - The stored token is verified with `/auth/me`.
+  - An offline or server failure shows retry or sign-out and keeps the token.
+  - An unreadable keystore offers retry.
+  - A rejected token requires signing in again.
+- **Spaces:**
+  - Accessible spaces come from `GET /spaces`, and each selection is confirmed with `/spaces/{id}/me` before `X-Space-Id` is sent.
+  - The selection is saved per account and cleared on sign-out or expiry.
+  - Inactive spaces, revoked memberships and spaces the backend rejects are never selected; the user sees an "access lost" notice.
+  - Late responses after a switch are discarded.
+  - Users can browse other spaces, request to join (shown as pending), and accept invitations.
+- **Links:**
+  - Reset and invite tokens arrive through a link and are held only in memory, never in routes, logs or storage.
+  - Flutter's built-in deep linking is disabled on both platforms.
+  - The development-only `teia-dev://` scheme exists only in the dev flavor (Android intent filter, iOS build phase).
+  - Release builds accept only `https` links from `APP_LINK_HOSTS`, which is empty until an owner domain exists; verified links are therefore **not** claimed.
+  - As a fallback, users can paste the emailed link.
+- **Home:** an honest authenticated screen showing the account, the space, the role and upload permission. Features not built yet are labelled unavailable; space administration appears only for space admins, and also as unavailable.
+
+Verified:
+- **Mobile:**
+  - Formatting, analysis and **122** passing Flutter tests: session race tests with controlled storage, ApiClient scoping, links, redirects, auth and space controllers, and full-app flows in en/ar × light/dark at 2× text.
+  - Android dev debug APK built.
+- **Backend:** **41** pytest tests passing, 14 of them new for `/auth/me`, change-password, signup role restrictions and spaces access.
+- **End to end:**
+  - Android emulator (API 36, 360 dp) against a **local** FastAPI backend with a new local Postgres, Redis and a Mailpit email sink.
+  - Flows: sign-in → `/me` → spaces → select → restart (restored and re-validated) → switch to an Arabic-named space → Arabic/dark UI → sign-out (no restore after relaunch).
+  - Password recovery: email in Mailpit → dev link → reset → sign-in with the new password; replay rejected; unknown email got no mail.
+  - In-app registration → admin invitation email → dev link → accept → home.
+  - Membership revoked during use → access-lost notice.
+  - Screenshots are in `docs/mobile/screenshots/phase1/`.
+
+Not verified: iOS on this machine (left to the macOS CI job), verified App Links/Universal Links (no owner domain), and push notifications (out of scope).
+
 ### Phase 2 — Chat and streaming
 - **Scope:** sessions, conversation, SSE streaming, stop and retry, model selector, message actions, summary, Markdown, mixed-direction rendering, share-link management. Backend: S2, S5, S6.
 - **Acceptance:**
@@ -362,8 +410,8 @@ Intentionally deferred: login, chat, uploads, administration, and Freezed DTOs. 
 | R1 | Owner-controlled HTTPS endpoints | 6 | **External dependency** |
 | R2 | Secure share tokens with expiry and revocation | S | **Done in this phase** |
 | R3 | Email-only reset tokens, generic response, single use | S | **Done in this phase** |
-| R4 | `GET /auth/me` | 1 | Planned |
-| S1 | change-password returns 400, not 401, for a wrong password | 1 | Planned |
+| R4 | `GET /auth/me` | 1 | **Done (Phase 1)** |
+| S1 | change-password returns 400, not 401, for a wrong password | 1 | **Done (Phase 1)** |
 | S2 | Rename and delete sessions | 2 | Planned |
 | S3 | 25 MiB streaming upload limit (413) and processing timeout | 3 | Planned |
 | S4 | Persist citations | 3 | Planned |
@@ -372,6 +420,9 @@ Intentionally deferred: login, chat, uploads, administration, and Freezed DTOs. 
 | S7 | Super-admin usage route order (web feature) | 5 | Planned |
 | S8 | Per-user check on `/documents/{id}/chunks` | 3 | Planned |
 | S9 | Workspace system prompts, space-admin only (D5) | 5 | Planned |
+| S10 | Hash space invite tokens and stop returning them to the inviter | 5 | Planned (found in Phase 1) |
+| S11 | Web `/join-space` route so emailed invite links work on the web | 4 | Planned (found in Phase 1) |
+| S12 | Validate join requests (space exists and active, not already a member, idempotent) and add `GET /spaces/requests/mine` | 1 | **Done (Phase 1)** |
 
 Deferred: refresh tokens, push device registration (D4), document delete, async upload status, stream cancellation, pagination.
 

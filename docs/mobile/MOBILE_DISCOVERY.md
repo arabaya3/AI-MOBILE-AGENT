@@ -274,3 +274,37 @@ These claims were re-verified against code and a local Postgres before any chang
 | Reset request | Token in body; 500 vs 200 enumeration | Identical generic 200 for known, unknown and inactive accounts. Token delivered only by email through a background task. If email is disabled, no token is created and only the user id is logged. |
 | Reset tokens | Reusable after a new request; aware/naive crash | Hashed, configurable TTL (60 min), single-use with a row lock. All outstanding tokens are invalidated on a new request and after a successful reset. |
 | Web flow | Validate endpoint missing; email link lost the token | `POST /auth/reset-password/validate` added; the email link targets `/auth?token=…`. |
+
+---
+
+## 8. Phase 1 contract verification (2026-10-12)
+
+These contracts were checked against the code and exercised end to end against a local backend.
+
+### 8.1 Authentication
+
+| Endpoint | Contract used by mobile | Notes |
+|---|---|---|
+| `POST /auth/login` | `{email, password}` → `{access_token, token_type, expires_in}` | 401 wrong credentials, **403 `Inactive account`**, plain-text 429 from the rate limiter |
+| `POST /auth/signup` | `email`, `password` (≥8), optional profile fields → **201 `{id, email, role}`** | **Correction to §2.1:** the response key is `id`, not `user_id`, because FastAPI serializes by alias. Public calls with `role=admin\|super_admin` get 403. Mobile never sends `role`. |
+| `GET /auth/me` | **New.** Returns `{id, email, role, is_active, email_verified, first_name, last_name, date_of_birth, phone_number, country, job_title, company, industry, preferred_language, created_at}` | Role and active status are read from the database on each call. Credentials, prompts and admin overrides are excluded. 401 for missing, expired or malformed tokens and for inactive users. |
+| `POST /auth/change-password` | `{current_password, new_password}` | **Changed:** a wrong current password now returns **400** (was 401, which made the web client sign the user out) |
+| `POST /auth/forgot-password`, `/reset-password/validate`, `/reset-password` | As in §7.2 | Re-verified end to end with Mailpit: the generic response, a single email, a 400 on replay, and `valid:false` after use |
+| Logout | None server-side | The JWT stays valid until it expires (`JWT_EXPIRATION_HOURS`, 24 by default). Mobile sign-out is local only. |
+
+### 8.2 Spaces
+
+| Endpoint | Contract | Notes |
+|---|---|---|
+| `GET /spaces` | `SpaceSummary[]` | Returns only **active spaces with an active membership**. Mobile treats this as the list of accessible spaces. |
+| `GET /spaces/{id}/me` | `{space_id, user_id, role: admin\|member, status, can_upload_documents, overrides}` | 403 for non-members. **Does not check `space.is_active`**, so mobile also requires the space to be in `GET /spaces`. |
+| `GET /spaces/available` | Active spaces without a non-revoked membership | A **revoked** member sees the space again and may request to rejoin |
+| `POST /spaces/{id}/requests` `{type:"join"}` | **Changed:** 404 if the space is missing or inactive, 409 if already an active member, and a repeated call returns the existing pending request instead of a duplicate | Other request types still require active membership |
+| `GET /spaces/requests/mine` | **New.** The caller's own requests across spaces | Lets the app show "Request pending" after a restart |
+| `POST /spaces/invites/accept` `{token}` | → `{space_id, status}` | 404 unknown or used, 400 expired, 403 for a different email; single use |
+
+### 8.3 Findings not fixed in Phase 1
+
+- **Invite tokens are stored in plaintext** (`space_invites.token`), unlike reset tokens. The invite endpoint also returns the token to the inviting admin. Recommended: hash the tokens and stop returning them (register S10).
+- **The web app has no `/join-space` route**, so the emailed invite link redirects to `/auth` and loses the token, as the reset link did before Phase S. Web users currently paste the token instead (register S11).
+- **Inactive accounts:** `get_current_user` returns 401 "Inactive or unknown user" when an active session's account is deactivated, so mobile treats it as session expiry.

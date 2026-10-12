@@ -1,3 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application android:networkSecurityConfig="@xml/network_security_config" />
+    <application android:networkSecurityConfig="@xml/network_security_config">
+        <activity android:name=".MainActivity">
+            <!-- Development-only link scheme for testing reset/invite links locally.
+                 Release flavors accept only verified https App Links. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="teia-dev" android:host="reset-password" />
+                <data android:scheme="teia-dev" android:host="join-space" />
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>

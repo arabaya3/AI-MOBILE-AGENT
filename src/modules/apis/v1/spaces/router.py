@@ -18,6 +18,7 @@ from .handlers import (
     handle_list_members,
     handle_list_my_spaces,
     handle_list_available_spaces,
+    handle_list_my_requests,
     handle_list_requests,
     handle_review_request,
     handle_space_usage,
@@ -69,6 +70,15 @@ async def list_available_spaces(
     current_user: User = Depends(get_current_user),
 ) -> list[SpaceSummary]:
     return await handle_list_available_spaces(current_user, db)
+
+
+@router.get("/requests/mine", response_model=list[SpaceRequestSummary])
+async def list_my_space_requests(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[SpaceRequestSummary]:
+    """The caller's own requests across all spaces (for showing pending access)."""
+    return await handle_list_my_requests(current_user, db)
 
 
 @router.post("", response_model=CreateSpaceResponse, status_code=status.HTTP_201_CREATED)

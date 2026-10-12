@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:teia_ai/core/network/api_client.dart';
 import 'package:teia_ai/core/network/api_exception.dart';
@@ -81,7 +82,7 @@ void main() {
               jsonBody(401, {'detail': 'Invalid authentication credentials'}),
         );
         final client = clientFor(adapter);
-        final events = <SessionStatus>[];
+        final events = <SessionSnapshot>[];
         final sub = session.changes.listen(events.add);
 
         final results = await Future.wait(
@@ -96,7 +97,10 @@ void main() {
 
         expect(results, everyElement(isA<SessionExpiredException>()));
         expect(adapter.requests, hasLength(6));
-        expect(events.where((s) => s == SessionStatus.expired), hasLength(1));
+        expect(
+          events.where((s) => s.endReason == SessionEndReason.expired),
+          hasLength(1),
+        );
         expect(store.deleteCount, 1);
         expect(session.token, isNull);
         await sub.cancel();
@@ -115,7 +119,7 @@ void main() {
 
       await expectLater(pending, throwsA(isA<SessionExpiredException>()));
       expect(session.token, 'token-2');
-      expect(session.status, SessionStatus.signedIn);
+      expect(session.current.isActive, isTrue);
     });
 
     test(
@@ -220,6 +224,71 @@ void main() {
       await source.close();
     });
   });
+
+  group('scoped cancellation', () {
+    test('cancelAll aborts every in-flight request', () async {
+      final adapter = FakeAdapter((_) => Completer<ResponseBody>().future);
+      final client = clientFor(adapter);
+      final a = client.request<Object>('/spaces', includeSpace: false);
+      final b = client.request<Object>('/chat/sessions');
+      await pumpUntil(() => adapter.requests.length == 2);
+      client.cancelAll();
+      await expectLater(a, throwsA(isA<RequestCancelledException>()));
+      await expectLater(b, throwsA(isA<RequestCancelledException>()));
+    });
+
+    test('cancelSpaceScoped keeps requests that carried no space', () async {
+      final gate = Completer<ResponseBody>();
+      final adapter = FakeAdapter((_) => gate.future);
+      final client = clientFor(adapter);
+      final scoped = client.request<Object>('/chat/sessions');
+      final unscoped = client.request<Object>('/auth/me', includeSpace: false);
+      await pumpUntil(() => adapter.requests.length == 2);
+      client.cancelSpaceScoped();
+      await expectLater(scoped, throwsA(isA<RequestCancelledException>()));
+      gate.complete(jsonBody(200, {'ok': true}));
+      expect((await unscoped).statusCode, 200);
+    });
+
+    test('a caller cancel token still works', () async {
+      final adapter = FakeAdapter((_) => Completer<ResponseBody>().future);
+      final token = CancelToken();
+      final pending = clientFor(
+        adapter,
+      ).request<Object>('/spaces', cancelToken: token);
+      await pumpUntil(() => adapter.requests.isNotEmpty);
+      token.cancel();
+      await expectLater(pending, throwsA(isA<RequestCancelledException>()));
+    });
+  });
+
+  test(
+    'a rejection of the current space is reported; other 403s are not',
+    () async {
+      final rejected = <String>[];
+      final adapter = FakeAdapter(
+        (options) async => options.path.contains('denied')
+            ? jsonBody(403, {'detail': 'Space access denied'})
+            : jsonBody(403, {'detail': 'Space admin required'}),
+      );
+      final client = ApiClient(
+        dio: fakeDio(adapter),
+        readToken: () => session.token,
+        readSpaceId: () => spaceId,
+        onSessionExpired: session.expire,
+        onSpaceRejected: rejected.add,
+      );
+      await expectLater(
+        client.request<Object>('/denied'),
+        throwsA(isA<ForbiddenException>()),
+      );
+      await expectLater(
+        client.request<Object>('/admin'),
+        throwsA(isA<ForbiddenException>()),
+      );
+      expect(rejected, ['space-42']);
+    },
+  );
 }
 
 Future<void> pumpUntil(bool Function() condition) async {

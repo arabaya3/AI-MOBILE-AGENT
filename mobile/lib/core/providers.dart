@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,38 +24,55 @@ final sessionManagerProvider = Provider<SessionManager>((ref) {
   return manager;
 });
 
-final sessionStatusProvider = StreamProvider<SessionStatus>((ref) {
-  final manager = ref.watch(sessionManagerProvider);
-  return manager.changes;
-});
-
-class ActiveSpaceController extends Notifier<String?> {
-  static const _key = 'active_space_id';
-
+/// Current session snapshot, available synchronously to late subscribers.
+class SessionSnapshotNotifier extends Notifier<SessionSnapshot> {
   @override
-  String? build() => ref.watch(sharedPreferencesProvider).getString(_key);
-
-  Future<void> select(String? spaceId) async {
-    final prefs = ref.read(sharedPreferencesProvider);
-    if (spaceId == null) {
-      await prefs.remove(_key);
-    } else {
-      await prefs.setString(_key, spaceId);
-    }
-    state = spaceId;
+  SessionSnapshot build() {
+    final manager = ref.watch(sessionManagerProvider);
+    final sub = manager.changes.listen((snapshot) => state = snapshot);
+    ref.onDispose(sub.cancel);
+    return manager.current;
   }
 }
 
-final activeSpaceProvider = NotifierProvider<ActiveSpaceController, String?>(
-  ActiveSpaceController.new,
+final sessionSnapshotProvider =
+    NotifierProvider<SessionSnapshotNotifier, SessionSnapshot>(
+      SessionSnapshotNotifier.new,
+    );
+
+/// The validated space sent as `X-Space-Id`. Only the space controller writes it,
+/// and only after confirming the user can access that space.
+class SelectedSpaceId extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? spaceId) => state = spaceId;
+}
+
+final selectedSpaceIdProvider = NotifierProvider<SelectedSpaceId, String?>(
+  SelectedSpaceId.new,
+);
+
+/// Emits a space id when the backend rejects it as inaccessible.
+final spaceRejectionsProvider = Provider<StreamController<String>>((ref) {
+  // Closed in onDispose.
+  // ignore: close_sinks
+  final controller = StreamController<String>.broadcast();
+  ref.onDispose(controller.close);
+  return controller;
+});
+
+final dioProvider = Provider<Dio>(
+  (ref) => createDio(ref.watch(appConfigProvider)),
 );
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final session = ref.watch(sessionManagerProvider);
   return ApiClient(
-    dio: createDio(ref.watch(appConfigProvider)),
+    dio: ref.watch(dioProvider),
     readToken: () => session.token,
-    readSpaceId: () => ref.read(activeSpaceProvider),
-    onSessionExpired: (token) => session.expire(token),
+    readSpaceId: () => ref.read(selectedSpaceIdProvider),
+    onSessionExpired: session.expire,
+    onSpaceRejected: ref.watch(spaceRejectionsProvider).add,
   );
 });

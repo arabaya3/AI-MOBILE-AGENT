@@ -72,3 +72,49 @@ flutter test
 - **Localizations:** `lib/l10n/app_*.arb`. Generated code in `lib/l10n/gen` is committed, and CI checks that it is up to date.
 - **Arabic terms for owner review:** listed in `mobile/l10n/REVIEW.md`.
 - **Icons:** placeholder launcher icons come from `tool/generate_placeholder_icons.py`. Replace them when brand assets are approved.
+
+## Local backend for end-to-end checks
+
+Use disposable local services only. Never point the app or the backend at a shared or remote database.
+
+```bash
+docker network create teia-e2e-net
+docker run -d --name teia-e2e-db --network teia-e2e-net -e POSTGRES_PASSWORD=<local> -e POSTGRES_DB=teia_e2e postgres:16-alpine
+docker run -d --name teia-e2e-redis --network teia-e2e-net redis:7-alpine
+# Local email sink with STARTTLS (self-signed cert in ./mailcert); web UI and API on :8025
+docker run -d --name teia-e2e-mail --network teia-e2e-net -p 8025:8025 -v "$PWD/mailcert:/certs:ro" \
+  -e MP_SMTP_TLS_CERT=/certs/cert.pem -e MP_SMTP_TLS_KEY=/certs/key.pem \
+  -e MP_SMTP_AUTH_ACCEPT_ANY=true -e MP_SMTP_AUTH_ALLOW_INSECURE=true axllent/mailpit:v1.27
+```
+
+Then run the backend from this branch's `src/` **without an `.env` file**, passing every setting explicitly:
+- `POSTGRES_*` and `REDIS_*` → the containers above.
+- `EMAIL_ENABLED=true`, `SMTP_HOST=teia-e2e-mail`, `SMTP_PORT=1025`, `SMTP_USE_TLS=true`.
+- `FRONTEND_URL=http://localhost:5174`.
+- A random `SECRET_KEY`, dummy `AWS_*` values, and empty AI-provider keys.
+
+Publish the backend on port 8001; the Android emulator reaches it at `http://10.0.2.2:8001/api/v1`. Create synthetic users through `POST /api/v1/auth/signup`.
+
+## Reset and invitation links
+
+| Build | Accepted links |
+|---|---|
+| dev | `teia-dev://reset-password?token=…`, `teia-dev://join-space?token=…`, plus https links from `APP_LINK_HOSTS` |
+| staging / prod | Only `https://<APP_LINK_HOSTS>/auth?token=…` and `/join-space?token=…` |
+
+- **Dev testing on Android:**
+  ```bash
+  adb shell am start -a android.intent.action.VIEW -d "teia-dev://reset-password?token=<token>" com.teia.aiassistant.dev
+  ```
+  Take the token from the email in Mailpit.
+- **Path to verified links in production:**
+  1. Choose the owner-controlled HTTPS host that serves the web app, and set `APP_LINK_HOSTS` to it.
+  2. Publish `/.well-known/assetlinks.json` with the release signing certificate fingerprint, and `/.well-known/apple-app-site-association` with the Team ID and bundle IDs.
+  3. Add an `autoVerify` intent filter (Android) and the Associated Domains entitlement `applinks:<host>` (iOS).
+
+  Until that is done, users can paste the emailed link into the reset or invitation field.
+- **Token handling:** tokens are held in memory only. They never appear in routes, logs or storage, and Flutter's built-in deep linking is disabled so URLs cannot reach the router.
+
+## Sign-out
+
+Sign-out is **local**: it removes the token from secure storage and clears the selected space and in-flight requests. The backend has no revocation endpoint, so a token that was already issued stays valid until it expires (`JWT_EXPIRATION_HOURS`).

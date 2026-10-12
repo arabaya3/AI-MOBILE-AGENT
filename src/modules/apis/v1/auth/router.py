@@ -25,6 +25,7 @@ from .schemas import (
     ChangePasswordRequest,
     ChangePasswordResponse,
     SignUpRequest,
+    CurrentUserResponse,
     TokenResponse,
     UserListResponse,
     UserResponse,
@@ -109,6 +110,13 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
     """Complete password reset."""
 
     return await handle_reset_password(payload, db)
+
+
+@router.get("/me", response_model=CurrentUserResponse)
+async def me(current_user: User = Depends(get_current_user)) -> CurrentUserResponse:
+    """Return the authenticated user's account, loaded fresh from the database."""
+
+    return CurrentUserResponse.model_validate(current_user)
 
 
 @router.post("/change-password", response_model=ChangePasswordResponse)
