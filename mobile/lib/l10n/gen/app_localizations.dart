@@ -475,6 +475,588 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something unexpected happened. Please try again.'**
   String get errorUnexpected;
+
+  /// No description provided for @signInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get signInTitle;
+
+  /// No description provided for @signInSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your TEIA account to continue.'**
+  String get signInSubtitle;
+
+  /// No description provided for @emailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get emailLabel;
+
+  /// No description provided for @passwordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordLabel;
+
+  /// No description provided for @showPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get showPassword;
+
+  /// No description provided for @hidePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get hidePassword;
+
+  /// No description provided for @signInAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get signInAction;
+
+  /// No description provided for @forgotPasswordLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPasswordLink;
+
+  /// No description provided for @createAccountLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an account'**
+  String get createAccountLink;
+
+  /// No description provided for @errorInactiveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is inactive. Contact your administrator.'**
+  String get errorInactiveAccount;
+
+  /// No description provided for @signedOutNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'You signed out on this device.'**
+  String get signedOutNotice;
+
+  /// No description provided for @registerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your account'**
+  String get registerTitle;
+
+  /// No description provided for @firstNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'First name'**
+  String get firstNameLabel;
+
+  /// No description provided for @lastNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Last name'**
+  String get lastNameLabel;
+
+  /// No description provided for @companyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Company'**
+  String get companyLabel;
+
+  /// No description provided for @jobTitleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Job title'**
+  String get jobTitleLabel;
+
+  /// No description provided for @confirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get confirmPasswordLabel;
+
+  /// No description provided for @passwordHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 8 characters.'**
+  String get passwordHelper;
+
+  /// No description provided for @optionalDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional details'**
+  String get optionalDetails;
+
+  /// No description provided for @registerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get registerAction;
+
+  /// No description provided for @haveAccountLink.
+  ///
+  /// In en, this message translates to:
+  /// **'I already have an account'**
+  String get haveAccountLink;
+
+  /// No description provided for @errorEmailTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'An account with this email already exists.'**
+  String get errorEmailTaken;
+
+  /// No description provided for @registeredSignInFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was created. Sign in to continue.'**
+  String get registeredSignInFailed;
+
+  /// No description provided for @validationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This field is required.'**
+  String get validationRequired;
+
+  /// No description provided for @validationEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address.'**
+  String get validationEmail;
+
+  /// No description provided for @validationPasswordLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at least 8 characters.'**
+  String get validationPasswordLength;
+
+  /// No description provided for @validationPasswordMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The passwords don\'t match.'**
+  String get validationPasswordMatch;
+
+  /// No description provided for @forgotTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get forgotTitle;
+
+  /// No description provided for @forgotBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your account email. If an account exists, we\'ll send a reset link.'**
+  String get forgotBody;
+
+  /// No description provided for @sendResetLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Send reset link'**
+  String get sendResetLink;
+
+  /// No description provided for @forgotSent.
+  ///
+  /// In en, this message translates to:
+  /// **'If an account exists for this email, a reset link is on its way. It expires in 1 hour.'**
+  String get forgotSent;
+
+  /// No description provided for @haveResetLink.
+  ///
+  /// In en, this message translates to:
+  /// **'I have a reset link'**
+  String get haveResetLink;
+
+  /// No description provided for @backToSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to sign in'**
+  String get backToSignIn;
+
+  /// No description provided for @resetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password'**
+  String get resetTitle;
+
+  /// No description provided for @resetCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset link'**
+  String get resetCodeLabel;
+
+  /// No description provided for @resetCodeHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the link from the reset email.'**
+  String get resetCodeHelper;
+
+  /// No description provided for @resetCodeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This isn\'t a valid reset link.'**
+  String get resetCodeInvalid;
+
+  /// No description provided for @resetLinkReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset link received.'**
+  String get resetLinkReady;
+
+  /// No description provided for @newPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPasswordLabel;
+
+  /// No description provided for @resetAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update password'**
+  String get resetAction;
+
+  /// No description provided for @resetLinkExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This reset link is invalid or has expired. Request a new one.'**
+  String get resetLinkExpired;
+
+  /// No description provided for @resetDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password was updated. Sign in with your new password.'**
+  String get resetDone;
+
+  /// No description provided for @requestNewLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Request a new link'**
+  String get requestNewLink;
+
+  /// No description provided for @sessionProblemTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t confirm your session'**
+  String get sessionProblemTitle;
+
+  /// No description provided for @sessionProblemOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and try again. You\'re still signed in on this device.'**
+  String get sessionProblemOffline;
+
+  /// No description provided for @sessionProblemServer.
+  ///
+  /// In en, this message translates to:
+  /// **'The service didn\'t respond. Try again in a moment.'**
+  String get sessionProblemServer;
+
+  /// No description provided for @sessionProblemStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'This device\'s secure storage couldn\'t be read.'**
+  String get sessionProblemStorage;
+
+  /// No description provided for @signOutAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get signOutAction;
+
+  /// No description provided for @accountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get accountTitle;
+
+  /// No description provided for @accountDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Account details'**
+  String get accountDetails;
+
+  /// No description provided for @roleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Role'**
+  String get roleLabel;
+
+  /// No description provided for @roleViewer.
+  ///
+  /// In en, this message translates to:
+  /// **'Member'**
+  String get roleViewer;
+
+  /// No description provided for @roleAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator'**
+  String get roleAdmin;
+
+  /// No description provided for @roleSuperAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Super administrator'**
+  String get roleSuperAdmin;
+
+  /// No description provided for @changePasswordAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get changePasswordAction;
+
+  /// No description provided for @signOutConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out of this device?'**
+  String get signOutConfirmTitle;
+
+  /// No description provided for @signOutConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session is removed from this device. A session already issued stays valid on the server until it expires.'**
+  String get signOutConfirmBody;
+
+  /// No description provided for @cancelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelAction;
+
+  /// No description provided for @designPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Design preview'**
+  String get designPreview;
+
+  /// No description provided for @changePasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get changePasswordTitle;
+
+  /// No description provided for @currentPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get currentPasswordLabel;
+
+  /// No description provided for @errorCurrentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'The current password is incorrect.'**
+  String get errorCurrentPassword;
+
+  /// No description provided for @passwordChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password was changed.'**
+  String get passwordChanged;
+
+  /// No description provided for @persistenceFailedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This device couldn\'t store your session securely. You may need to sign in again next time.'**
+  String get persistenceFailedNotice;
+
+  /// No description provided for @spacesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a space'**
+  String get spacesTitle;
+
+  /// No description provided for @spacesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Spaces keep each team\'s documents and conversations separate.'**
+  String get spacesSubtitle;
+
+  /// No description provided for @spacesYours.
+  ///
+  /// In en, this message translates to:
+  /// **'Your spaces'**
+  String get spacesYours;
+
+  /// No description provided for @spacesNoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No space yet'**
+  String get spacesNoneTitle;
+
+  /// No description provided for @spacesNoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask an administrator for an invitation, or request access to a space below.'**
+  String get spacesNoneBody;
+
+  /// No description provided for @spacesAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Other spaces'**
+  String get spacesAvailable;
+
+  /// No description provided for @spacesAvailableEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No other spaces are open for requests.'**
+  String get spacesAvailableEmpty;
+
+  /// No description provided for @requestAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Request access'**
+  String get requestAccess;
+
+  /// No description provided for @accessPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Request pending'**
+  String get accessPending;
+
+  /// No description provided for @accessRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Your request was sent to the space administrators.'**
+  String get accessRequested;
+
+  /// No description provided for @spaceAccessLost.
+  ///
+  /// In en, this message translates to:
+  /// **'You no longer have access to the space you used before. Choose another one.'**
+  String get spaceAccessLost;
+
+  /// No description provided for @haveInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Have an invitation?'**
+  String get haveInvitation;
+
+  /// No description provided for @inviteCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation link'**
+  String get inviteCodeLabel;
+
+  /// No description provided for @inviteCodeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This isn\'t a valid invitation link.'**
+  String get inviteCodeInvalid;
+
+  /// No description provided for @inviteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join a space'**
+  String get inviteTitle;
+
+  /// No description provided for @inviteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept this invitation to join the space with the account you\'re signed in to.'**
+  String get inviteBody;
+
+  /// No description provided for @inviteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept invitation'**
+  String get inviteAction;
+
+  /// No description provided for @inviteAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'You joined the space.'**
+  String get inviteAccepted;
+
+  /// No description provided for @inviteInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation is invalid, has expired, or was sent to a different email.'**
+  String get inviteInvalid;
+
+  /// No description provided for @notNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get notNow;
+
+  /// No description provided for @spaceRoleAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Space administrator'**
+  String get spaceRoleAdmin;
+
+  /// No description provided for @spaceRoleMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Member'**
+  String get spaceRoleMember;
+
+  /// No description provided for @switchSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch space'**
+  String get switchSpace;
+
+  /// No description provided for @currentSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Current space'**
+  String get currentSpace;
+
+  /// No description provided for @homeGreeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello, {name}'**
+  String homeGreeting(String name);
+
+  /// No description provided for @homeSignedInAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in as {email}'**
+  String homeSignedInAs(String email);
+
+  /// No description provided for @spaceRoleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your role in this space'**
+  String get spaceRoleLabel;
+
+  /// No description provided for @uploadsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Document uploads'**
+  String get uploadsLabel;
+
+  /// No description provided for @uploadsAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed'**
+  String get uploadsAllowed;
+
+  /// No description provided for @uploadsNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not allowed'**
+  String get uploadsNotAllowed;
+
+  /// No description provided for @selectSpaceAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get selectSpaceAction;
+
+  /// No description provided for @continueAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueAction;
+
+  /// No description provided for @nameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get nameLabel;
 }
 
 class _AppLocalizationsDelegate

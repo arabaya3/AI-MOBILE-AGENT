@@ -40,6 +40,7 @@ from src.core.settings.config import settings  # noqa: E402
 from src.modules.apis.v1.auth.router import router as auth_router  # noqa: E402
 from src.modules.apis.v1.auth.service import auth_service  # noqa: E402
 from src.modules.apis.v1.sharing.router import router as sharing_router  # noqa: E402
+from src.modules.apis.v1.spaces.router import router as spaces_router  # noqa: E402
 from src.services.databases.postgresql.database import get_db  # noqa: E402
 from src.services.databases.postgresql.models import (  # noqa: E402
     Base,
@@ -101,6 +102,7 @@ async def client(session_factory, email_sink):
     app = FastAPI()
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(sharing_router, prefix="/api/v1")
+    app.include_router(spaces_router, prefix="/api/v1")
 
     async def _get_db():
         async with session_factory() as session:

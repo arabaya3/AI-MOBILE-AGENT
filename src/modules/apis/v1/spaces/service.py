@@ -471,6 +471,21 @@ class SpacesService:
         )
         return req
 
+    async def find_pending_request(self, db: AsyncSession, *, space_id: str, user_id: str, type_value: str) -> Optional[SpaceRequest]:
+        stmt = select(SpaceRequest).where(
+            and_(
+                SpaceRequest.space_id == space_id,
+                SpaceRequest.user_id == user_id,
+                SpaceRequest.type == type_value,
+                SpaceRequest.status == "pending",
+            )
+        )
+        return (await db.execute(stmt)).scalars().first()
+
+    async def list_user_requests(self, db: AsyncSession, *, user_id: str) -> List[SpaceRequest]:
+        stmt = select(SpaceRequest).where(SpaceRequest.user_id == user_id).order_by(SpaceRequest.created_at.desc())
+        return list((await db.execute(stmt)).scalars().all())
+
     async def list_requests(self, db: AsyncSession, *, space_id: str, status_filter: str | None = None) -> List[SpaceRequest]:
         stmt = select(SpaceRequest).where(SpaceRequest.space_id == space_id)
         if status_filter:

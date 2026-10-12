@@ -22,6 +22,26 @@ BASE_NAMES = ("Debug", "Release", "Profile")
 
 ATS_SCRIPT_ID = "5EA7A1D2C0FFEE0000000001"
 
+# Dev flavor only: local-network ATS exception and the teia-dev:// link scheme.
+_DEV_COMMANDS = [
+    'PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"',
+    '/usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" "$PLIST" 2>/dev/null || true',
+    '/usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$PLIST"',
+    '/usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$PLIST"',
+    '/usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$PLIST" 2>/dev/null || true',
+    '/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$PLIST"',
+    '/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$PLIST"',
+    '/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string com.teia.aiassistant.dev.links" "$PLIST"',
+    '/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$PLIST"',
+    '/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string teia-dev" "$PLIST"',
+]
+_DEV_SCRIPT = 'if [ "${APP_FLAVOR}" = "dev" ]; then\n' + "".join(f"  {c}\n" for c in _DEV_COMMANDS) + "fi\n"
+DEV_SHELL_SCRIPT = (
+    '\t\t\tshellScript = "'
+    + _DEV_SCRIPT.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    + '";\n'
+)
+
 
 def new_id(seed: str) -> str:
     return hashlib.sha1(seed.encode()).hexdigest()[:24].upper()
@@ -88,7 +108,19 @@ def main() -> None:
             pos = text.index(entry, section_start) + len(entry)
             text = text[:pos] + "".join(lines) + text[pos:]
 
-    if ATS_SCRIPT_ID not in text:
+    header = re.search(rf"^\t\t{ATS_SCRIPT_ID} /\* [^\n]* \*/ = \{{\n", text, re.M)
+    if header:
+        # Only touch the dev phase's own block, never another build phase.
+        end = text.index("\n\t\t};\n", header.end())
+        block = text[header.start() : end]
+        updated = re.sub(
+            r"^\t\t\tshellScript = [^\n]*;$",
+            lambda _: DEV_SHELL_SCRIPT.rstrip("\n"),
+            block,
+            flags=re.M,
+        )
+        text = text[: header.start()] + updated + text[end:]
+    else:
         script = (
             f"\t\t{ATS_SCRIPT_ID} /* Allow local networking (dev only) */ = {{\n"
             "\t\t\tisa = PBXShellScriptBuildPhase;\n"
@@ -100,13 +132,8 @@ def main() -> None:
             "\t\t\toutputPaths = (\n\t\t\t);\n"
             "\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
             "\t\t\tshellPath = /bin/sh;\n"
-            '\t\t\tshellScript = "if [ \\"${APP_FLAVOR}\\" = \\"dev\\" ]; then\\n'
-            '  PLIST=\\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\\"\\n'
-            '  /usr/libexec/PlistBuddy -c \\"Delete :NSAppTransportSecurity\\" \\"$PLIST\\" 2>/dev/null || true\\n'
-            '  /usr/libexec/PlistBuddy -c \\"Add :NSAppTransportSecurity dict\\" \\"$PLIST\\"\\n'
-            '  /usr/libexec/PlistBuddy -c \\"Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true\\" \\"$PLIST\\"\\n'
-            'fi\\n";\n'
-            "\t\t};\n"
+            + DEV_SHELL_SCRIPT
+            + "\t\t};\n"
         )
         text = text.replace("/* End PBXShellScriptBuildPhase section */", script + "/* End PBXShellScriptBuildPhase section */", 1)
         runner_target = re.search(r'/\* Runner \*/ = \{\n\t\t\tisa = PBXNativeTarget;.*?buildPhases = \(\n(.*?)\t\t\t\);', text, re.S)

@@ -83,6 +83,40 @@ class StatusBanner extends StatelessWidget {
   }
 }
 
+/// A [StatusBanner] with a standard title for its tone and bottom spacing.
+class NoticeBanner extends StatelessWidget {
+  const NoticeBanner({
+    super.key,
+    required this.tone,
+    required this.text,
+    this.action,
+  });
+
+  final StatusTone tone;
+  final String text;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final title = switch (tone) {
+      StatusTone.error => l10n.bannerErrorTitle,
+      StatusTone.warning => l10n.bannerWarningTitle,
+      StatusTone.success => l10n.bannerSuccessTitle,
+      StatusTone.info => l10n.bannerInfoTitle,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: StatusBanner(
+        tone: tone,
+        title: title,
+        message: text,
+        action: action,
+      ),
+    );
+  }
+}
+
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key});
 

@@ -5,12 +5,20 @@ on:
     paths:
       - "mobile/**"
       - ".github/workflows/mobile.yml"
+      # Backend contracts the app consumes.
+      - "src/modules/apis/v1/auth/**"
+      - "src/modules/apis/v1/spaces/**"
+      - "src/modules/apis/dependencies.py"
   push:
     branches:
       - dev
     paths:
       - "mobile/**"
       - ".github/workflows/mobile.yml"
+      # Backend contracts the app consumes.
+      - "src/modules/apis/v1/auth/**"
+      - "src/modules/apis/v1/spaces/**"
+      - "src/modules/apis/dependencies.py"
   workflow_dispatch:
 
 permissions:

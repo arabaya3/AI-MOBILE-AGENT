@@ -11,6 +11,7 @@ import 'sse/sse_parser.dart';
 typedef TokenReader = String? Function();
 typedef SpaceIdReader = String? Function();
 typedef SessionExpiryHandler = Future<void> Function(String? rejectedToken);
+typedef SpaceRejectedHandler = void Function(String spaceId);
 
 Dio createDio(AppConfig config) => Dio(
   BaseOptions(
@@ -22,17 +23,27 @@ Dio createDio(AppConfig config) => Dio(
   ),
 );
 
-/// Single entry point for backend calls: headers, error normalization and session expiry.
+class _InFlight {
+  _InFlight(this.cancelToken, this.spaceId);
+
+  final CancelToken cancelToken;
+  final String? spaceId;
+}
+
+/// Single entry point for backend calls: headers, error normalization,
+/// session expiry and scoped cancellation.
 class ApiClient {
   ApiClient({
     required Dio dio,
     required TokenReader readToken,
     required SpaceIdReader readSpaceId,
     required SessionExpiryHandler onSessionExpired,
+    SpaceRejectedHandler? onSpaceRejected,
   }) : _dio = dio,
        _readToken = readToken,
        _readSpaceId = readSpaceId,
-       _onSessionExpired = onSessionExpired;
+       _onSessionExpired = onSessionExpired,
+       _onSpaceRejected = onSpaceRejected;
 
   static const spaceHeader = 'X-Space-Id';
 
@@ -40,6 +51,14 @@ class ApiClient {
   final TokenReader _readToken;
   final SpaceIdReader _readSpaceId;
   final SessionExpiryHandler _onSessionExpired;
+  final SpaceRejectedHandler? _onSpaceRejected;
+  final _inFlight = <_InFlight>{};
+
+  /// Aborts every in-flight request (sign-out, expiry, account change).
+  void cancelAll() => _cancelWhere((_) => true);
+
+  /// Aborts requests that carried an `X-Space-Id` (space switch).
+  void cancelSpaceScoped() => _cancelWhere((r) => r.spaceId != null);
 
   Future<Response<T>> request<T>(
     String path, {
@@ -52,20 +71,24 @@ class ApiClient {
     Duration? receiveTimeout,
   }) async {
     final token = kind == RequestKind.public ? null : _readToken();
+    final spaceId = includeSpace ? _readSpaceId() : null;
+    final inFlight = _track(spaceId, cancelToken);
     try {
       return await _dio.request<T>(
         path,
         data: data,
         queryParameters: queryParameters,
-        cancelToken: cancelToken,
+        cancelToken: inFlight.cancelToken,
         options: Options(
           method: method,
-          headers: _headers(token, includeSpace),
+          headers: _headers(token, spaceId),
           receiveTimeout: receiveTimeout,
         ),
       );
     } on DioException catch (e) {
-      throw await _fail(normalizeDioException(e, kind), kind, token);
+      throw await _fail(normalizeDioException(e, kind), kind, token, spaceId);
+    } finally {
+      _inFlight.remove(inFlight);
     }
   }
 
@@ -77,7 +100,9 @@ class ApiClient {
     bool includeSpace = true,
   }) async* {
     final token = kind == RequestKind.public ? null : _readToken();
-    final cancelToken = CancelToken();
+    final spaceId = includeSpace ? _readSpaceId() : null;
+    final inFlight = _track(spaceId, null);
+    final cancelToken = inFlight.cancelToken;
     var finished = false;
     try {
       final Response<ResponseBody> response;
@@ -89,7 +114,7 @@ class ApiClient {
           options: Options(
             responseType: ResponseType.stream,
             headers: {
-              ..._headers(token, includeSpace),
+              ..._headers(token, spaceId),
               'Accept': 'text/event-stream',
             },
             receiveTimeout: const Duration(minutes: 5),
@@ -97,7 +122,7 @@ class ApiClient {
           ),
         );
       } on DioException catch (e) {
-        throw await _fail(normalizeDioException(e, kind), kind, token);
+        throw await _fail(normalizeDioException(e, kind), kind, token, spaceId);
       }
 
       final body = response.data!;
@@ -113,6 +138,7 @@ class ApiClient {
           ),
           kind,
           token,
+          spaceId,
         );
       }
       try {
@@ -122,28 +148,50 @@ class ApiClient {
       }
       finished = true;
     } finally {
+      _inFlight.remove(inFlight);
       if (!finished && !cancelToken.isCancelled) cancelToken.cancel();
     }
   }
 
-  Map<String, String> _headers(String? token, bool includeSpace) {
-    final spaceId = includeSpace ? _readSpaceId() : null;
-    return {
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-      if (spaceId != null && spaceId.isNotEmpty) spaceHeader: spaceId,
-    };
+  _InFlight _track(String? spaceId, CancelToken? callerToken) {
+    final inFlight = _InFlight(CancelToken(), spaceId);
+    callerToken?.whenCancel.then((_) => inFlight.cancelToken.cancel());
+    _inFlight.add(inFlight);
+    return inFlight;
   }
+
+  void _cancelWhere(bool Function(_InFlight) test) {
+    for (final request in _inFlight.where(test).toList()) {
+      request.cancelToken.cancel();
+      _inFlight.remove(request);
+    }
+  }
+
+  Map<String, String> _headers(String? token, String? spaceId) => {
+    if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    if (spaceId != null && spaceId.isNotEmpty) spaceHeader: spaceId,
+  };
 
   Future<ApiException> _fail(
     ApiException error,
     RequestKind kind,
     String? token,
+    String? spaceId,
   ) async {
     if (error is SessionExpiredException && kind == RequestKind.authenticated) {
       await _onSessionExpired(token);
+    } else if (spaceId != null &&
+        _isSpaceRejection(error) &&
+        spaceId == _readSpaceId()) {
+      _onSpaceRejected?.call(spaceId);
     }
     return error;
   }
+
+  /// Responses from `get_current_space_id` when the selected space is no longer usable.
+  static bool _isSpaceRejection(ApiException error) =>
+      (error is ForbiddenException && error.message == 'Space access denied') ||
+      (error is NotFoundException && error.message == 'Space not found');
 
   static Future<List<int>> _readAll(Stream<List<int>> stream) async {
     final bytes = <int>[];

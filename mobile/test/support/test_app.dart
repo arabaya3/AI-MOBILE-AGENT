@@ -4,8 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:teia_ai/app/app.dart';
 import 'package:teia_ai/core/config/app_config.dart';
+import 'package:teia_ai/core/preferences/app_preferences.dart';
 import 'package:teia_ai/core/providers.dart';
 import 'package:teia_ai/core/storage/token_store.dart';
+import 'package:teia_ai/core/theme/app_theme.dart';
+import 'package:teia_ai/features/auth/application/auth_controller.dart';
+import 'package:teia_ai/features/foundation_preview/presentation/foundation_preview_screen.dart';
+
+import 'fake_backend.dart';
 
 AppConfig testConfig([AppEnvironment env = AppEnvironment.dev]) =>
     AppConfig.parse(
@@ -16,17 +22,14 @@ AppConfig testConfig([AppEnvironment env = AppEnvironment.dev]) =>
       isReleaseBuild: false,
     );
 
-/// Pumps the real app with fake storage at a compact phone size.
-Future<ProviderContainer> pumpTeiaApp(
+Future<SharedPreferences> _prepare(
   WidgetTester tester, {
-  Map<String, Object> prefs = const {},
-  AppConfig? config,
-  Size size = const Size(360, 740),
-  double textScale = 1.0,
+  required Map<String, Object> prefs,
+  required Size size,
+  required double textScale,
   Locale? deviceLocale,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
-  final preferences = await SharedPreferences.getInstance();
   tester.view.physicalSize = size * tester.view.devicePixelRatio;
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   if (deviceLocale != null) {
@@ -34,7 +37,25 @@ Future<ProviderContainer> pumpTeiaApp(
   }
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearAllTestValues);
+  return SharedPreferences.getInstance();
+}
 
+/// The Phase 0 design preview with real theme and locale handling.
+Future<ProviderContainer> pumpPreview(
+  WidgetTester tester, {
+  Map<String, Object> prefs = const {},
+  AppConfig? config,
+  Size size = const Size(360, 740),
+  double textScale = 1.0,
+  Locale? deviceLocale,
+}) async {
+  final preferences = await _prepare(
+    tester,
+    prefs: prefs,
+    size: size,
+    textScale: textScale,
+    deviceLocale: deviceLocale,
+  );
   final container = ProviderContainer(
     overrides: [
       appConfigProvider.overrideWithValue(config ?? testConfig()),
@@ -44,8 +65,71 @@ Future<ProviderContainer> pumpTeiaApp(
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
-    UncontrolledProviderScope(container: container, child: const TeiaApp()),
+    UncontrolledProviderScope(
+      container: container,
+      child: Consumer(
+        builder: (context, ref, _) {
+          final locale = ref.watch(localeProvider);
+          return MaterialApp(
+            theme: buildAppTheme(Brightness.light),
+            darkTheme: buildAppTheme(Brightness.dark),
+            themeMode: ref.watch(themeModeProvider),
+            locale: locale,
+            supportedLocales: supportedAppLocales,
+            localizationsDelegates: localizationsDelegates,
+            localeListResolutionCallback: (devices, _) =>
+                resolveAppLocale(locale, devices),
+            home: const FoundationPreviewScreen(),
+          );
+        },
+      ),
+    ),
   );
   await tester.pumpAndSettle();
   return container;
+}
+
+/// The full app (router, auth, spaces) against a scripted backend.
+Future<ProviderContainer> pumpTeiaApp(
+  WidgetTester tester,
+  FakeBackend backend, {
+  TokenStore? store,
+  Map<String, Object> prefs = const {},
+  Size size = const Size(360, 740),
+  double textScale = 1.0,
+}) async {
+  final preferences = await _prepare(
+    tester,
+    prefs: prefs,
+    size: size,
+    textScale: textScale,
+  );
+  final container = ProviderContainer(
+    overrides: [
+      appConfigProvider.overrideWithValue(testConfig()),
+      sharedPreferencesProvider.overrideWithValue(preferences),
+      tokenStoreProvider.overrideWithValue(store ?? InMemoryTokenStore()),
+      dioProvider.overrideWithValue(backend.dio),
+    ],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const TeiaApp()),
+  );
+  await tester.runAsync(
+    () => container.read(authControllerProvider.notifier).initialize(),
+  );
+  await settleApp(tester);
+  return container;
+}
+
+/// Lets fake network futures complete and the UI settle.
+Future<void> settleApp(WidgetTester tester) async {
+  // Bounded: loading indicators animate forever, so pumpAndSettle cannot be used.
+  for (var i = 0; i < 12; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 2)),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+  }
 }

@@ -6,7 +6,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserRole(str, Enum):
@@ -68,6 +68,28 @@ class UserResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+class CurrentUserResponse(BaseModel):
+    """The authenticated user's own account; never includes credentials or admin overrides."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    email: EmailStr
+    role: UserRole
+    is_active: bool
+    email_verified: bool
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    phone_number: Optional[str] = None
+    country: Optional[str] = None
+    job_title: Optional[str] = None
+    company: Optional[str] = None
+    industry: Optional[str] = None
+    preferred_language: Optional[str] = None
+    created_at: datetime
 
 
 class UserListResponse(BaseModel):

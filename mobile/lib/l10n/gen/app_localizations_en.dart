@@ -210,4 +210,316 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorUnexpected =>
       'Something unexpected happened. Please try again.';
+
+  @override
+  String get signInTitle => 'Sign in';
+
+  @override
+  String get signInSubtitle => 'Use your TEIA account to continue.';
+
+  @override
+  String get emailLabel => 'Email';
+
+  @override
+  String get passwordLabel => 'Password';
+
+  @override
+  String get showPassword => 'Show password';
+
+  @override
+  String get hidePassword => 'Hide password';
+
+  @override
+  String get signInAction => 'Sign in';
+
+  @override
+  String get forgotPasswordLink => 'Forgot password?';
+
+  @override
+  String get createAccountLink => 'Create an account';
+
+  @override
+  String get errorInactiveAccount =>
+      'This account is inactive. Contact your administrator.';
+
+  @override
+  String get signedOutNotice => 'You signed out on this device.';
+
+  @override
+  String get registerTitle => 'Create your account';
+
+  @override
+  String get firstNameLabel => 'First name';
+
+  @override
+  String get lastNameLabel => 'Last name';
+
+  @override
+  String get companyLabel => 'Company';
+
+  @override
+  String get jobTitleLabel => 'Job title';
+
+  @override
+  String get confirmPasswordLabel => 'Confirm password';
+
+  @override
+  String get passwordHelper => 'At least 8 characters.';
+
+  @override
+  String get optionalDetails => 'Optional details';
+
+  @override
+  String get registerAction => 'Create account';
+
+  @override
+  String get haveAccountLink => 'I already have an account';
+
+  @override
+  String get errorEmailTaken => 'An account with this email already exists.';
+
+  @override
+  String get registeredSignInFailed =>
+      'Your account was created. Sign in to continue.';
+
+  @override
+  String get validationRequired => 'This field is required.';
+
+  @override
+  String get validationEmail => 'Enter a valid email address.';
+
+  @override
+  String get validationPasswordLength => 'Use at least 8 characters.';
+
+  @override
+  String get validationPasswordMatch => 'The passwords don\'t match.';
+
+  @override
+  String get forgotTitle => 'Reset your password';
+
+  @override
+  String get forgotBody =>
+      'Enter your account email. If an account exists, we\'ll send a reset link.';
+
+  @override
+  String get sendResetLink => 'Send reset link';
+
+  @override
+  String get forgotSent =>
+      'If an account exists for this email, a reset link is on its way. It expires in 1 hour.';
+
+  @override
+  String get haveResetLink => 'I have a reset link';
+
+  @override
+  String get backToSignIn => 'Back to sign in';
+
+  @override
+  String get resetTitle => 'Choose a new password';
+
+  @override
+  String get resetCodeLabel => 'Reset link';
+
+  @override
+  String get resetCodeHelper => 'Paste the link from the reset email.';
+
+  @override
+  String get resetCodeInvalid => 'This isn\'t a valid reset link.';
+
+  @override
+  String get resetLinkReady => 'Reset link received.';
+
+  @override
+  String get newPasswordLabel => 'New password';
+
+  @override
+  String get resetAction => 'Update password';
+
+  @override
+  String get resetLinkExpired =>
+      'This reset link is invalid or has expired. Request a new one.';
+
+  @override
+  String get resetDone =>
+      'Your password was updated. Sign in with your new password.';
+
+  @override
+  String get requestNewLink => 'Request a new link';
+
+  @override
+  String get sessionProblemTitle => 'We couldn\'t confirm your session';
+
+  @override
+  String get sessionProblemOffline =>
+      'Check your connection and try again. You\'re still signed in on this device.';
+
+  @override
+  String get sessionProblemServer =>
+      'The service didn\'t respond. Try again in a moment.';
+
+  @override
+  String get sessionProblemStorage =>
+      'This device\'s secure storage couldn\'t be read.';
+
+  @override
+  String get signOutAction => 'Sign out';
+
+  @override
+  String get accountTitle => 'Account';
+
+  @override
+  String get accountDetails => 'Account details';
+
+  @override
+  String get roleLabel => 'Role';
+
+  @override
+  String get roleViewer => 'Member';
+
+  @override
+  String get roleAdmin => 'Administrator';
+
+  @override
+  String get roleSuperAdmin => 'Super administrator';
+
+  @override
+  String get changePasswordAction => 'Change password';
+
+  @override
+  String get signOutConfirmTitle => 'Sign out of this device?';
+
+  @override
+  String get signOutConfirmBody =>
+      'Your session is removed from this device. A session already issued stays valid on the server until it expires.';
+
+  @override
+  String get cancelAction => 'Cancel';
+
+  @override
+  String get designPreview => 'Design preview';
+
+  @override
+  String get changePasswordTitle => 'Change password';
+
+  @override
+  String get currentPasswordLabel => 'Current password';
+
+  @override
+  String get errorCurrentPassword => 'The current password is incorrect.';
+
+  @override
+  String get passwordChanged => 'Your password was changed.';
+
+  @override
+  String get persistenceFailedNotice =>
+      'This device couldn\'t store your session securely. You may need to sign in again next time.';
+
+  @override
+  String get spacesTitle => 'Choose a space';
+
+  @override
+  String get spacesSubtitle =>
+      'Spaces keep each team\'s documents and conversations separate.';
+
+  @override
+  String get spacesYours => 'Your spaces';
+
+  @override
+  String get spacesNoneTitle => 'No space yet';
+
+  @override
+  String get spacesNoneBody =>
+      'Ask an administrator for an invitation, or request access to a space below.';
+
+  @override
+  String get spacesAvailable => 'Other spaces';
+
+  @override
+  String get spacesAvailableEmpty => 'No other spaces are open for requests.';
+
+  @override
+  String get requestAccess => 'Request access';
+
+  @override
+  String get accessPending => 'Request pending';
+
+  @override
+  String get accessRequested =>
+      'Your request was sent to the space administrators.';
+
+  @override
+  String get spaceAccessLost =>
+      'You no longer have access to the space you used before. Choose another one.';
+
+  @override
+  String get haveInvitation => 'Have an invitation?';
+
+  @override
+  String get inviteCodeLabel => 'Invitation link';
+
+  @override
+  String get inviteCodeInvalid => 'This isn\'t a valid invitation link.';
+
+  @override
+  String get inviteTitle => 'Join a space';
+
+  @override
+  String get inviteBody =>
+      'Accept this invitation to join the space with the account you\'re signed in to.';
+
+  @override
+  String get inviteAction => 'Accept invitation';
+
+  @override
+  String get inviteAccepted => 'You joined the space.';
+
+  @override
+  String get inviteInvalid =>
+      'This invitation is invalid, has expired, or was sent to a different email.';
+
+  @override
+  String get notNow => 'Not now';
+
+  @override
+  String get spaceRoleAdmin => 'Space administrator';
+
+  @override
+  String get spaceRoleMember => 'Member';
+
+  @override
+  String get switchSpace => 'Switch space';
+
+  @override
+  String get currentSpace => 'Current space';
+
+  @override
+  String homeGreeting(String name) {
+    return 'Hello, $name';
+  }
+
+  @override
+  String homeSignedInAs(String email) {
+    return 'Signed in as $email';
+  }
+
+  @override
+  String get spaceRoleLabel => 'Your role in this space';
+
+  @override
+  String get uploadsLabel => 'Document uploads';
+
+  @override
+  String get uploadsAllowed => 'Allowed';
+
+  @override
+  String get uploadsNotAllowed => 'Not allowed';
+
+  @override
+  String get selectSpaceAction => 'Open';
+
+  @override
+  String get continueAction => 'Continue';
+
+  @override
+  String get nameLabel => 'Name';
 }

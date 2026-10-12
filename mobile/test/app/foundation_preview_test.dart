@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:teia_ai/core/config/app_config.dart';
 import 'package:teia_ai/core/l10n/text_direction.dart';
 import 'package:teia_ai/core/preferences/app_preferences.dart';
-import 'package:teia_ai/core/session/session_manager.dart';
 import 'package:teia_ai/core/providers.dart';
 import 'package:teia_ai/core/widgets/section.dart';
 import 'package:teia_ai/features/foundation_preview/presentation/foundation_preview_screen.dart';
@@ -29,7 +28,7 @@ void main() {
       testWidgets('renders in $lang / ${mode.name} without layout errors', (
         tester,
       ) async {
-        await pumpTeiaApp(
+        await pumpPreview(
           tester,
           prefs: {'theme_mode': mode.name, 'app_locale': lang},
         );
@@ -58,7 +57,7 @@ void main() {
   }
 
   testWidgets('survives 2x text scaling at compact phone size', (tester) async {
-    await pumpTeiaApp(tester, textScale: 2.0, prefs: {'app_locale': 'ar'});
+    await pumpPreview(tester, textScale: 2.0, prefs: {'app_locale': 'ar'});
     await scrollTo(tester, find.byKey(FoundationPreviewScreen.lastSectionKey));
     expect(tester.takeException(), isNull);
   });
@@ -66,14 +65,14 @@ void main() {
   testWidgets('falls back to English for unsupported device locales', (
     tester,
   ) async {
-    await pumpTeiaApp(tester, deviceLocale: const Locale('fr', 'FR'));
+    await pumpPreview(tester, deviceLocale: const Locale('fr', 'FR'));
     expect(find.text('Foundation preview'), findsOneWidget);
   });
 
   testWidgets('follows an Arabic device locale when no preference is stored', (
     tester,
   ) async {
-    await pumpTeiaApp(tester, deviceLocale: const Locale('ar', 'JO'));
+    await pumpPreview(tester, deviceLocale: const Locale('ar', 'JO'));
     expect(
       directionOf(tester, find.byType(FoundationPreviewScreen)),
       TextDirection.rtl,
@@ -83,7 +82,7 @@ void main() {
   testWidgets('language and theme choices apply immediately and persist', (
     tester,
   ) async {
-    final container = await pumpTeiaApp(tester);
+    final container = await pumpPreview(tester);
     await tester.tap(find.text('العربية'));
     await tester.pumpAndSettle();
     expect(
@@ -106,7 +105,7 @@ void main() {
   testWidgets(
     'upcoming destinations are visibly unavailable and not interactive',
     (tester) async {
-      await pumpTeiaApp(tester);
+      await pumpPreview(tester);
       await scrollTo(
         tester,
         find.byKey(FoundationPreviewScreen.lastSectionKey),
@@ -126,7 +125,7 @@ void main() {
   testWidgets(
     'mixed-language samples keep their own direction inside the English UI',
     (tester) async {
-      await pumpTeiaApp(tester);
+      await pumpPreview(tester);
       await scrollTo(
         tester,
         find.text(FoundationPreviewScreen.mixedSamples[3]),
@@ -151,33 +150,16 @@ void main() {
   );
 
   testWidgets('developer details only appear in dev builds', (tester) async {
-    await pumpTeiaApp(tester, config: testConfig(AppEnvironment.staging));
+    await pumpPreview(tester, config: testConfig(AppEnvironment.staging));
     await scrollTo(tester, find.byKey(FoundationPreviewScreen.lastSectionKey));
     expect(find.text('Developer build'), findsNothing);
     expect(find.textContaining('example.com'), findsNothing);
   });
 
-  testWidgets('session expiry shows a single notice', (tester) async {
-    final container = await pumpTeiaApp(tester);
-    final session = container.read(sessionManagerProvider);
-    await tester.runAsync(() => session.start('t1'));
-    await tester.pump();
-    await tester.runAsync(
-      () => Future.wait([session.expire('t1'), session.expire('t1')]),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      find.text('Your session has expired. Please sign in again.'),
-      findsOneWidget,
-    );
-    expect(session.status, SessionStatus.expired);
-  });
-
   testWidgets('interactive controls meet the 48dp touch target', (
     tester,
   ) async {
-    await pumpTeiaApp(tester);
+    await pumpPreview(tester);
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
   });

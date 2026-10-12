@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.services.databases.postgresql.models import SpaceRequest, User
+from src.services.databases.postgresql.models import Space, SpaceRequest, User
 
 from .schemas import (
     AcceptInviteRequest,
@@ -249,10 +249,25 @@ async def handle_create_request(space_id: str, payload: SpaceRequestCreate, user
     allowed_types = {"join", "model_access", "tool_access", "quota_change", "upload_access", "other"}
     if type_value not in allowed_types:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported request type")
-    if type_value != "join":
+    if type_value == "join":
+        space = await db.get(Space, space_id)
+        if space is None or not space.is_active:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
+        member = await spaces_service.get_member(db, space_id=space_id, user_id=user.id)
+        if member is not None and member.status == "active":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already a member of this space")
+        pending = await spaces_service.find_pending_request(db, space_id=space_id, user_id=user.id, type_value="join")
+        if pending is not None:
+            return SpaceRequestSummary.model_validate(pending)
+    else:
         await spaces_service.require_active_member(db, space_id=space_id, user=user)
     req = await spaces_service.create_request(db, space_id=space_id, user=user, type_value=type_value, payload=payload.payload)
     return SpaceRequestSummary.model_validate(req)
+
+
+async def handle_list_my_requests(user: User, db: AsyncSession) -> list[SpaceRequestSummary]:
+    rows = await spaces_service.list_user_requests(db, user_id=user.id)
+    return [SpaceRequestSummary.model_validate(r) for r in rows]
 
 
 async def handle_list_requests(space_id: str, user: User, db: AsyncSession, *, status_value: str | None = None) -> list[SpaceRequestSummary]:

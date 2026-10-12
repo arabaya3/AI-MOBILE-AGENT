@@ -115,7 +115,8 @@ async def handle_change_password(
     from src.core.security.encryption import verify_password
 
     if not verify_password(payload.current_password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect")
+        # 400, not 401: a wrong current password must not look like an expired session.
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
 
     await auth_service.set_user_password(db, user, payload.new_password)
     return ChangePasswordResponse(message="Password updated successfully")

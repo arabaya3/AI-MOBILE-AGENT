@@ -12,14 +12,23 @@ class ConfigException implements Exception {
 }
 
 class AppConfig {
-  const AppConfig._({required this.environment, required this.apiBaseUrl});
+  const AppConfig._({
+    required this.environment,
+    required this.apiBaseUrl,
+    required this.trustedLinkHosts,
+  });
 
   final AppEnvironment environment;
   final Uri apiBaseUrl;
 
+  /// Hosts whose https reset/invite links the app accepts (verified App Links /
+  /// Universal Links). Empty until an owner-controlled domain is configured.
+  final Set<String> trustedLinkHosts;
+
   bool get isDev => environment == AppEnvironment.dev;
 
   static const _apiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
+  static const _linkHostsDefine = String.fromEnvironment('APP_LINK_HOSTS');
 
   /// Reads `API_BASE_URL` supplied via `--dart-define-from-file=config/<env>.json`.
   factory AppConfig.fromEnvironment(
@@ -28,6 +37,7 @@ class AppConfig {
   }) => AppConfig.parse(
     environment: environment,
     rawApiBaseUrl: _apiBaseUrlDefine,
+    rawLinkHosts: _linkHostsDefine,
     isReleaseBuild: isReleaseBuild,
   );
 
@@ -35,6 +45,7 @@ class AppConfig {
     required AppEnvironment environment,
     required String rawApiBaseUrl,
     required bool isReleaseBuild,
+    String rawLinkHosts = '',
   }) {
     final raw = rawApiBaseUrl.trim();
     if (raw.isEmpty) {
@@ -74,9 +85,21 @@ class AppConfig {
     final normalizedPath = uri.path.endsWith('/')
         ? uri.path.substring(0, uri.path.length - 1)
         : uri.path;
+    final linkHosts = {
+      for (final h in rawLinkHosts.split(','))
+        if (h.trim().isNotEmpty) h.trim().toLowerCase(),
+    };
+    for (final host in linkHosts) {
+      if (_isIpLiteral(host) ||
+          _isLocalHost(host) ||
+          !RegExp(r'^[a-z0-9.-]+$').hasMatch(host)) {
+        throw ConfigException('APP_LINK_HOSTS contains an invalid host: $host');
+      }
+    }
     return AppConfig._(
       environment: environment,
       apiBaseUrl: uri.replace(path: normalizedPath),
+      trustedLinkHosts: linkHosts,
     );
   }
 
