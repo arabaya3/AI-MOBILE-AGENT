@@ -10,6 +10,17 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.modules.apis.v1.documents.schemas import VectorSearchMatch
 
 
+class MessageCitation(BaseModel):
+    """A persisted source. When the reader lost access, only `available: false` is returned."""
+
+    available: bool
+    document_id: Optional[str] = None
+    filename: Optional[str] = None
+    chunk_index: Optional[int] = None
+    page: Optional[int] = None
+    excerpt: Optional[str] = None
+
+
 class ConversationMessage(BaseModel):
     """Single chat message returned to the client."""
 
@@ -19,6 +30,7 @@ class ConversationMessage(BaseModel):
     role: str
     content: str
     created_at: datetime
+    citations: Optional[List[MessageCitation]] = None
 
 
 class ChatSessionSummary(BaseModel):

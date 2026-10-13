@@ -423,6 +423,89 @@ Not done in Phase 2: rename/delete sessions (S2), persisted citations (S4), rege
   - Citations survive a restart.
   - The integration test for upload → ask → open citation passes.
 
+**Phase 3 results (2026-10-13, branch `feature/mobile-documents-citations`):**
+
+Backend (details and the behavior found before the changes are in `MOBILE_DISCOVERY.md` §10):
+- **Uploads:**
+  - New `PUT /documents/uploads/{upload_id}?filename=` takes the raw file body.
+  - Authorization runs before a single byte is read.
+  - The hard 25 MiB limit (`MAX_UPLOAD_BYTES`) is enforced while streaming, including chunked bodies without `Content-Length`; anything over gets 413 and the partial file is deleted.
+  - `upload_id` is chosen by the client. Repeating it returns the existing document, and `GET /documents/uploads/{upload_id}` lets the uploader reconcile an uncertain upload without sending it again.
+  - The web's multipart routes keep their response shapes. They now go through the same pipeline, plus an ASGI middleware that caps the body before the framework spools it.
+- **Validation:**
+  - Content is checked by bytes, not by name or client MIME: PDF magic, OOXML structure with zip-bomb bounds, encrypted or legacy Office rejected, UTF-8-only text.
+  - Filenames are sanitized (no directories or control characters).
+- **Processing:**
+  - States are `uploaded → processing → indexing → ready`, or `failed` with a safe code. Each transition is committed on its own; no transaction is open during extraction or embedding.
+  - Extraction runs in a child process with a wall-clock limit (`PROCESSING_TIMEOUT_SECONDS`, 300 s) and, on Linux, memory and CPU limits.
+  - Indexing replaces a document's vectors (deterministic point IDs plus delete-before-upsert), so a retry or re-index never duplicates. Zero-vector embedding failures now fail the document instead of reporting success.
+- **Processing architecture (honest status):**
+  - Processing still runs inside the upload request; this deployment has no job queue (S22).
+  - Status is readable independently (`GET /documents/{id}`, `/documents/accessible`).
+  - Work lost to a restart shows as `failed/interrupted` once its lease (2 × timeout + 60 s) expires.
+  - `POST /documents/{id}/retry` (uploader or space admin, retryable codes only) claims the document with one conditional update, so only one retry can run.
+  - The server cannot cancel processing.
+- **Retrieval:**
+  - Only `ready` documents are searched.
+  - An explicit selection that is inaccessible or not ready fails with `document_access_denied` / `document_not_ready`; it never widens to all documents.
+  - No selection means all of the caller's ready documents in the space.
+  - Qdrant now filters by document ID instead of filtering a global top 50.
+- **Citations (S4):**
+  - Stored as a versioned, bounded record (`v: 1`, at most 12 items, 600-character excerpts, page only when the PDF provides one) on the assistant message, for both the streaming and non-streaming paths. Copied when branching.
+  - Every history read re-checks access: sources the reader can no longer read come back as `{"available": false}` with no filename or excerpt.
+  - Shares and exports never include them. Stream `sources` no longer contain storage URLs, hashes or sizes.
+- **Downloads:** streamed through the API with sanitized `Content-Disposition`, `nosniff`, a sandboxing CSP and `no-store`. Storage URLs never reach clients.
+- **Fixed on the way:**
+  - `/documents/{id}/chunks` had no per-user check (S8).
+  - The `/vector-search` router never passed the space and always failed (500).
+  - Branching wrote the new session before checking its space.
+  - Concurrent uploads in `/upload-multiple` shared one database session.
+- **Local verification support:**
+  - Deterministic embedding stub (`EMBEDDING_PROVIDER_STUB`), refused outside development and test like the chat stub.
+  - `AWS_S3_ENDPOINT_URL` for a local S3-compatible server.
+  - `QDRANT_URL=:memory:` for the test suite.
+
+Mobile:
+- **Documents screen:**
+  - Search, filters (all, ready, in progress, failed), clear state labels, empty, offline and error states.
+  - An upload button only for space admins and members with upload rights.
+- **Upload:**
+  - System file picker; no storage permissions (the broad permissions a dependency declares are removed in the manifest).
+  - Local 25 MB and type checks first.
+  - Real byte progress, then an indeterminate "server is processing" state; no percentage is invented.
+  - The upload ID is recorded before sending. Uncertain failures and app restarts reconcile with the server by that ID. Nothing is retried automatically.
+  - "Cancel upload" / "Stop waiting" stop this device only, and the UI says the server may still process the file.
+- **Status:** bounded backoff polling (2–30 s) while anything is active. It pauses in the background, resumes on return, and stops on sign-out, account or space change.
+- **Details:** state with an explanation per error code, retry only when the server allows it, "Use in chat", and open.
+- **Open:**
+  - Authenticated download into an app-private cache directory, per account and space session (sanitized names, one folder per document).
+  - Redirects are refused so the token never follows them. Copies are deleted on sign-out or space switch and stale copies on start.
+  - The screen explains that copies shared to other apps can't be recalled.
+- **Chat:**
+  - Document button with a selection sheet (ready documents only).
+  - A scope line ("Searching all your ready documents" / "Searching N selected documents").
+  - Selection is cleared on account or space change and pruned when documents disappear or stop being ready, with an explanation.
+  - "Send again" reuses the turn's exact selection. After a document error the action becomes "Review documents".
+  - Persisted citations are shown from history (unavailable ones as "Source unavailable"), with real page numbers and "Open document".
+- **Markdown images:** never fetched; a placeholder offers the link, which still asks for confirmation. Link launch failures are reported.
+
+Verified:
+- **Backend:**
+  - **86** pytest tests through the real routes, the real extraction subprocess, a local S3-compatible server (moto), Qdrant local mode and the embedding stub.
+  - Coverage: size boundary (exact, +1 byte, real 25 MiB + 1, chunked without `Content-Length`), content and encryption checks, traversal, authorization, cross-user and cross-space access, retry claims, lease expiry, timeout, idempotent re-indexing, selected-document retrieval, citations on both paths plus branching, revocation, hidden documents, shares, legacy multipart and the middleware cap.
+- **Disconnect regression:** a new test runs a real uvicorn server with the app's pooled engine. It fails with `500 connection is closed` when `pool_pre_ping` is removed and passes with it.
+- **Interruption reconciliation:** the Phase 2 regression test fails without its fix ("Expected null, Actual PendingTurn") and passes with it.
+- **Migration:** `20261013_0001` was applied twice to the local e2e database and checked on a scratch copy with legacy rows (`completed` with chunks → `ready`; without chunks → `failed/no_text`; `failed` → `failed/processing_failed`; stuck → `failed/interrupted`) and on a fresh `create_all` schema.
+- **Mobile:** **174** Flutter tests, analyze clean, Android dev debug APK built (only the `INTERNET` permission).
+- **Web:** `tsc -b` and `vite build` pass; no new lint problems.
+- **End to end:**
+  - Local backend, local Postgres, moto S3, Qdrant and stub providers; no remote services.
+  - API: chunked upload, idempotent upload ID, 413, 415, 403, selected-document retrieval, persisted citation, revocation (citation unavailable, download 404), safe download headers, share without sources.
+  - Android emulator: upload (byte progress → processing → ready), PDF with real page citations, oversized file refused locally, select in chat → answer with citations → app restart → citations remain → open the document through the authenticated download in the system PDF viewer → revoked access shown as "Source unavailable" for another user → Arabic, dark, 2× text, 360 dp with the keyboard open.
+  - Screenshots are in `docs/mobile/screenshots/phase3/`.
+
+Not done in Phase 3: a chunks view on mobile, document delete (no backend endpoint; admin "hide" stays web-only), and a durable job queue (S22).
+
 ### Phase 4 — Remaining user features
 - **Scope:** in-app notifications (list, badge, foreground SSE while open, refresh on resume), my requests, usage and invoice PDF, export through the share sheet, profile and preferences, and personal instructions as scoped by D5.
 - **Acceptance:** every end-user item in §10 is marked "Mobile v1" and works.
@@ -457,12 +540,12 @@ Not done in Phase 2: rename/delete sessions (S2), persisted citations (S4), rege
 | R4 | `GET /auth/me` | 1 | **Done (Phase 1)** |
 | S1 | change-password returns 400, not 401, for a wrong password | 1 | **Done (Phase 1)** |
 | S2 | Rename and delete sessions | 2 | Planned (not done in Phase 2) |
-| S3 | 25 MiB streaming upload limit (413) and processing timeout | 3 | Planned |
-| S4 | Persist citations | 3 | Planned |
+| S3 | 25 MiB streaming upload limit (413) and processing timeout | 3 | **Done (Phase 3)** |
+| S4 | Persist citations | 3 | **Done (Phase 3)**; re-authorized on every read |
 | S5 | Message IDs in `meta` and `done` | 2 | **Done (Phase 2)** |
 | S6 | Provider failure as an `error` event, not stored | 2 | **Done (Phase 2)** |
 | S7 | Super-admin usage route order (web feature) | 5 | Planned |
-| S8 | Per-user check on `/documents/{id}/chunks` | 3 | Planned |
+| S8 | Per-user check on `/documents/{id}/chunks` | 3 | **Done (Phase 3)** |
 | S9 | Workspace system prompts, space-admin only (D5) | 5 | Planned |
 | S10 | Hash space invite tokens and stop returning them to the inviter | 5 | **Open — release blocker** (found in Phase 1) |
 | S11 | Web `/join-space` route so emailed invite links work on the web | 4 | **Open — release blocker** (found in Phase 1) |
@@ -470,8 +553,16 @@ Not done in Phase 2: rename/delete sessions (S2), persisted citations (S4), rege
 | S13 | Typed `code` on every stream `error` event; generic `internal` error | 2 | **Done (Phase 2)** |
 | S14 | `pool_pre_ping` so a client disconnect does not break the next request | 2 | **Done (Phase 2)** |
 | S15 | Local chat provider stub, refused outside development and test | 2 | **Done (Phase 2)** |
+| S16 | Durable document states, upload IDs for reconciliation, authorized single retry | 3 | **Done (Phase 3)** |
+| S17 | Content validation by bytes, filename sanitizing, isolated and bounded extraction | 3 | **Done (Phase 3)** |
+| S18 | Streaming authorized download with safe headers; no storage metadata in sources | 3 | **Done (Phase 3)** |
+| S19 | `/vector-search` router passed no space (always 500) | 3 | **Done (Phase 3)** |
+| S20 | Branching checked the space only after writing | 3 | **Done (Phase 3)** |
+| S21 | Usage of generations cancelled by a disconnect is not recorded | 2 | **Open — release blocker** |
+| S22 | Durable job queue for document processing (currently in-request, lease-based recovery) | 3 | Open (recommended before scale) |
+| S23 | Embedding service returns zero vectors on failure | 3 | Mitigated (pipeline fails the document); service unchanged |
 
-Deferred: refresh tokens, push device registration (D4), document delete, async upload status, server-side stream cancellation (the provider keeps generating after a disconnect), pagination.
+Deferred: refresh tokens, push device registration (D4), document delete, a job queue for processing (S22), server-side stream cancellation (the provider keeps generating after a disconnect), pagination.
 
 ---
 
@@ -486,6 +577,9 @@ Deferred: refresh tokens, push device registration (D4), document delete, async 
 - A macOS environment for iOS builds and signing.
 - Configured SMTP for password-reset email in each environment. Without it, reset requests are accepted silently and nothing is sent, by design.
 - Rotation of the provider keys that were committed to the upstream repository history.
+- **Usage accounting (S21):** when a client disconnects mid-stream, no usage row is written although a real provider keeps generating. Missing rows must not be read as zero cost. Release blocker.
+- **Migrations to apply per environment (owner, never automatic):** `20261012_0001_unique_pending_join_request.sql` and `20261013_0001_document_processing_state.sql`. The second backfills existing documents (completed with chunks → `ready`, otherwise `failed` with a code), assuming completed web uploads were indexed, as `upload-and-vectorize` always did.
+- **Extraction limits:** memory and CPU limits apply on Linux only. The tokenizer (`tiktoken`) downloads its public encoding file on first use unless the image pre-caches it.
 - **Unresolved release items found in Phase 1:** S10 (invitation tokens stored in plaintext and returned to the inviter) and S11 (web `/join-space` route missing, so emailed invite links fail on the web). Both must be fixed before release.
 - The join-request migration `20261012_0001_unique_pending_join_request.sql` must be applied by the owner in each environment; it was run only locally.
 
@@ -530,12 +624,12 @@ Deferred: refresh tokens, push device registration (D4), document delete, async 
 | Rename / delete session | ✘ | ✘ (after S2) | Not in Phase 2 |
 | Model selection | ✔ | ✔ (Phase 2) | Server policy |
 | Copy / regenerate / edit / branch / react | Partial | Partial (Phase 2) | Copy, branch, react done; regenerate/edit later |
-| Citations | ✔ (ephemeral) | ✔ ephemeral (Phase 2) | Not kept after reload until S4 |
+| Citations | ✔ (Phase 3: from history) | ✔ (Phase 3) | Persisted, re-authorized on read; real pages only |
 | Summary | ✔ | ✔ (Phase 2) | |
 | Export md/json | ✔ | Partial (Phase 2) | Markdown copied to clipboard; share sheet later |
 | Share links (create / revoke) | ✔ (create; fixed in S) | ✔ (Phase 2) | Revocation UI on mobile; web gets the API |
-| Document upload / list / open / chunks | ✔ | ✔ | 25 MiB |
-| Document delete | ✘ | ✘ | No backend endpoint |
+| Document upload / list / open / chunks | ✔ | ✔ upload, list, status, retry, open (Phase 3); chunks view later | 25 MiB, states, upload IDs |
+| Document delete | ✘ (admin hide) | ✘ | No backend endpoint; hide stays web-only |
 | In-app notifications | Broken stream | ✔ | |
 | Background push | ✘ | ✘ (deferred, D4) | |
 | Requests (space) | ✔ | ✔ | |

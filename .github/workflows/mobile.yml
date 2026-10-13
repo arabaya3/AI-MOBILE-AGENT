@@ -8,7 +8,11 @@ on:
       # Backend contracts the app consumes.
       - "src/modules/apis/v1/auth/**"
       - "src/modules/apis/v1/spaces/**"
+      - "src/modules/apis/v1/chat/**"
+      - "src/modules/apis/v1/documents/**"
+      - "src/modules/apis/v1/sharing/**"
       - "src/modules/apis/dependencies.py"
+      - "src/services/databases/postgresql/models.py"
   push:
     branches:
       - dev
@@ -18,7 +22,11 @@ on:
       # Backend contracts the app consumes.
       - "src/modules/apis/v1/auth/**"
       - "src/modules/apis/v1/spaces/**"
+      - "src/modules/apis/v1/chat/**"
+      - "src/modules/apis/v1/documents/**"
+      - "src/modules/apis/v1/sharing/**"
       - "src/modules/apis/dependencies.py"
+      - "src/services/databases/postgresql/models.py"
   workflow_dispatch:
 
 permissions:

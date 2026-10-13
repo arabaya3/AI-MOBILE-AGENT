@@ -332,3 +332,51 @@ Verified against `chat/handlers.py` and changed in a backward-compatible way:
 - **Shares** expose only user and assistant messages created up to the share's creation time; sources are not included.
 - **Still missing:** rename/delete (S2), persisted citations (S4), server-side cancellation.
 
+---
+
+## 10. Phase 3 document and citation contracts (2026-10-13)
+
+### 10.1 Behavior found before the changes
+
+- **Upload:**
+  - `/documents/upload*` read each file fully into memory twice and enforced no size limit (`MAX_FILE_SIZE_MB = 100` existed but was unused).
+  - FastAPI parses multipart bodies before dependencies run, so unauthenticated bodies were spooled to disk first.
+  - The type was decided by the extension alone, and the filename was used as sent (also in `Content-Disposition`).
+- **Processing:**
+  - Synchronous inside the request. `status` was written once, at the end.
+  - `/upload` did not index at all; only the web's `upload-and-vectorize` did.
+  - A failed embedding batch produced zero vectors that were indexed and reported as success.
+- **Duplicates:** identical bytes in a space return the existing document and grant the uploader access. **Kept unchanged.**
+- **Retrieval:**
+  - Dense search took the global top 50 and filtered afterwards, so selected documents could be missed.
+  - "No selection" meant all accessible documents. The non-streaming path let a global `admin` select documents they could not read.
+- **Leaks and gaps:**
+  - `/documents/{id}/chunks` checked only the space, not the user (S8).
+  - Stream `sources` included `s3_url`, the file hash and the size.
+  - The `/vector-search` router omitted the space and always failed.
+- **Citations:** not persisted; the web kept them in `sessionStorage` for the last answer only.
+- **Branching:** committed the new session before checking its space.
+- **Download:** authorized, but buffered the whole object, with an unsanitized filename and no `nosniff`.
+
+### 10.2 Contracts after Phase 3
+
+| Endpoint | Purpose |
+|---|---|
+| `PUT /documents/uploads/{upload_id}?filename=` | Raw-body upload (≤ 25 MiB, enforced while reading). 201 new, 200 when the upload ID was already used. |
+| `GET /documents/uploads/{upload_id}` | The uploader's own upload, for reconciling an uncertain upload (404 if never received). |
+| `GET /documents/accessible`, `GET /documents/{id}` | Adds `state`, `error_code`, `file_size`, `chunks_count`, `state_updated_at`, `can_retry`. |
+| `POST /documents/{id}/retry` | Uploader or space admin; retryable failures only; 409 when not allowed or already running. |
+| `GET /documents/{id}/download` | Streams the original with safe headers. |
+| `POST /documents/upload`, `/upload-and-vectorize`, `/upload-multiple` | Unchanged shapes; same validation and pipeline; body capped before parsing. |
+
+- **States:** `uploaded`, `processing`, `indexing`, `ready`, `failed`.
+- **Rejections (`{"detail": {"code", "message"}}`):**
+  - 413: `too_large`.
+  - 415: `unsupported_type`, `invalid_content`, `unsupported_encoding`.
+  - 422: `empty`, `encrypted`, `corrupt`.
+- **Failure codes on documents:** `encrypted`, `corrupt`, `no_text`, `too_complex`, `timeout`, `indexing_failed`, `storage_failed`, `interrupted`, `processing_failed`.
+- **Chat errors:**
+  - Stream: `document_access_denied` or `document_not_ready`.
+  - Non-streaming: 403 and 409.
+- **History:** each message has `citations`, either `null` or a list of `{available, document_id, filename, chunk_index, page, excerpt}`. Unavailable entries carry only `available: false`. A source revoked after an answer was read cannot retroactively remove the answer text the reader already saw; only the excerpt and access are withdrawn.
+- **Shared conversations and exports:** contain no citations.

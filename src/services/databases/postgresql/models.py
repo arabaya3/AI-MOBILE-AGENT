@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.ext.declarative import declarative_base
@@ -27,7 +28,17 @@ class Document(Base):
     """Document metadata and processing results."""
 
     __tablename__ = "documents"
-    __table_args__ = (UniqueConstraint("space_id", "file_hash", name="uq_documents_space_hash"),)
+    __table_args__ = (
+        UniqueConstraint("space_id", "file_hash", name="uq_documents_space_hash"),
+        Index(
+            "uq_documents_client_upload",
+            "space_id",
+            "uploaded_by_user_id",
+            "client_upload_id",
+            unique=True,
+            postgresql_where=text("client_upload_id IS NOT NULL"),
+        ),
+    )
 
     id = Column(String, primary_key=True)
     space_id = Column(String, nullable=True, index=True)
@@ -45,6 +56,11 @@ class Document(Base):
     is_hidden = Column(Boolean, default=False, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
     processed_at = Column(DateTime, nullable=True)
+    # Durable pipeline state: uploaded -> processing -> indexing -> ready, or failed (+ safe error code).
+    state = Column(String(16), nullable=False, default="uploaded", server_default="uploaded")
+    state_error = Column(String(32), nullable=True)
+    state_updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, server_default=func.now())
+    client_upload_id = Column(String(64), nullable=True)
 
 
 class User(Base):

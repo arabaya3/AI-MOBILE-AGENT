@@ -112,6 +112,24 @@ Put a directive in the prompt to pick a scenario:
 
 The backend test suite sets the same variables in `tests/conftest.py`.
 
+### Documents locally
+
+Use local object and vector storage only:
+
+```bash
+docker run -d --name teia-e2e-qdrant --network teia-e2e-net qdrant/qdrant:v1.12.4
+docker run -d --name teia-e2e-s3 --network teia-e2e-net motoserver/moto:5.0.28   # S3-compatible, in memory
+```
+
+Add to the backend:
+- `EMBEDDING_PROVIDER_STUB=true` (deterministic hashed bag-of-words embeddings; same development/test restriction as the chat stub).
+- `QDRANT_URL=http://teia-e2e-qdrant:6333`, `QDRANT_VECTOR_SIZE=256`, `QDRANT_COLLECTION=teia_e2e_docs`, `ENABLE_RERANKING=false`.
+- `AWS_S3_ENDPOINT_URL=http://teia-e2e-s3:5000`, `AWS_S3_BUCKET=teia-e2e`, dummy `AWS_*` keys.
+
+Apply `migrations/sql/20261013_0001_document_processing_state.sql` to an existing local database (the backend's startup `create_all` does not add columns to existing tables). The backend tests use moto's server and Qdrant's in-memory mode (`QDRANT_URL=:memory:`) automatically.
+
+To pick files in the emulator, push synthetic files with `adb push <file> /sdcard/Download/` and choose them from **Downloads** in the system picker.
+
 ## Reset and invitation links
 
 | Build | Accepted links |

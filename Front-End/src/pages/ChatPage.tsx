@@ -60,6 +60,7 @@ import {
   listChatSessions,
   listUsageEvents,
   reactToMessage,
+  citationsToSources,
   streamChatMessage,
 } from "../api/chat";
 import { acceptInvite, deleteSpace, getMyMembership } from "../api/spaces";
@@ -336,7 +337,14 @@ const ChatPage = ({ toggleTheme, currentPalette: _currentPalette, onChangePalett
         const { data } = await getChatSession(sessionId);
         setActiveSessionId(sessionId);
         setIsNewChatMode(false);
-        // Restore sources that were persisted when this session was last active
+        if (data.history.some((msg) => msg.citations?.length)) {
+          setSources([]);
+          setMessages(
+            data.history.map((msg) => (msg.citations?.length ? { ...msg, sources: citationsToSources(msg.citations) } : msg)),
+          );
+          return;
+        }
+        // Older answers have no stored citations; fall back to sources kept in this browser tab.
         const storedRaw = sessionStorage.getItem(`teia_sources_${sessionId}`);
         const storedSources: VectorSearchMatch[] = storedRaw ? (JSON.parse(storedRaw) as VectorSearchMatch[]) : [];
         setSources(storedSources);

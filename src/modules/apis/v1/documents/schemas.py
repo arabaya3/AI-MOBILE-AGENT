@@ -76,6 +76,12 @@ class AccessibleDocument(BaseModel):
     uploaded_at: Optional[datetime]
     uploaded_by_user_id: Optional[str] = None
     is_hidden: bool = False
+    file_size: Optional[int] = None
+    state: Optional[str] = Field(None, description="uploaded | processing | indexing | ready | failed")
+    error_code: Optional[str] = Field(None, description="Safe failure code when state is failed")
+    chunks_count: int = 0
+    state_updated_at: Optional[datetime] = None
+    can_retry: bool = False
 
 
 class DocumentVisibilityUpdateRequest(BaseModel):

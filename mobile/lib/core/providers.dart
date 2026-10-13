@@ -76,3 +76,16 @@ final apiClientProvider = Provider<ApiClient>((ref) {
     onSpaceRejected: ref.watch(spaceRejectionsProvider).add,
   );
 });
+
+/// Whether the app is in the foreground; the app widget keeps it current.
+/// Background polling stops while this is false.
+class AppForeground extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void set(bool value) => state = value;
+}
+
+final appForegroundProvider = NotifierProvider<AppForeground, bool>(
+  AppForeground.new,
+);

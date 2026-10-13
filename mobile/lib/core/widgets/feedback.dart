@@ -219,6 +219,7 @@ String describeApiException(AppLocalizations l10n, ApiException error) =>
       NotFoundException() => l10n.errorNotFound,
       ConflictException() => l10n.errorConflict,
       PayloadTooLargeException() => l10n.errorTooLarge,
+      UnsupportedMediaException() => l10n.errorUnsupportedFile,
       ValidationException() => l10n.errorValidation,
       RateLimitedException() => l10n.errorRateLimited,
       QuotaExceededException() => l10n.errorQuota,

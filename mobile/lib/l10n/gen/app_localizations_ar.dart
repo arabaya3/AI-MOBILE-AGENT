@@ -539,10 +539,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get stopAction => 'إيقاف';
 
   @override
-  String get attachmentsUnavailable =>
-      'سيتوفر إرفاق الملفات والمستندات في إصدار لاحق.';
-
-  @override
   String get modelLabel => 'النموذج';
 
   @override
@@ -568,10 +564,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get sourcesLabel => 'المصادر';
-
-  @override
-  String get sourcesSessionOnly =>
-      'تظهر المصادر في هذا العرض فقط ولا تُحفظ مع المحادثة.';
 
   @override
   String sourceExcerpt(int index) {
@@ -699,4 +691,280 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get openChat => 'فتح المحادثات';
+
+  @override
+  String get openDocuments => 'المستندات';
+
+  @override
+  String get documentsTitle => 'المستندات';
+
+  @override
+  String get documentsChatExplain =>
+      'تبحث إجابات المحادثة في مستنداتك الجاهزة في مساحة العمل هذه. اختر مستندات داخل المحادثة لحصر البحث فيها.';
+
+  @override
+  String get searchDocumentsHint => 'ابحث في المستندات';
+
+  @override
+  String get filterAll => 'الكل';
+
+  @override
+  String get filterInProgress => 'قيد المعالجة';
+
+  @override
+  String get docStateReady => 'جاهز';
+
+  @override
+  String get docStateFailed => 'تعذّرت المعالجة';
+
+  @override
+  String get docStateProcessing => 'جارٍ المعالجة…';
+
+  @override
+  String get docStateIndexing => 'جارٍ التجهيز للبحث…';
+
+  @override
+  String get documentHidden => 'مخفي عن الأعضاء';
+
+  @override
+  String get documentsEmptyTitle => 'لا توجد مستندات بعد';
+
+  @override
+  String get documentsEmptyUploader =>
+      'ارفع ملفات PDF أو Word أو Excel أو PowerPoint أو CSV أو ملفات نصية حتى 25 ميغابايت.';
+
+  @override
+  String get documentsEmptyReader =>
+      'تظهر هنا المستندات التي تمت مشاركتها معك في مساحة العمل هذه.';
+
+  @override
+  String get noMatchingDocuments => 'لا توجد مستندات مطابقة.';
+
+  @override
+  String get uploadAction => 'رفع';
+
+  @override
+  String sizeMegabytes(String value) {
+    return '$value ميغابايت';
+  }
+
+  @override
+  String sizeKilobytes(String value) {
+    return '$value كيلوبايت';
+  }
+
+  @override
+  String uploadSending(String sent, String total) {
+    return 'جارٍ الرفع: $sent من $total';
+  }
+
+  @override
+  String get uploadProcessing =>
+      'اكتمل الرفع. يقرأ الخادم الملف ويفهرسه، وقد يستغرق ذلك بضع دقائق.';
+
+  @override
+  String get uploadChecking =>
+      'تعذّر الاتصال، ولم يتضح إن كان الملف قد وصل. جارٍ التحقق مع الخادم قبل إرسال أي شيء مرة أخرى.';
+
+  @override
+  String get uploadReady => 'جاهز للاستخدام في المحادثة.';
+
+  @override
+  String get uploadReceived => 'استلمه الخادم.';
+
+  @override
+  String get uploadCancelled =>
+      'أُوقف على هذا الجهاز. إن كان الملف قد وصل بالفعل فسيواصل الخادم معالجته وسيظهر في القائمة.';
+
+  @override
+  String get uploadNotReceived =>
+      'لم يصل الملف إلى الخادم. يمكنك رفعه مرة أخرى.';
+
+  @override
+  String get cancelUploadAction => 'إلغاء الرفع';
+
+  @override
+  String get stopWaitingAction => 'إيقاف الانتظار';
+
+  @override
+  String get checkAgainAction => 'تحقق مرة أخرى';
+
+  @override
+  String get viewDetailsAction => 'التفاصيل';
+
+  @override
+  String get doneAction => 'تم';
+
+  @override
+  String get docErrorEncrypted =>
+      'هذا الملف محمي بكلمة مرور أو بتنسيق Office قديم. أزل كلمة المرور أو احفظه كملف جديد ثم ارفعه مرة أخرى.';
+
+  @override
+  String get docErrorCorrupt => 'الملف تالف أو لا يطابق نوعه المذكور في اسمه.';
+
+  @override
+  String get docErrorNoText =>
+      'لم يُعثر على نص قابل للقراءة. قد تحتاج المستندات الممسوحة ضوئيًا إلى التعرّف على النص قبل رفعها.';
+
+  @override
+  String get docErrorTooComplex => 'الملف كبير أو معقّد جدًا ولا يمكن معالجته.';
+
+  @override
+  String get docErrorUnsupported =>
+      'نوع الملف غير مدعوم. استخدم PDF أو Word أو Excel أو PowerPoint أو CSV أو نصًا بترميز UTF-8.';
+
+  @override
+  String get docErrorTooLarge => 'يجب ألا يتجاوز حجم الملف 25 ميغابايت.';
+
+  @override
+  String get docErrorEmpty => 'الملف فارغ.';
+
+  @override
+  String get docErrorTimeout => 'استغرقت المعالجة وقتًا طويلًا فأُوقفت.';
+
+  @override
+  String get docErrorInterrupted => 'انقطعت المعالجة على الخادم.';
+
+  @override
+  String get docErrorStorage => 'تعذّر تخزين الملف. ارفعه مرة أخرى.';
+
+  @override
+  String get docErrorGeneric => 'تعذّرت معالجة المستند.';
+
+  @override
+  String get errorUnsupportedFile => 'نوع الملف غير مدعوم.';
+
+  @override
+  String get documentDetailsTitle => 'المستند';
+
+  @override
+  String get documentUnavailableTitle => 'المستند غير متاح';
+
+  @override
+  String get documentUnavailableBody =>
+      'ربما حُذف أو أُخفي، أو تغيّرت صلاحيتك.';
+
+  @override
+  String get docProcessingExplain =>
+      'يقرأ الخادم هذا المستند ويفهرسه. يمكن استخدامه في المحادثة عندما يصبح جاهزًا.';
+
+  @override
+  String get retryProcessingAction => 'إعادة محاولة المعالجة';
+
+  @override
+  String get documentInfoTitle => 'التفاصيل';
+
+  @override
+  String get fileTypeLabel => 'النوع';
+
+  @override
+  String get fileSizeLabel => 'الحجم';
+
+  @override
+  String get uploadedLabel => 'تاريخ الرفع';
+
+  @override
+  String get sectionsLabel => 'الأقسام المفهرسة';
+
+  @override
+  String get useInChatAction => 'استخدامه في المحادثة';
+
+  @override
+  String get selectedForChat => 'محدد للمحادثة';
+
+  @override
+  String get openDocumentAction => 'فتح المستند';
+
+  @override
+  String get openFileFailed => 'لا يوجد تطبيق على هذا الجهاز يمكنه فتح الملف.';
+
+  @override
+  String get localCopyExplain =>
+      'يؤدي الفتح إلى تنزيل نسخة في التخزين الخاص بهذا التطبيق، وتُحذف عند تسجيل الخروج أو تبديل مساحة العمل. أما النسخ التي تشاركها مع تطبيقات أخرى فلا يمكن استرجاعها.';
+
+  @override
+  String get chooseDocumentsAction => 'اختيار المستندات';
+
+  @override
+  String get chooseDocumentsTitle => 'مستندات هذه المحادثة';
+
+  @override
+  String get chooseDocumentsExplain =>
+      'إذا لم تحدد شيئًا، تبحث الإجابات في كل مستنداتك الجاهزة في مساحة العمل هذه. حدّد مستندات لحصر البحث فيها.';
+
+  @override
+  String get scopeAllDocuments => 'البحث في كل مستنداتك الجاهزة';
+
+  @override
+  String scopeSelectedDocuments(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'البحث في $count مستندًا محددًا',
+      few: 'البحث في $count مستندات محددة',
+      two: 'البحث في مستندين محددين',
+      one: 'البحث في مستند واحد محدد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String documentsNotReadyHidden(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مستندًا ما زال قيد المعالجة ولا يمكن تحديده بعد.',
+      few: '$count مستندات ما زالت قيد المعالجة ولا يمكن تحديدها بعد.',
+      two: 'مستندان ما زالا قيد المعالجة ولا يمكن تحديدهما بعد.',
+      one: 'مستند واحد ما زال قيد المعالجة ولا يمكن تحديده بعد.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noReadyDocuments =>
+      'لا توجد مستندات جاهزة في مساحة العمل هذه بعد.';
+
+  @override
+  String get clearSelection => 'مسح';
+
+  @override
+  String get removeFromSelection => 'إزالة من التحديد';
+
+  @override
+  String selectionPruned(String names, String scope) {
+    return 'أُزيل من تحديدك لأنه لم يعد متاحًا: $names. الآن: $scope.';
+  }
+
+  @override
+  String get listSeparator => '، ';
+
+  @override
+  String get reviewDocumentsAction => 'مراجعة المستندات';
+
+  @override
+  String get turnDocumentNotReady =>
+      'أحد المستندات المحددة ليس جاهزًا بعد، ولم يُجرَ بحث بديل.';
+
+  @override
+  String get sourceUnavailable => 'المصدر غير متاح';
+
+  @override
+  String get sourceUnavailableBody =>
+      'لم تعد لديك صلاحية الوصول إلى هذا المصدر، لذلك لا يظهر مقتطفه. يبقى نص الإجابة الذي تلقيته في المحادثة.';
+
+  @override
+  String get sourceSavedNote =>
+      'حُفظ هذا المقتطف مع الإجابة، ويُعاد التحقق من الصلاحية في كل مرة تفتح فيها المحادثة.';
+
+  @override
+  String pageNumber(int page) {
+    return 'صفحة $page';
+  }
+
+  @override
+  String get imageNotLoaded => 'لم تُحمَّل الصورة';
+
+  @override
+  String get openLinkFailed => 'تعذّر فتح الرابط.';
 }

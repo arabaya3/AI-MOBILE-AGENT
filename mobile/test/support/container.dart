@@ -22,6 +22,7 @@ Future<ProviderContainer> makeContainer(
       ),
       tokenStoreProvider.overrideWithValue(store ?? InMemoryTokenStore()),
       dioProvider.overrideWithValue(backend.dio),
+      testCacheRoot(),
       ...overrides,
     ],
   );

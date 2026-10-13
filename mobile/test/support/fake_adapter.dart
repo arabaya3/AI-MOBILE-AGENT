@@ -12,6 +12,9 @@ class FakeAdapter implements HttpClientAdapter {
 
   final FakeHandler handler;
   final requests = <RequestOptions>[];
+
+  /// Raw bytes each request sent, in request order (empty when it had no body).
+  final bodies = <RequestOptions, List<int>>{};
   int cancelledRequests = 0;
 
   @override
@@ -19,9 +22,17 @@ class FakeAdapter implements HttpClientAdapter {
     RequestOptions options,
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
-  ) {
+  ) async {
     requests.add(options);
-    cancelFuture?.then((_) => cancelledRequests++);
+    unawaited(cancelFuture?.then((_) => cancelledRequests++));
+    // Reading the body is what drives Dio's upload progress callbacks.
+    final bytes = <int>[];
+    if (requestStream != null) {
+      await for (final chunk in requestStream) {
+        bytes.addAll(chunk);
+      }
+    }
+    bodies[options] = bytes;
     return handler(options);
   }
 

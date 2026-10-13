@@ -182,7 +182,6 @@
   "composerHint": "Ask a question",
   "sendAction": "Send",
   "stopAction": "Stop",
-  "attachmentsUnavailable": "Attachments and documents arrive in a later release.",
   "modelLabel": "Model",
   "noModels": "No models are available to you in this space.",
   "assistantTyping": "Writing a reply…",
@@ -192,7 +191,6 @@
   "notHelpful": "Not helpful",
   "branchAction": "Continue in a new conversation",
   "sourcesLabel": "Sources",
-  "sourcesSessionOnly": "Sources are shown in this view only and aren't saved with the conversation.",
   "sourceExcerpt": "Excerpt {index}",
   "@sourceExcerpt": {
     "placeholders": {
@@ -257,5 +255,136 @@
     }
   },
   "openAction": "Open",
-  "openChat": "Open conversations"
+  "openChat": "Open conversations",
+  "openDocuments": "Documents",
+  "documentsTitle": "Documents",
+  "documentsChatExplain": "Chat answers search your ready documents in this space. Choose documents in a conversation to search only those.",
+  "searchDocumentsHint": "Search documents",
+  "filterAll": "All",
+  "filterInProgress": "In progress",
+  "docStateReady": "Ready",
+  "docStateFailed": "Failed",
+  "docStateProcessing": "Processing…",
+  "docStateIndexing": "Preparing for search…",
+  "documentHidden": "Hidden from members",
+  "documentsEmptyTitle": "No documents yet",
+  "documentsEmptyUploader": "Upload PDF, Word, Excel, PowerPoint, CSV or text files up to 25 MB.",
+  "documentsEmptyReader": "Documents shared with you in this space appear here.",
+  "noMatchingDocuments": "No documents match.",
+  "uploadAction": "Upload",
+  "sizeMegabytes": "{value} MB",
+  "@sizeMegabytes": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "sizeKilobytes": "{value} KB",
+  "@sizeKilobytes": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "uploadSending": "Uploading {sent} of {total}",
+  "@uploadSending": {
+    "placeholders": {
+      "sent": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "uploadProcessing": "Uploaded. The server is reading and indexing the file; this can take a few minutes.",
+  "uploadChecking": "The connection failed, so it's unclear whether the file arrived. Checking with the server before anything is sent again.",
+  "uploadReady": "Ready to use in chat.",
+  "uploadReceived": "Received by the server.",
+  "uploadCancelled": "Stopped on this device. If the file had already arrived, the server keeps processing it and it will appear in the list.",
+  "uploadNotReceived": "The upload didn't reach the server. You can upload the file again.",
+  "cancelUploadAction": "Cancel upload",
+  "stopWaitingAction": "Stop waiting",
+  "checkAgainAction": "Check again",
+  "viewDetailsAction": "Details",
+  "doneAction": "Done",
+  "docErrorEncrypted": "This file is password-protected or uses an old Office format. Remove the password or save it as a new file, then upload it again.",
+  "docErrorCorrupt": "The file is damaged or isn't what its name says.",
+  "docErrorNoText": "No readable text was found. Scanned documents may need text recognition before upload.",
+  "docErrorTooComplex": "The file is too large or complex to process.",
+  "docErrorUnsupported": "This file type isn't supported. Use PDF, Word, Excel, PowerPoint, CSV, or UTF-8 text.",
+  "docErrorTooLarge": "Files must be 25 MB or smaller.",
+  "docErrorEmpty": "The file is empty.",
+  "docErrorTimeout": "Processing took too long and was stopped.",
+  "docErrorInterrupted": "Processing was interrupted on the server.",
+  "docErrorStorage": "The file couldn't be stored. Upload it again.",
+  "docErrorGeneric": "The document couldn't be processed.",
+  "errorUnsupportedFile": "This file type isn't supported.",
+  "documentDetailsTitle": "Document",
+  "documentUnavailableTitle": "Document unavailable",
+  "documentUnavailableBody": "It was removed, hidden, or your access changed.",
+  "docProcessingExplain": "The server is reading and indexing this document. It can be used in chat once it is ready.",
+  "retryProcessingAction": "Try processing again",
+  "documentInfoTitle": "Details",
+  "fileTypeLabel": "Type",
+  "fileSizeLabel": "Size",
+  "uploadedLabel": "Uploaded",
+  "sectionsLabel": "Indexed sections",
+  "useInChatAction": "Use in chat",
+  "selectedForChat": "Selected for chat",
+  "openDocumentAction": "Open document",
+  "openFileFailed": "No app on this device could open the file.",
+  "localCopyExplain": "Opening downloads a copy into this app's private storage. It is deleted when you sign out or switch space. Copies you share to other apps can't be recalled.",
+  "chooseDocumentsAction": "Choose documents",
+  "chooseDocumentsTitle": "Documents for this conversation",
+  "chooseDocumentsExplain": "With nothing selected, answers search all your ready documents in this space. Select documents to search only those.",
+  "scopeAllDocuments": "Searching all your ready documents",
+  "scopeSelectedDocuments": "{count, plural, =1{Searching 1 selected document} other{Searching {count} selected documents}}",
+  "@scopeSelectedDocuments": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "documentsNotReadyHidden": "{count, plural, =1{1 document is still processing and can't be selected yet.} other{{count} documents are still processing and can't be selected yet.}}",
+  "@documentsNotReadyHidden": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noReadyDocuments": "No ready documents in this space yet.",
+  "clearSelection": "Clear",
+  "removeFromSelection": "Remove from selection",
+  "selectionPruned": "Removed from your selection because it's no longer available: {names}. Now: {scope}.",
+  "@selectionPruned": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "listSeparator": ", ",
+  "reviewDocumentsAction": "Review documents",
+  "turnDocumentNotReady": "A selected document isn't ready yet. Nothing was searched instead.",
+  "sourceUnavailable": "Source unavailable",
+  "sourceUnavailableBody": "You no longer have access to this source, so its excerpt isn't shown. The answer text you already received stays in the conversation.",
+  "sourceSavedNote": "This excerpt was saved with the answer. Access is checked again every time you open the conversation.",
+  "pageNumber": "Page {page}",
+  "@pageNumber": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      }
+    }
+  },
+  "imageNotLoaded": "Image not loaded",
+  "openLinkFailed": "The link couldn't be opened."
 }

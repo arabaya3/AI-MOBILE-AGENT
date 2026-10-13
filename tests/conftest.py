@@ -1,6 +1,16 @@
 """Shared fixtures. Tests run only against a disposable local PostgreSQL database."""
 
 import os
+import socket
+
+
+def _free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+S3_PORT = _free_port()
 
 _DB = {
     "POSTGRES_HOST": os.environ.get("TEST_POSTGRES_HOST", "localhost"),
@@ -23,7 +33,11 @@ os.environ.update(
         "CHAT_PROVIDER_STUB": "true",
         "DEFAULT_ALLOWED_MODELS": '["teia-stub-1", "teia-stub-2"]',
         "OPENAI_CHAT_MODEL": "teia-stub-1",
-        "QDRANT_URL": "http://127.0.0.1:1",
+        "QDRANT_URL": ":memory:",
+        "QDRANT_VECTOR_SIZE": "64",
+        "EMBEDDING_PROVIDER_STUB": "true",
+        "ENABLE_RERANKING": "false",
+        "AWS_S3_ENDPOINT_URL": f"http://127.0.0.1:{S3_PORT}",
         "AWS_ACCESS_KEY_ID": "test",
         "AWS_SECRET_ACCESS_KEY": "test",
         "AWS_REGION": "us-east-1",
@@ -47,6 +61,8 @@ from src.modules.apis.v1.auth.service import auth_service  # noqa: E402
 from src.modules.apis.v1.sharing.router import router as sharing_router  # noqa: E402
 from src.modules.apis.v1.spaces.router import router as spaces_router  # noqa: E402
 from src.modules.apis.v1.chat.router import router as chat_router  # noqa: E402
+from src.modules.apis.v1.documents.router import router as documents_router  # noqa: E402
+from src.core.security.upload_limit import UploadSizeLimitMiddleware  # noqa: E402
 from src.services.databases.postgresql.database import get_db  # noqa: E402
 from src.services.databases.postgresql.models import (  # noqa: E402
     Base,
@@ -79,6 +95,17 @@ class EmailSink:
         pass
 
 
+@pytest.fixture(scope="session", autouse=True)
+def local_s3():
+    """moto's S3-compatible server on localhost: real HTTP object storage, no AWS account."""
+    from moto.server import ThreadedMotoServer
+
+    server = ThreadedMotoServer(ip_address="127.0.0.1", port=S3_PORT)
+    server.start()
+    yield
+    server.stop()
+
+
 @pytest.fixture
 async def engine():
     eng = create_async_engine(settings.database_url, poolclass=NullPool)
@@ -106,6 +133,8 @@ def email_sink(monkeypatch):
 @pytest.fixture
 async def client(session_factory, email_sink):
     app = FastAPI()
+    app.add_middleware(UploadSizeLimitMiddleware)
+    app.include_router(documents_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(sharing_router, prefix="/api/v1")
     app.include_router(spaces_router, prefix="/api/v1")

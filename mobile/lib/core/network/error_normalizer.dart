@@ -45,29 +45,38 @@ ApiException normalizeHttpError({
 }) {
   final parsed = _decodeBody(body);
   final detail = parsed.detail;
+  final structured = detail is Map ? detail : null;
+  final code = structured?['code'] is String
+      ? structured!['code'] as String
+      : null;
   final message = detail is String
       ? detail
+      : structured?['message'] is String
+      ? structured!['message'] as String
       : (parsed.isJson ? null : parsed.text);
 
   switch (statusCode) {
     case 400:
-      return BadRequestException(message: message);
+      return BadRequestException(message: message, code: code);
     case 401:
       return kind == RequestKind.authenticated
           ? SessionExpiredException(message: message)
           : InvalidCredentialsException(message: message);
     case 403:
-      return ForbiddenException(message: message);
+      return ForbiddenException(message: message, code: code);
     case 404:
-      return NotFoundException(message: message);
+      return NotFoundException(message: message, code: code);
     case 409:
-      return ConflictException(message: message);
+      return ConflictException(message: message, code: code);
     case 413:
-      return PayloadTooLargeException(message: message);
+      return PayloadTooLargeException(message: message, code: code);
+    case 415:
+      return UnsupportedMediaException(message: message, code: code);
     case 422:
       return ValidationException(
         issues: _validationIssues(detail),
         message: message,
+        code: code,
       );
     case 429:
       return parsed.isJson
@@ -80,7 +89,11 @@ ApiException normalizeHttpError({
   if (statusCode >= 500) {
     return ServerException(statusCode: statusCode, message: message);
   }
-  return UnexpectedResponseException(statusCode: statusCode, message: message);
+  return UnexpectedResponseException(
+    statusCode: statusCode,
+    message: message,
+    code: code,
+  );
 }
 
 class _DecodedBody {

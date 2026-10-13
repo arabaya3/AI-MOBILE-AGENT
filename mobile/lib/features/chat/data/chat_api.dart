@@ -32,6 +32,7 @@ class ChatMessage {
     required this.role,
     required this.content,
     required this.createdAt,
+    this.citations = const [],
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -41,12 +42,19 @@ class ChatMessage {
     createdAt:
         DateTime.tryParse('${json['created_at']}') ??
         DateTime.fromMillisecondsSinceEpoch(0),
+    citations: [
+      for (final c in json['citations'] as List? ?? const [])
+        if (c is Map) Citation.persisted(Map<String, dynamic>.from(c)),
+    ],
   );
 
   final String id;
   final ChatRole role;
   final String content;
   final DateTime createdAt;
+
+  /// Sources stored with this answer, already filtered by the reader's current access.
+  final List<Citation> citations;
 
   /// Older backends stored provider failures as assistant text; never show them as answers.
   bool get isStoredProviderError =>
@@ -142,6 +150,7 @@ class ChatApi {
     String? sessionId,
     String? model,
     String? language,
+    List<String> documentIds = const [],
     CancelToken? cancelToken,
   }) => _client
       .postEventStream(
@@ -152,6 +161,7 @@ class ChatApi {
           'session_id': ?sessionId,
           'model': ?model,
           'user_language': ?language,
+          if (documentIds.isNotEmpty) 'document_ids': documentIds,
         },
       )
       .transform(const ChatStreamDecoder());

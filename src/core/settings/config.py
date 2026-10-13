@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     # If enabled, each space will be assigned its own bucket name derived from `AWS_S3_SPACE_BUCKET_PREFIX`.
     AWS_S3_PER_SPACE_BUCKET: bool = False
     AWS_S3_SPACE_BUCKET_PREFIX: str = ""
+    # S3-compatible endpoint (e.g. a local MinIO); empty uses AWS.
+    AWS_S3_ENDPOINT_URL: str = ""
 
     # Security / JWT
     SECRET_KEY: str = "change-me"
@@ -110,6 +112,9 @@ class Settings(BaseSettings):
     # Performance
     MAX_FILE_SIZE_MB: int = 100
     PROCESSING_TIMEOUT_SECONDS: int = 300
+    # Hard per-file upload limit (25 MiB), enforced while the body is read.
+    MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024
+    EXTRACTION_MEMORY_LIMIT_MB: int = 2048
     MAX_CONCURRENT_UPLOADS: int = 10
     BATCH_INSERT_SIZE: int = 1000
     
@@ -157,6 +162,8 @@ class Settings(BaseSettings):
 
     # Deterministic local chat provider for end-to-end tests (refused outside development/test).
     CHAT_PROVIDER_STUB: bool = False
+    # Deterministic local embeddings for end-to-end tests (same restriction).
+    EMBEDDING_PROVIDER_STUB: bool = False
 
     # Password reset
     PASSWORD_RESET_TTL_MINUTES: int = 60

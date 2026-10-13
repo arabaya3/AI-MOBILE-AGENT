@@ -549,10 +549,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stopAction => 'Stop';
 
   @override
-  String get attachmentsUnavailable =>
-      'Attachments and documents arrive in a later release.';
-
-  @override
   String get modelLabel => 'Model';
 
   @override
@@ -578,10 +574,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sourcesLabel => 'Sources';
-
-  @override
-  String get sourcesSessionOnly =>
-      'Sources are shown in this view only and aren\'t saved with the conversation.';
 
   @override
   String sourceExcerpt(int index) {
@@ -710,4 +702,279 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openChat => 'Open conversations';
+
+  @override
+  String get openDocuments => 'Documents';
+
+  @override
+  String get documentsTitle => 'Documents';
+
+  @override
+  String get documentsChatExplain =>
+      'Chat answers search your ready documents in this space. Choose documents in a conversation to search only those.';
+
+  @override
+  String get searchDocumentsHint => 'Search documents';
+
+  @override
+  String get filterAll => 'All';
+
+  @override
+  String get filterInProgress => 'In progress';
+
+  @override
+  String get docStateReady => 'Ready';
+
+  @override
+  String get docStateFailed => 'Failed';
+
+  @override
+  String get docStateProcessing => 'Processing…';
+
+  @override
+  String get docStateIndexing => 'Preparing for search…';
+
+  @override
+  String get documentHidden => 'Hidden from members';
+
+  @override
+  String get documentsEmptyTitle => 'No documents yet';
+
+  @override
+  String get documentsEmptyUploader =>
+      'Upload PDF, Word, Excel, PowerPoint, CSV or text files up to 25 MB.';
+
+  @override
+  String get documentsEmptyReader =>
+      'Documents shared with you in this space appear here.';
+
+  @override
+  String get noMatchingDocuments => 'No documents match.';
+
+  @override
+  String get uploadAction => 'Upload';
+
+  @override
+  String sizeMegabytes(String value) {
+    return '$value MB';
+  }
+
+  @override
+  String sizeKilobytes(String value) {
+    return '$value KB';
+  }
+
+  @override
+  String uploadSending(String sent, String total) {
+    return 'Uploading $sent of $total';
+  }
+
+  @override
+  String get uploadProcessing =>
+      'Uploaded. The server is reading and indexing the file; this can take a few minutes.';
+
+  @override
+  String get uploadChecking =>
+      'The connection failed, so it\'s unclear whether the file arrived. Checking with the server before anything is sent again.';
+
+  @override
+  String get uploadReady => 'Ready to use in chat.';
+
+  @override
+  String get uploadReceived => 'Received by the server.';
+
+  @override
+  String get uploadCancelled =>
+      'Stopped on this device. If the file had already arrived, the server keeps processing it and it will appear in the list.';
+
+  @override
+  String get uploadNotReceived =>
+      'The upload didn\'t reach the server. You can upload the file again.';
+
+  @override
+  String get cancelUploadAction => 'Cancel upload';
+
+  @override
+  String get stopWaitingAction => 'Stop waiting';
+
+  @override
+  String get checkAgainAction => 'Check again';
+
+  @override
+  String get viewDetailsAction => 'Details';
+
+  @override
+  String get doneAction => 'Done';
+
+  @override
+  String get docErrorEncrypted =>
+      'This file is password-protected or uses an old Office format. Remove the password or save it as a new file, then upload it again.';
+
+  @override
+  String get docErrorCorrupt =>
+      'The file is damaged or isn\'t what its name says.';
+
+  @override
+  String get docErrorNoText =>
+      'No readable text was found. Scanned documents may need text recognition before upload.';
+
+  @override
+  String get docErrorTooComplex =>
+      'The file is too large or complex to process.';
+
+  @override
+  String get docErrorUnsupported =>
+      'This file type isn\'t supported. Use PDF, Word, Excel, PowerPoint, CSV, or UTF-8 text.';
+
+  @override
+  String get docErrorTooLarge => 'Files must be 25 MB or smaller.';
+
+  @override
+  String get docErrorEmpty => 'The file is empty.';
+
+  @override
+  String get docErrorTimeout => 'Processing took too long and was stopped.';
+
+  @override
+  String get docErrorInterrupted => 'Processing was interrupted on the server.';
+
+  @override
+  String get docErrorStorage =>
+      'The file couldn\'t be stored. Upload it again.';
+
+  @override
+  String get docErrorGeneric => 'The document couldn\'t be processed.';
+
+  @override
+  String get errorUnsupportedFile => 'This file type isn\'t supported.';
+
+  @override
+  String get documentDetailsTitle => 'Document';
+
+  @override
+  String get documentUnavailableTitle => 'Document unavailable';
+
+  @override
+  String get documentUnavailableBody =>
+      'It was removed, hidden, or your access changed.';
+
+  @override
+  String get docProcessingExplain =>
+      'The server is reading and indexing this document. It can be used in chat once it is ready.';
+
+  @override
+  String get retryProcessingAction => 'Try processing again';
+
+  @override
+  String get documentInfoTitle => 'Details';
+
+  @override
+  String get fileTypeLabel => 'Type';
+
+  @override
+  String get fileSizeLabel => 'Size';
+
+  @override
+  String get uploadedLabel => 'Uploaded';
+
+  @override
+  String get sectionsLabel => 'Indexed sections';
+
+  @override
+  String get useInChatAction => 'Use in chat';
+
+  @override
+  String get selectedForChat => 'Selected for chat';
+
+  @override
+  String get openDocumentAction => 'Open document';
+
+  @override
+  String get openFileFailed => 'No app on this device could open the file.';
+
+  @override
+  String get localCopyExplain =>
+      'Opening downloads a copy into this app\'s private storage. It is deleted when you sign out or switch space. Copies you share to other apps can\'t be recalled.';
+
+  @override
+  String get chooseDocumentsAction => 'Choose documents';
+
+  @override
+  String get chooseDocumentsTitle => 'Documents for this conversation';
+
+  @override
+  String get chooseDocumentsExplain =>
+      'With nothing selected, answers search all your ready documents in this space. Select documents to search only those.';
+
+  @override
+  String get scopeAllDocuments => 'Searching all your ready documents';
+
+  @override
+  String scopeSelectedDocuments(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Searching $count selected documents',
+      one: 'Searching 1 selected document',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String documentsNotReadyHidden(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count documents are still processing and can\'t be selected yet.',
+      one: '1 document is still processing and can\'t be selected yet.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noReadyDocuments => 'No ready documents in this space yet.';
+
+  @override
+  String get clearSelection => 'Clear';
+
+  @override
+  String get removeFromSelection => 'Remove from selection';
+
+  @override
+  String selectionPruned(String names, String scope) {
+    return 'Removed from your selection because it\'s no longer available: $names. Now: $scope.';
+  }
+
+  @override
+  String get listSeparator => ', ';
+
+  @override
+  String get reviewDocumentsAction => 'Review documents';
+
+  @override
+  String get turnDocumentNotReady =>
+      'A selected document isn\'t ready yet. Nothing was searched instead.';
+
+  @override
+  String get sourceUnavailable => 'Source unavailable';
+
+  @override
+  String get sourceUnavailableBody =>
+      'You no longer have access to this source, so its excerpt isn\'t shown. The answer text you already received stays in the conversation.';
+
+  @override
+  String get sourceSavedNote =>
+      'This excerpt was saved with the answer. Access is checked again every time you open the conversation.';
+
+  @override
+  String pageNumber(int page) {
+    return 'Page $page';
+  }
+
+  @override
+  String get imageNotLoaded => 'Image not loaded';
+
+  @override
+  String get openLinkFailed => 'The link couldn\'t be opened.';
 }

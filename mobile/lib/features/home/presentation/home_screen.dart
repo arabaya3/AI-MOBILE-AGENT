@@ -99,15 +99,17 @@ class HomeScreen extends ConsumerWidget {
                 icon: const Icon(Icons.chat_bubble_outline),
                 label: Text(l10n.openChat),
               ),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                key: const ValueKey('open-documents'),
+                onPressed: () => context.push('/documents'),
+                icon: const Icon(Icons.description_outlined),
+                label: Text(l10n.openDocuments),
+              ),
               const SizedBox(height: AppSpacing.md),
               Section(
                 title: l10n.sectionUpcoming,
                 children: [
-                  UnavailableDestination(
-                    icon: Icons.description_outlined,
-                    label: l10n.upcomingDocuments,
-                    statusLabel: l10n.notAvailableYet,
-                  ),
                   UnavailableDestination(
                     icon: Icons.notifications_none,
                     label: l10n.upcomingNotifications,

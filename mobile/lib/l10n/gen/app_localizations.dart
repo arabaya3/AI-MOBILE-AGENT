@@ -1106,12 +1106,6 @@ abstract class AppLocalizations {
   /// **'Stop'**
   String get stopAction;
 
-  /// No description provided for @attachmentsUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Attachments and documents arrive in a later release.'**
-  String get attachmentsUnavailable;
-
   /// No description provided for @modelLabel.
   ///
   /// In en, this message translates to:
@@ -1165,12 +1159,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sources'**
   String get sourcesLabel;
-
-  /// No description provided for @sourcesSessionOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Sources are shown in this view only and aren\'t saved with the conversation.'**
-  String get sourcesSessionOnly;
 
   /// No description provided for @sourceExcerpt.
   ///
@@ -1393,6 +1381,462 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open conversations'**
   String get openChat;
+
+  /// No description provided for @openDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents'**
+  String get openDocuments;
+
+  /// No description provided for @documentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents'**
+  String get documentsTitle;
+
+  /// No description provided for @documentsChatExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat answers search your ready documents in this space. Choose documents in a conversation to search only those.'**
+  String get documentsChatExplain;
+
+  /// No description provided for @searchDocumentsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search documents'**
+  String get searchDocumentsHint;
+
+  /// No description provided for @filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get filterAll;
+
+  /// No description provided for @filterInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get filterInProgress;
+
+  /// No description provided for @docStateReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get docStateReady;
+
+  /// No description provided for @docStateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get docStateFailed;
+
+  /// No description provided for @docStateProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing…'**
+  String get docStateProcessing;
+
+  /// No description provided for @docStateIndexing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing for search…'**
+  String get docStateIndexing;
+
+  /// No description provided for @documentHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden from members'**
+  String get documentHidden;
+
+  /// No description provided for @documentsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No documents yet'**
+  String get documentsEmptyTitle;
+
+  /// No description provided for @documentsEmptyUploader.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload PDF, Word, Excel, PowerPoint, CSV or text files up to 25 MB.'**
+  String get documentsEmptyUploader;
+
+  /// No description provided for @documentsEmptyReader.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents shared with you in this space appear here.'**
+  String get documentsEmptyReader;
+
+  /// No description provided for @noMatchingDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'No documents match.'**
+  String get noMatchingDocuments;
+
+  /// No description provided for @uploadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get uploadAction;
+
+  /// No description provided for @sizeMegabytes.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} MB'**
+  String sizeMegabytes(String value);
+
+  /// No description provided for @sizeKilobytes.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} KB'**
+  String sizeKilobytes(String value);
+
+  /// No description provided for @uploadSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading {sent} of {total}'**
+  String uploadSending(String sent, String total);
+
+  /// No description provided for @uploadProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded. The server is reading and indexing the file; this can take a few minutes.'**
+  String get uploadProcessing;
+
+  /// No description provided for @uploadChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection failed, so it\'s unclear whether the file arrived. Checking with the server before anything is sent again.'**
+  String get uploadChecking;
+
+  /// No description provided for @uploadReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to use in chat.'**
+  String get uploadReady;
+
+  /// No description provided for @uploadReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Received by the server.'**
+  String get uploadReceived;
+
+  /// No description provided for @uploadCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped on this device. If the file had already arrived, the server keeps processing it and it will appear in the list.'**
+  String get uploadCancelled;
+
+  /// No description provided for @uploadNotReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'The upload didn\'t reach the server. You can upload the file again.'**
+  String get uploadNotReceived;
+
+  /// No description provided for @cancelUploadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel upload'**
+  String get cancelUploadAction;
+
+  /// No description provided for @stopWaitingAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop waiting'**
+  String get stopWaitingAction;
+
+  /// No description provided for @checkAgainAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get checkAgainAction;
+
+  /// No description provided for @viewDetailsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get viewDetailsAction;
+
+  /// No description provided for @doneAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get doneAction;
+
+  /// No description provided for @docErrorEncrypted.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is password-protected or uses an old Office format. Remove the password or save it as a new file, then upload it again.'**
+  String get docErrorEncrypted;
+
+  /// No description provided for @docErrorCorrupt.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is damaged or isn\'t what its name says.'**
+  String get docErrorCorrupt;
+
+  /// No description provided for @docErrorNoText.
+  ///
+  /// In en, this message translates to:
+  /// **'No readable text was found. Scanned documents may need text recognition before upload.'**
+  String get docErrorNoText;
+
+  /// No description provided for @docErrorTooComplex.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is too large or complex to process.'**
+  String get docErrorTooComplex;
+
+  /// No description provided for @docErrorUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This file type isn\'t supported. Use PDF, Word, Excel, PowerPoint, CSV, or UTF-8 text.'**
+  String get docErrorUnsupported;
+
+  /// No description provided for @docErrorTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Files must be 25 MB or smaller.'**
+  String get docErrorTooLarge;
+
+  /// No description provided for @docErrorEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is empty.'**
+  String get docErrorEmpty;
+
+  /// No description provided for @docErrorTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing took too long and was stopped.'**
+  String get docErrorTimeout;
+
+  /// No description provided for @docErrorInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing was interrupted on the server.'**
+  String get docErrorInterrupted;
+
+  /// No description provided for @docErrorStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'The file couldn\'t be stored. Upload it again.'**
+  String get docErrorStorage;
+
+  /// No description provided for @docErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'The document couldn\'t be processed.'**
+  String get docErrorGeneric;
+
+  /// No description provided for @errorUnsupportedFile.
+  ///
+  /// In en, this message translates to:
+  /// **'This file type isn\'t supported.'**
+  String get errorUnsupportedFile;
+
+  /// No description provided for @documentDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Document'**
+  String get documentDetailsTitle;
+
+  /// No description provided for @documentUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Document unavailable'**
+  String get documentUnavailableTitle;
+
+  /// No description provided for @documentUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It was removed, hidden, or your access changed.'**
+  String get documentUnavailableBody;
+
+  /// No description provided for @docProcessingExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'The server is reading and indexing this document. It can be used in chat once it is ready.'**
+  String get docProcessingExplain;
+
+  /// No description provided for @retryProcessingAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Try processing again'**
+  String get retryProcessingAction;
+
+  /// No description provided for @documentInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get documentInfoTitle;
+
+  /// No description provided for @fileTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get fileTypeLabel;
+
+  /// No description provided for @fileSizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get fileSizeLabel;
+
+  /// No description provided for @uploadedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded'**
+  String get uploadedLabel;
+
+  /// No description provided for @sectionsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Indexed sections'**
+  String get sectionsLabel;
+
+  /// No description provided for @useInChatAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Use in chat'**
+  String get useInChatAction;
+
+  /// No description provided for @selectedForChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected for chat'**
+  String get selectedForChat;
+
+  /// No description provided for @openDocumentAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open document'**
+  String get openDocumentAction;
+
+  /// No description provided for @openFileFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'No app on this device could open the file.'**
+  String get openFileFailed;
+
+  /// No description provided for @localCopyExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening downloads a copy into this app\'s private storage. It is deleted when you sign out or switch space. Copies you share to other apps can\'t be recalled.'**
+  String get localCopyExplain;
+
+  /// No description provided for @chooseDocumentsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose documents'**
+  String get chooseDocumentsAction;
+
+  /// No description provided for @chooseDocumentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents for this conversation'**
+  String get chooseDocumentsTitle;
+
+  /// No description provided for @chooseDocumentsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'With nothing selected, answers search all your ready documents in this space. Select documents to search only those.'**
+  String get chooseDocumentsExplain;
+
+  /// No description provided for @scopeAllDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching all your ready documents'**
+  String get scopeAllDocuments;
+
+  /// No description provided for @scopeSelectedDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Searching 1 selected document} other{Searching {count} selected documents}}'**
+  String scopeSelectedDocuments(int count);
+
+  /// No description provided for @documentsNotReadyHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 document is still processing and can\'t be selected yet.} other{{count} documents are still processing and can\'t be selected yet.}}'**
+  String documentsNotReadyHidden(int count);
+
+  /// No description provided for @noReadyDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'No ready documents in this space yet.'**
+  String get noReadyDocuments;
+
+  /// No description provided for @clearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearSelection;
+
+  /// No description provided for @removeFromSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from selection'**
+  String get removeFromSelection;
+
+  /// No description provided for @selectionPruned.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from your selection because it\'s no longer available: {names}. Now: {scope}.'**
+  String selectionPruned(String names, String scope);
+
+  /// No description provided for @listSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **', '**
+  String get listSeparator;
+
+  /// No description provided for @reviewDocumentsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Review documents'**
+  String get reviewDocumentsAction;
+
+  /// No description provided for @turnDocumentNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'A selected document isn\'t ready yet. Nothing was searched instead.'**
+  String get turnDocumentNotReady;
+
+  /// No description provided for @sourceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Source unavailable'**
+  String get sourceUnavailable;
+
+  /// No description provided for @sourceUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You no longer have access to this source, so its excerpt isn\'t shown. The answer text you already received stays in the conversation.'**
+  String get sourceUnavailableBody;
+
+  /// No description provided for @sourceSavedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This excerpt was saved with the answer. Access is checked again every time you open the conversation.'**
+  String get sourceSavedNote;
+
+  /// No description provided for @pageNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Page {page}'**
+  String pageNumber(int page);
+
+  /// No description provided for @imageNotLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Image not loaded'**
+  String get imageNotLoaded;
+
+  /// No description provided for @openLinkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The link couldn\'t be opened.'**
+  String get openLinkFailed;
 }
 
 class _AppLocalizationsDelegate

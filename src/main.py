@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.observability.observability import record_http_request
 from src.core.settings.config import settings
 from src.core.security.rate_limiter import rate_limiter
+from src.core.security.upload_limit import UploadSizeLimitMiddleware
 from src.core.observability.metrics import metrics
 from src.core.settings.logging_config import setup_logging
 from src.modules.apis.health.router import router as health_router
@@ -76,6 +77,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Added before CORS so rejected uploads still carry CORS headers.
+app.add_middleware(UploadSizeLimitMiddleware)
 
 # Configure CORS (must use explicit origins when allow_credentials=True)
 app.add_middleware(

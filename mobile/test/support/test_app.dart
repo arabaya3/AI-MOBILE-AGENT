@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:teia_ai/app/app.dart';
@@ -9,9 +12,19 @@ import 'package:teia_ai/core/providers.dart';
 import 'package:teia_ai/core/storage/token_store.dart';
 import 'package:teia_ai/core/theme/app_theme.dart';
 import 'package:teia_ai/features/auth/application/auth_controller.dart';
+import 'package:teia_ai/features/documents/application/document_files.dart';
 import 'package:teia_ai/features/foundation_preview/presentation/foundation_preview_screen.dart';
 
 import 'fake_backend.dart';
+
+/// A fresh private directory standing in for the app cache.
+Override testCacheRoot() {
+  final dir = Directory.systemTemp.createTempSync('teia-test-cache-');
+  addTearDown(() {
+    if (dir.existsSync()) dir.deleteSync(recursive: true);
+  });
+  return documentsCacheRootProvider.overrideWithValue(Future.value(dir));
+}
 
 AppConfig testConfig([AppEnvironment env = AppEnvironment.dev]) =>
     AppConfig.parse(
@@ -97,6 +110,7 @@ Future<ProviderContainer> pumpTeiaApp(
   Map<String, Object> prefs = const {},
   Size size = const Size(360, 740),
   double textScale = 1.0,
+  List<Override> overrides = const [],
 }) async {
   final preferences = await _prepare(
     tester,
@@ -110,6 +124,8 @@ Future<ProviderContainer> pumpTeiaApp(
       sharedPreferencesProvider.overrideWithValue(preferences),
       tokenStoreProvider.overrideWithValue(store ?? InMemoryTokenStore()),
       dioProvider.overrideWithValue(backend.dio),
+      testCacheRoot(),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);

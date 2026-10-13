@@ -25,6 +25,7 @@ enum TurnFailure {
   provider,
   sessionNotFound,
   documentAccess,
+  documentNotReady,
   forbidden,
   sessionExpired,
   protocol,
@@ -36,6 +37,7 @@ enum TurnFailure {
 class PendingTurn {
   PendingTurn._(
     this.prompt,
+    this.documentIds,
     this.text,
     this.phase,
     this.sources,
@@ -44,17 +46,22 @@ class PendingTurn {
     this.partial,
   );
 
-  factory PendingTurn.start(String prompt) => PendingTurn._(
-    prompt,
-    ValueNotifier(''),
-    TurnPhase.sending,
-    const [],
-    null,
-    null,
-    false,
-  );
+  factory PendingTurn.start(String prompt, List<String> documentIds) =>
+      PendingTurn._(
+        prompt,
+        documentIds,
+        ValueNotifier(''),
+        TurnPhase.sending,
+        const [],
+        null,
+        null,
+        false,
+      );
 
   final String prompt;
+
+  /// The explicit document selection this prompt was sent with; "send again" reuses it exactly.
+  final List<String> documentIds;
   final ValueNotifier<String> text;
   final TurnPhase phase;
   final List<Citation> sources;
@@ -74,6 +81,7 @@ class PendingTurn {
     bool? partial,
   }) => PendingTurn._(
     prompt,
+    documentIds,
     text,
     phase ?? this.phase,
     sources ?? this.sources,
@@ -100,7 +108,7 @@ class ConversationState {
   final ApiException? loadError;
   final PendingTurn? turn;
 
-  /// Citations from the stream, kept for this screen only (the backend does not persist them).
+  /// Citations from the stream for answers whose history has no stored citations yet.
   final Map<String, List<Citation>> sourcesByMessage;
 
   /// Reactions sent from this screen; the backend has no read-back endpoint.
@@ -203,13 +211,18 @@ class ConversationController extends Notifier<ConversationState> {
   }
 
   /// Returns false when ignored (a reply is already in progress or the space changed).
-  bool send(String prompt, {String? model, String? language}) {
+  bool send(
+    String prompt, {
+    String? model,
+    String? language,
+    List<String> documentIds = const [],
+  }) {
     final text = prompt.trim();
     if (text.isEmpty || state.busy || !_inScope) return false;
     final generation = ++_generation;
     _buffer.clear();
     state.turn?.text.dispose();
-    final turn = PendingTurn.start(text);
+    final turn = PendingTurn.start(text, List.unmodifiable(documentIds));
     state = state.copyWith(turn: turn);
     var finished = false;
     final cancelToken = _cancelToken = CancelToken();
@@ -219,6 +232,7 @@ class ConversationController extends Notifier<ConversationState> {
           sessionId: state.sessionId,
           model: model,
           language: language,
+          documentIds: documentIds,
           cancelToken: cancelToken,
         )
         .listen(
@@ -422,6 +436,7 @@ class ConversationController extends Notifier<ConversationState> {
     ChatErrorKind.provider => TurnFailure.provider,
     ChatErrorKind.sessionNotFound => TurnFailure.sessionNotFound,
     ChatErrorKind.documentAccess => TurnFailure.documentAccess,
+    ChatErrorKind.documentNotReady => TurnFailure.documentNotReady,
     ChatErrorKind.forbidden => TurnFailure.forbidden,
     ChatErrorKind.other => TurnFailure.other,
   };
