@@ -51,6 +51,7 @@ class StubChatProvider:
         *,
         question: str,
         usage_sink: Dict[str, int] | None = None,
+        contexts: List[Dict[str, Any]] | None = None,
         **_: Any,
     ):
         chunks: List[str]
@@ -63,6 +64,8 @@ class StubChatProvider:
             chunks = [f"Line {i}: stub output.\n" for i in range(200)]
         else:
             text = f"Echo: {question.replace('[[fail-after]]', '').strip()}"
+            if contexts:
+                text += f"\n\nAnswered from {len(contexts)} document excerpt(s)."
             chunks = [text[i : i + 6] for i in range(0, len(text), 6)]
 
         if "[[raise]]" in question:

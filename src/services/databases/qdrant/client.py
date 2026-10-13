@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 import warnings
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -73,12 +73,16 @@ class QdrantVectorStore:
             )
         
         # Initialize client
-        self.client = QdrantClient(
-            url=self.url,
-            api_key=api_key,
-            timeout=self.default_timeout,
-            prefer_grpc=False,
-        )
+        if self.url == ":memory:":
+            # qdrant-client local mode; used by the backend test suite.
+            self.client = QdrantClient(location=":memory:")
+        else:
+            self.client = QdrantClient(
+                url=self.url,
+                api_key=api_key,
+                timeout=self.default_timeout,
+                prefer_grpc=False,
+            )
         try:
             self._ensure_collection()
         except Exception as exc:  # network unreachable or Qdrant offline at startup
@@ -256,10 +260,36 @@ class QdrantVectorStore:
         )
         return total_indexed
 
-    async def search(self, embedding: List[float], limit: int = 5) -> List[Dict[str, Any]]:
-        """Search for similar chunks."""
+    async def delete_document_points(self, document_id: str) -> None:
+        """Remove every indexed chunk of a document so re-indexing never leaves stale points."""
+        selector = models.FilterSelector(
+            filter=models.Filter(
+                must=[models.FieldCondition(key="document_id", match=models.MatchValue(value=document_id))]
+            )
+        )
+        await asyncio.to_thread(
+            self.client.delete,
+            collection_name=self.collection_name,
+            points_selector=selector,
+        )
+
+    async def search(
+        self,
+        embedding: List[float],
+        limit: int = 5,
+        *,
+        document_ids: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search for similar chunks, optionally restricted to the given documents."""
         if not embedding:
             return []
+        query_filter = None
+        if document_ids is not None:
+            if not document_ids:
+                return []
+            query_filter = models.Filter(
+                must=[models.FieldCondition(key="document_id", match=models.MatchAny(any=list(document_ids)))]
+            )
 
         # qdrant-client >= 1.16 removed `QdrantClient.search` in favor of `query_points`.
         # Keep backward compatibility for older versions.
@@ -268,6 +298,7 @@ class QdrantVectorStore:
                 self.client.query_points,
                 collection_name=self.collection_name,
                 query=embedding,
+                query_filter=query_filter,
                 limit=limit,
                 with_payload=True,
             )
@@ -280,6 +311,7 @@ class QdrantVectorStore:
                 self.client.search,
                 collection_name=self.collection_name,
                 query_vector=embedding,
+                query_filter=query_filter,
                 limit=limit,
                 with_payload=True,
             )

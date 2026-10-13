@@ -291,9 +291,11 @@ export const ChatMessageList = ({
                   <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ maxWidth: 260 }}>
                     {sourcePopover.source.filename || "Unknown document"}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1, flexShrink: 0 }}>
-                    Score: {(sourcePopover.source.score * 100).toFixed(0)}%
-                  </Typography>
+                  {sourcePopover.source.score >= 0 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ ml: 1, flexShrink: 0 }}>
+                      Score: {(sourcePopover.source.score * 100).toFixed(0)}%
+                    </Typography>
+                  )}
                 </Stack>
                 <Divider sx={{ mb: 1 }} />
                 <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic", mb: 1 }}>

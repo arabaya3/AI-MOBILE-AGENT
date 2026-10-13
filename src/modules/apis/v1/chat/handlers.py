@@ -23,6 +23,7 @@ from src.modules.apis.v1.chat.schemas import (
     ChatSessionDetail,
     ChatSessionSummary,
     ConversationMessage,
+    MessageCitation,
     UsageEvent,
     UsageSummary,
     UsageSummaryRow,
@@ -30,6 +31,7 @@ from src.modules.apis.v1.chat.schemas import (
     UsageLimits,
     ToolUsageSummary,
 )
+from src.modules.apis.v1.chat import citations
 from src.modules.apis.v1.chat.service import chat_service
 from src.modules.apis.v1.documents.service import document_service
 from src.services.databases.postgresql.models import ChatSession, LLMUsageEvent, Space, User
@@ -511,6 +513,30 @@ def _is_prompt_enhancement_request(message: str) -> bool:
     return text.startswith("you are a prompt engineering expert") or "enhance the following user prompt" in text
 
 
+def _document_scope(accessible_docs: list, requested: list[str] | None) -> tuple[list[str], str | None]:
+    """Retrieval scope: an explicit selection must be readable and ready; no selection means every ready document."""
+    allowed = {doc.id for doc in accessible_docs}
+    ready = document_service.ready_ids(accessible_docs)
+    if requested:
+        if set(requested) - allowed:
+            return [], "document_access_denied"
+        if set(requested) - ready:
+            return [], "document_not_ready"
+        return list(dict.fromkeys(requested)), None
+    return sorted(ready), None
+
+
+async def _history_with_citations(db: AsyncSession, user: User, space_id: str, history: list) -> list[ConversationMessage]:
+    rendered = await citations.render(db, user, space_id, history)
+    out = []
+    for item in history:
+        message = ConversationMessage.model_validate(item)
+        if item.id in rendered:
+            message.citations = [MessageCitation(**c) for c in rendered[item.id]]
+        out.append(message)
+    return out
+
+
 def _infer_single_document_id(contexts: list[dict]) -> str | None:
     doc_ids = [c.get("document_id") for c in contexts if c.get("document_id")]
     if not doc_ids:
@@ -617,15 +643,11 @@ async def handle_chat_query(
     turn_span, turn_token = _bind_chat_turn_span(session=session, user=user, space_id=space_id, payload=payload)
     try:
         accessible_docs = await document_service.list_accessible_documents(db, user, space_id=space_id)
-        allowed_ids = {doc.id for doc in accessible_docs}
-        document_filter = None
-        if payload.document_ids:
-            invalid = set(payload.document_ids) - allowed_ids
-            if invalid and user.role != "admin":
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Document access denied")
-            document_filter = payload.document_ids
-        elif user.role != "admin":
-            document_filter = list(allowed_ids)
+        document_filter, scope_error = _document_scope(accessible_docs, payload.document_ids)
+        if scope_error == "document_access_denied":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Document access denied")
+        if scope_error == "document_not_ready":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A selected document is not ready yet")
 
         await chat_service.append_message(
             db,
@@ -638,7 +660,7 @@ async def handle_chat_query(
         history = await chat_service.get_history(db, session_id=session.id)
 
         contexts: list[dict] = []
-        if not is_prompt_enhancement:
+        if not is_prompt_enhancement and document_filter:
             effective_top_k = payload.top_k
             if _looks_exhaustive(payload.message):
                 effective_top_k = min(30, max(effective_top_k, 20))
@@ -732,7 +754,7 @@ async def handle_chat_query(
             session=session,
             role="assistant",
             content=reply,
-            meta_payload={"source_count": len(contexts)},
+            meta_payload=citations.with_citations({"source_count": len(contexts)}, contexts),
         )
 
         updated_history = await chat_service.get_history(db, session_id=session.id)
@@ -755,8 +777,8 @@ async def handle_chat_query(
         return ChatQueryResponse(
             session_id=session.id,
             reply=reply,
-            sources=contexts,
-            history=[ConversationMessage.model_validate(item) for item in updated_history],
+            sources=[document_service.public_match(c) for c in contexts],
+            history=await _history_with_citations(db, user, space_id, updated_history),
         )
     finally:
         tracer.end_span(turn_span)
@@ -890,17 +912,13 @@ async def handle_chat_query_stream(
             turn_span, turn_token = _bind_chat_turn_span(session=session, user=user, space_id=space_id, payload=payload)
 
             accessible_docs = await document_service.list_accessible_documents(db, user, space_id=space_id)
-            allowed_ids = {doc.id for doc in accessible_docs}
-
-            document_filter = None
-            if payload.document_ids:
-                invalid = set(payload.document_ids) - allowed_ids
-                if invalid:
-                    yield _sse_error("Document access denied", "document_access_denied")
-                    return
-                document_filter = payload.document_ids
-            else:
-                document_filter = list(allowed_ids)
+            document_filter, scope_error = _document_scope(accessible_docs, payload.document_ids)
+            if scope_error == "document_access_denied":
+                yield _sse_error("Document access denied", "document_access_denied")
+                return
+            if scope_error == "document_not_ready":
+                yield _sse_error("A selected document is not ready yet", "document_not_ready")
+                return
 
             user_message = await chat_service.append_message(
                 db,
@@ -1002,7 +1020,11 @@ async def handle_chat_query_stream(
                     yield _sse_done(session.id, user_message.id, assistant_message.id)
                     return
 
-            meta = {"session_id": session.id, "user_message_id": user_message.id, "sources": contexts}
+            meta = {
+                "session_id": session.id,
+                "user_message_id": user_message.id,
+                "sources": [document_service.public_match(c) for c in contexts],
+            }
             yield f"event: meta\ndata: {json.dumps(meta, ensure_ascii=False)}\n\n"
 
             collected: list[str] = []
@@ -1057,7 +1079,7 @@ async def handle_chat_query_stream(
                 session=session,
                 role="assistant",
                 content=reply,
-                meta_payload={"source_count": len(contexts), "model": payload.model},
+                meta_payload=citations.with_citations({"source_count": len(contexts), "model": payload.model}, contexts),
             )
             cost_details = tracer.estimate_cost(selected_model, usage_sink) if usage_sink else {}
             await chat_service.record_usage_event(
@@ -1118,7 +1140,7 @@ async def handle_get_session(
     history = await chat_service.get_history(db, session_id=session_id)
     return ChatSessionDetail(
         session=ChatSessionSummary.model_validate(session),
-        history=[ConversationMessage.model_validate(item) for item in history],
+        history=await _history_with_citations(db, user, space_id, history),
     )
 
 
@@ -1132,6 +1154,9 @@ async def handle_branch_session(
 ) -> BranchSessionResponse:
     try:
         await _get_space_and_member(db, space_id=space_id, user=user)
+        source = await chat_service.get_session(db, session_id)
+        if source is None or source.user_id != user.id or source.space_id != space_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
         new_session = await chat_service.branch_session(
             db,
             user_id=user.id,

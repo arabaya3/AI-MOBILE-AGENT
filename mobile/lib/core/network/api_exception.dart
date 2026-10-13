@@ -1,10 +1,13 @@
 sealed class ApiException implements Exception {
-  const ApiException({this.statusCode, this.message});
+  const ApiException({this.statusCode, this.message, this.code});
 
   final int? statusCode;
 
   /// Server-provided detail, when one was safe to extract.
   final String? message;
+
+  /// Stable machine-readable reason, when the server sent `{"detail": {"code": ...}}`.
+  final String? code;
 
   @override
   String toString() => '$runtimeType(${statusCode ?? '-'}): ${message ?? ''}';
@@ -37,23 +40,32 @@ class InvalidCredentialsException extends ApiException {
 }
 
 class BadRequestException extends ApiException {
-  const BadRequestException({super.message}) : super(statusCode: 400);
+  const BadRequestException({super.message, super.code})
+    : super(statusCode: 400);
 }
 
 class ForbiddenException extends ApiException {
-  const ForbiddenException({super.message}) : super(statusCode: 403);
+  const ForbiddenException({super.message, super.code})
+    : super(statusCode: 403);
 }
 
 class NotFoundException extends ApiException {
-  const NotFoundException({super.message}) : super(statusCode: 404);
+  const NotFoundException({super.message, super.code}) : super(statusCode: 404);
 }
 
 class ConflictException extends ApiException {
-  const ConflictException({super.message}) : super(statusCode: 409);
+  const ConflictException({super.message, super.code}) : super(statusCode: 409);
+}
+
+/// The server refused the content type (for example a file whose bytes do not match its extension).
+class UnsupportedMediaException extends ApiException {
+  const UnsupportedMediaException({super.message, super.code})
+    : super(statusCode: 415);
 }
 
 class PayloadTooLargeException extends ApiException {
-  const PayloadTooLargeException({super.message}) : super(statusCode: 413);
+  const PayloadTooLargeException({super.message, super.code})
+    : super(statusCode: 413);
 }
 
 class ValidationIssue {
@@ -74,7 +86,7 @@ class ValidationIssue {
 }
 
 class ValidationException extends ApiException {
-  const ValidationException({required this.issues, super.message})
+  const ValidationException({required this.issues, super.message, super.code})
     : super(statusCode: 422);
 
   final List<ValidationIssue> issues;
@@ -98,5 +110,9 @@ class ServerException extends ApiException {
 }
 
 class UnexpectedResponseException extends ApiException {
-  const UnexpectedResponseException({super.statusCode, super.message});
+  const UnexpectedResponseException({
+    super.statusCode,
+    super.message,
+    super.code,
+  });
 }

@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.ext.declarative import declarative_base
@@ -45,6 +46,29 @@ class Document(Base):
     is_hidden = Column(Boolean, default=False, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
     processed_at = Column(DateTime, nullable=True)
+    # Durable pipeline state: uploaded -> processing -> indexing -> ready, or failed (+ safe error code).
+    state = Column(String(16), nullable=False, default="uploaded", server_default="uploaded")
+    state_error = Column(String(32), nullable=True)
+    state_updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, server_default=func.now())
+
+
+class DocumentUploadReceipt(Base):
+    """An accepted client upload ID, per space and uploader, and the document it resolved to.
+
+    Duplicates get their own receipt pointing at the existing document; the document itself
+    (uploader, metadata) is never changed. Access is re-checked whenever a receipt is read.
+    """
+
+    __tablename__ = "document_upload_receipts"
+    __table_args__ = (UniqueConstraint("space_id", "user_id", "upload_id", name="uq_upload_receipts_scope"),)
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    space_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    upload_id = Column(String(64), nullable=False)
+    document_id = Column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    file_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class User(Base):

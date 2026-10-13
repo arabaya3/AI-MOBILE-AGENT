@@ -2,12 +2,16 @@
 
 from typing import List
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.databases.postgresql.database import get_db
 from .handlers import (
     handle_download_document,
+    handle_get_document,
+    handle_get_upload,
+    handle_retry_document,
+    handle_stream_upload,
     handle_get_document_chunks,
     handle_grant_permissions,
     handle_list_accessible_documents,
@@ -42,6 +46,44 @@ from src.modules.apis.dependencies import get_current_space_id, get_current_user
 from src.services.databases.postgresql.models import User
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+@router.put(
+    "/uploads/{upload_id}",
+    response_model=AccessibleDocument,
+    summary="Upload a document (raw body, idempotent)",
+    description=(
+        "Streams the raw file body (max 25 MiB, enforced while reading) and processes it. "
+        "`upload_id` is chosen by the client; repeating it returns the existing document instead of a duplicate."
+    ),
+    responses={200: {"description": "Upload ID already used; existing document"}, 201: {"description": "Created"}},
+)
+async def stream_upload(
+    upload_id: str,
+    request: Request,
+    response: Response,
+    filename: str = Query(..., min_length=1, max_length=512),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_space_document_uploader()),
+    space_id: str = Depends(get_current_space_id),
+) -> AccessibleDocument:
+    document, created = await handle_stream_upload(request, upload_id, filename, current_user, db, space_id=space_id)
+    response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return document
+
+
+@router.get(
+    "/uploads/{upload_id}",
+    response_model=AccessibleDocument,
+    summary="Look up an upload by its client upload ID",
+)
+async def get_upload(
+    upload_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    space_id: str = Depends(get_current_space_id),
+) -> AccessibleDocument:
+    return await handle_get_upload(upload_id, current_user, db, space_id=space_id)
 
 
 @router.post(
@@ -192,6 +234,34 @@ async def permission_status(
 
 
 @router.get(
+    "/{document_id}",
+    response_model=AccessibleDocument,
+    summary="Document details and processing state",
+)
+async def get_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    space_id: str = Depends(get_current_space_id),
+) -> AccessibleDocument:
+    return await handle_get_document(document_id, current_user, db, space_id=space_id)
+
+
+@router.post(
+    "/{document_id}/retry",
+    response_model=AccessibleDocument,
+    summary="Retry processing of a failed document (uploader or space admin)",
+)
+async def retry_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    space_id: str = Depends(get_current_space_id),
+) -> AccessibleDocument:
+    return await handle_retry_document(document_id, current_user, db, space_id=space_id)
+
+
+@router.get(
     "/{document_id}/download",
     summary="Download document",
     description="Return the raw document bytes for preview/open in the UI",
@@ -230,8 +300,8 @@ async def update_document_visibility(
 async def get_document_chunks(
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     space_id: str = Depends(get_current_space_id),
 ) -> DocumentChunksResponse:
-    """Return all chunks for a document."""
-    return await handle_get_document_chunks(document_id, db, space_id=space_id)
+    """Return all chunks for a document the caller may read."""
+    return await handle_get_document_chunks(document_id, current_user, db, space_id=space_id)

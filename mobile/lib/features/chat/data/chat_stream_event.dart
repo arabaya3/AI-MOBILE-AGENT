@@ -21,7 +21,29 @@ class Citation {
     this.score,
     this.fileType,
     this.chunkIndex,
+    this.page,
+    this.available = true,
   });
+
+  /// A source stored with an answer. The server re-checks access on every read and sends only
+  /// `available: false` once the reader lost access, so nothing of it is shown.
+  factory Citation.persisted(Map<String, dynamic> json) =>
+      json['available'] == true
+      ? Citation(
+          chunkId: '',
+          documentId: '${json['document_id'] ?? ''}',
+          filename: '${json['filename'] ?? ''}',
+          text: '${json['excerpt'] ?? ''}',
+          chunkIndex: (json['chunk_index'] as num?)?.toInt(),
+          page: (json['page'] as num?)?.toInt(),
+        )
+      : const Citation(
+          chunkId: '',
+          documentId: '',
+          filename: '',
+          text: '',
+          available: false,
+        );
 
   factory Citation.fromJson(Map<String, dynamic> json) => Citation(
     chunkId: '${json['chunk_id'] ?? ''}',
@@ -31,7 +53,14 @@ class Citation {
     score: (json['score'] as num?)?.toDouble(),
     fileType: json['file_type'] as String?,
     chunkIndex: (json['chunk_index'] as num?)?.toInt(),
+    page: _page(json['metadata']),
   );
+
+  static int? _page(Object? metadata) {
+    if (metadata is! Map) return null;
+    final value = metadata['page'] ?? metadata['page_number'];
+    return value is int && value > 0 ? value : null;
+  }
 
   final String chunkId;
   final String documentId;
@@ -40,6 +69,10 @@ class Citation {
   final double? score;
   final String? fileType;
   final int? chunkIndex;
+
+  /// Only real page numbers from the document; never estimated.
+  final int? page;
+  final bool available;
 }
 
 /// Events of `POST /api/v1/chat/query/stream` (see docs/mobile/MOBILE_DISCOVERY.md §3 and §9).
@@ -85,6 +118,7 @@ enum ChatErrorKind {
   provider,
   sessionNotFound,
   documentAccess,
+  documentNotReady,
   forbidden,
   other,
 }
@@ -107,6 +141,7 @@ class ChatStreamError extends ChatStreamEvent {
     'provider_error' => ChatErrorKind.provider,
     'session_not_found' || 'not_found' => ChatErrorKind.sessionNotFound,
     'document_access_denied' => ChatErrorKind.documentAccess,
+    'document_not_ready' => ChatErrorKind.documentNotReady,
     'forbidden' => ChatErrorKind.forbidden,
     null when detail.trimLeft().startsWith('429') => ChatErrorKind.quota,
     _ => ChatErrorKind.other,

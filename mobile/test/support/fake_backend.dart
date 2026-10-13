@@ -13,6 +13,8 @@ typedef Reply = FutureOr<ResponseBody> Function(RequestOptions request);
 class FakeBackend {
   FakeBackend() {
     adapter = FakeAdapter((options) async {
+      final any = _any?.call(options);
+      if (any != null) return any;
       final key =
           '${options.method} ${options.uri.path.replaceFirst('/api/v1', '')}';
       final reply = _routes[key];
@@ -23,6 +25,11 @@ class FakeBackend {
 
   late final FakeAdapter adapter;
   final _routes = <String, Reply>{};
+  FutureOr<ResponseBody>? Function(RequestOptions request)? _any;
+
+  /// Consulted before the fixed routes; return null to fall through. Useful for dynamic paths.
+  void onAny(FutureOr<ResponseBody>? Function(RequestOptions request) reply) =>
+      _any = reply;
 
   Dio get dio => fakeDio(adapter);
 

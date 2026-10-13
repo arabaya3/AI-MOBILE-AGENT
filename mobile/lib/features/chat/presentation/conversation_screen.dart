@@ -9,6 +9,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../l10n/gen/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../documents/application/document_selection.dart';
+import '../../documents/application/documents_controller.dart';
+import '../../documents/presentation/document_picker.dart';
 import '../../spaces/application/space_controller.dart';
 import '../application/conversation_controller.dart';
 import '../data/chat_api.dart';
@@ -95,7 +98,12 @@ class _ConversationViewState extends ConsumerState<_ConversationView> {
     final language = ref.read(currentUserProvider)?.preferredLanguage;
     final accepted = ref
         .read(conversationProvider(widget.args).notifier)
-        .send(text, model: model, language: language);
+        .send(
+          text,
+          model: model,
+          language: language,
+          documentIds: ref.read(documentSelectionProvider).ids,
+        );
     if (!accepted) return;
     _input.clear();
     ref.read(draftsProvider.notifier).write(_draftKey, '');
@@ -149,6 +157,16 @@ class _ConversationViewState extends ConsumerState<_ConversationView> {
       ).select((s) => (s.history.length, s.turn?.phase)),
       (_, _) => _follow(),
     );
+    ref.listen(conversationProvider(widget.args).select((s) => s.turn?.failure), (
+      _,
+      failure,
+    ) {
+      // The selection may be stale: reload so it is pruned and the change is explained.
+      if (failure == TurnFailure.documentAccess ||
+          failure == TurnFailure.documentNotReady) {
+        ref.read(documentsControllerProvider.notifier).refresh(silent: true);
+      }
+    });
 
     final title = state.sessionId == null
         ? l10n.newConversation
@@ -189,16 +207,20 @@ class _ConversationViewState extends ConsumerState<_ConversationView> {
                     onReact: _react,
                     onBranch: _branch,
                     onRetry: () {
-                      final prompt = state.turn?.prompt ?? '';
+                      final turn = state.turn;
+                      if (turn == null) return;
                       controller.dismissTurn();
+                      // The same explicit selection; never widened to all documents.
                       controller.send(
-                        prompt,
+                        turn.prompt,
                         model: model,
                         language: ref
                             .read(currentUserProvider)
                             ?.preferredLanguage,
+                        documentIds: turn.documentIds,
                       );
                     },
+                    onReviewDocuments: () => showDocumentPickerSheet(context),
                     onDismiss: controller.dismissTurn,
                     onReload: controller.reload,
                   ),
@@ -224,6 +246,7 @@ class _ConversationViewState extends ConsumerState<_ConversationView> {
                   text: l10n.noModels,
                 ),
               ),
+            const DocumentScopeBar(),
             _Composer(
               controller: _input,
               busy: state.busy,
@@ -302,6 +325,7 @@ class _MessageList extends StatelessWidget {
     required this.onRetry,
     required this.onDismiss,
     required this.onReload,
+    required this.onReviewDocuments,
   });
 
   final ConversationState state;
@@ -312,6 +336,7 @@ class _MessageList extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onDismiss;
   final Future<void> Function() onReload;
+  final VoidCallback onReviewDocuments;
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +360,10 @@ class _MessageList extends StatelessWidget {
               ? UserBubble(m.content)
               : AssistantBubble(
                   message: m,
-                  sources: state.sourcesByMessage[m.id] ?? const [],
+                  // Stored citations are authoritative; stream sources only fill the gap before reload.
+                  sources: m.citations.isNotEmpty
+                      ? m.citations
+                      : state.sourcesByMessage[m.id] ?? const [],
                   reaction: state.reactions[m.id],
                   onReact: (r) => onReact(m.id, r),
                   onBranch: () => onBranch(m.id),
@@ -352,6 +380,7 @@ class _MessageList extends StatelessWidget {
           onGrow: onGrow,
           onRetry: onRetry,
           onDismiss: onDismiss,
+          onReviewDocuments: onReviewDocuments,
         ),
     ];
     if (items.isEmpty) {
@@ -382,12 +411,18 @@ class _PendingReply extends StatelessWidget {
     required this.onGrow,
     required this.onRetry,
     required this.onDismiss,
+    required this.onReviewDocuments,
   });
 
   final PendingTurn turn;
   final VoidCallback onGrow;
   final VoidCallback onRetry;
   final VoidCallback onDismiss;
+  final VoidCallback onReviewDocuments;
+
+  bool get _documentsChanged =>
+      turn.failure == TurnFailure.documentAccess ||
+      turn.failure == TurnFailure.documentNotReady;
 
   @override
   Widget build(BuildContext context) {
@@ -432,7 +467,16 @@ class _PendingReply extends StatelessWidget {
             action: Wrap(
               spacing: AppSpacing.sm,
               children: [
-                OutlinedButton(onPressed: onRetry, child: Text(l10n.sendAgain)),
+                if (_documentsChanged)
+                  OutlinedButton(
+                    onPressed: onReviewDocuments,
+                    child: Text(l10n.reviewDocumentsAction),
+                  )
+                else
+                  OutlinedButton(
+                    onPressed: onRetry,
+                    child: Text(l10n.sendAgain),
+                  ),
                 TextButton(
                   onPressed: onDismiss,
                   child: Text(l10n.dismissAction),
@@ -456,6 +500,7 @@ class _PendingReply extends StatelessWidget {
           TurnFailure.provider => l10n.turnProvider,
           TurnFailure.sessionNotFound => l10n.turnSessionNotFound,
           TurnFailure.documentAccess => l10n.turnDocumentAccess,
+          TurnFailure.documentNotReady => l10n.turnDocumentNotReady,
           TurnFailure.protocol => l10n.turnProtocol,
           TurnFailure.network => '${l10n.errorNetwork} ${l10n.turnUncertain}',
           TurnFailure.sessionExpired => l10n.errorSessionExpired,
@@ -494,18 +539,7 @@ class _Composer extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            IconButton(
-              tooltip: l10n.attachmentsUnavailable,
-              icon: Icon(
-                Icons.attach_file,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-              onPressed: () => ScaffoldMessenger.of(context)
-                ..hideCurrentSnackBar()
-                ..showSnackBar(
-                  SnackBar(content: Text(l10n.attachmentsUnavailable)),
-                ),
-            ),
+            const DocumentSelectButton(),
             Expanded(
               child: ValueListenableBuilder<TextEditingValue>(
                 valueListenable: controller,

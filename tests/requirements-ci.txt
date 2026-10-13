@@ -16,5 +16,17 @@ openai>=1.54,<2
 langfuse>=3.10.6,<4
 qdrant-client>=1.12.1,<2
 langchain-text-splitters>=0.3,<0.4
+# Document extraction runs for real in the document tests (formats mirror pyproject.toml).
+aiofiles>=24.1,<25
+tiktoken>=0.7,<1
+pymupdf>=1.24,<2
+python-docx>=1.1,<2
+python-pptx>=0.6.23,<1.1
+openpyxl>=3.1,<4
+pandas>=2.2,<3
+beautifulsoup4>=4.12,<5
+# Local S3-compatible server and a real ASGI server for the disconnect test; never remote services.
+moto[server]>=5,<6
+uvicorn>=0.32,<0.33
 pytest>=8.3,<9
 pytest-asyncio>=0.24,<0.25

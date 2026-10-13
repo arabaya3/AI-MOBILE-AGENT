@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/l10n/text_direction.dart';
@@ -35,8 +36,64 @@ Future<void> openExternalLink(BuildContext context, String? href) async {
       ],
     ),
   );
-  if (confirmed == true) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (confirmed != true) return;
+  var opened = false;
+  try {
+    opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } on PlatformException {
+    opened = false;
+  }
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(l10n.openLinkFailed)));
+  }
+}
+
+/// Images in model or document text are never fetched automatically: they could track the reader
+/// or load untrusted content. The placeholder offers the link, which still asks before opening.
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder(this.uri, this.alt);
+
+  final Uri uri;
+  final String? alt;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final web =
+        (uri.scheme == 'https' || uri.scheme == 'http') && uri.host.isNotEmpty;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.image_not_supported_outlined,
+            color: scheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              (alt?.trim().isNotEmpty ?? false)
+                  ? '${alt!.trim()} · ${l10n.imageNotLoaded}'
+                  : l10n.imageNotLoaded,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          if (web)
+            TextButton(
+              onPressed: () => openExternalLink(context, uri.toString()),
+              child: Text(l10n.openAction),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -69,6 +126,7 @@ class MarkdownMessage extends StatelessWidget {
         selectable: true,
         softLineBreak: true,
         onTapLink: (_, href, _) => openExternalLink(context, href),
+        imageBuilder: (uri, _, alt) => _ImagePlaceholder(uri, alt),
         styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
           p: theme.textTheme.bodyLarge,
           code: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
@@ -208,55 +266,99 @@ class SourcesRow extends StatelessWidget {
         children: [
           for (final (i, source) in sources.indexed)
             ActionChip(
-              avatar: const Icon(Icons.description_outlined, size: 18),
-              label: Text(
-                source.filename.isEmpty
-                    ? l10n.sourceExcerpt(i + 1)
-                    : source.filename,
+              avatar: Icon(
+                source.available
+                    ? Icons.description_outlined
+                    : Icons.lock_outline,
+                size: 18,
               ),
+              label: Text(_label(l10n, source, i)),
               onPressed: () => showModalBottomSheet<void>(
                 context: context,
                 showDragHandle: true,
                 isScrollControlled: true,
-                builder: (context) => SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.lg,
-                      0,
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          source.filename,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        if (source.chunkIndex != null)
-                          Text(
-                            l10n.sourceExcerpt(source.chunkIndex! + 1),
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
-                        const SizedBox(height: AppSpacing.md),
-                        Flexible(
-                          child: SingleChildScrollView(
-                            child: BidiText(source.text),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          l10n.sourcesSessionOnly,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                builder: (_) => _SourceSheet(source: source, index: i),
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  static String _label(AppLocalizations l10n, Citation source, int index) {
+    if (!source.available) return l10n.sourceUnavailable;
+    final name = source.filename.isEmpty
+        ? l10n.sourceExcerpt(index + 1)
+        : source.filename;
+    return source.page == null
+        ? name
+        : '$name · ${l10n.pageNumber(source.page!)}';
+  }
+}
+
+class _SourceSheet extends StatelessWidget {
+  const _SourceSheet({required this.source, required this.index});
+
+  final Citation source;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final textTheme = Theme.of(context).textTheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!source.available) ...[
+              Text(l10n.sourceUnavailable, style: textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              Text(l10n.sourceUnavailableBody),
+            ] else ...[
+              BidiText(
+                source.filename.isEmpty
+                    ? l10n.sourceExcerpt(index + 1)
+                    : source.filename,
+                style: textTheme.titleMedium,
+              ),
+              Text(
+                [
+                  if (source.page != null) l10n.pageNumber(source.page!),
+                  if (source.chunkIndex != null)
+                    l10n.sourceExcerpt(source.chunkIndex! + 1),
+                ].join(' · '),
+                style: textTheme.labelMedium,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Flexible(
+                child: SingleChildScrollView(child: BidiText(source.text)),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(l10n.sourceSavedNote, style: textTheme.bodySmall),
+              if (source.documentId.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    context.push(
+                      '/documents/${Uri.encodeComponent(source.documentId)}',
+                    );
+                  },
+                  icon: const Icon(Icons.open_in_new),
+                  label: Text(l10n.openDocumentAction),
+                ),
+              ],
+            ],
+          ],
+        ),
       ),
     );
   }

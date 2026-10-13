@@ -69,7 +69,11 @@ class ApiClient {
     bool includeSpace = true,
     CancelToken? cancelToken,
     Duration? receiveTimeout,
+    Duration? sendTimeout,
     ResponseType? responseType,
+    Map<String, Object>? headers,
+    ProgressCallback? onSendProgress,
+    bool followRedirects = true,
   }) async {
     final token = kind == RequestKind.public ? null : _readToken();
     final spaceId = includeSpace ? _readSpaceId() : null;
@@ -80,15 +84,54 @@ class ApiClient {
         data: data,
         queryParameters: queryParameters,
         cancelToken: inFlight.cancelToken,
+        onSendProgress: onSendProgress,
         options: Options(
           method: method,
-          headers: _headers(token, spaceId),
+          headers: {...?headers, ..._headers(token, spaceId)},
           receiveTimeout: receiveTimeout,
+          sendTimeout: sendTimeout,
           responseType: responseType,
+          followRedirects: followRedirects,
         ),
       );
     } on DioException catch (e) {
       throw await _fail(normalizeDioException(e, kind), kind, token, spaceId);
+    } finally {
+      _inFlight.remove(inFlight);
+    }
+  }
+
+  /// Streams an authenticated response body into [savePath]. Redirects are refused so the
+  /// bearer token can never follow a redirect to another host.
+  Future<void> download(
+    String path,
+    String savePath, {
+    CancelToken? cancelToken,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final token = _readToken();
+    final spaceId = _readSpaceId();
+    final inFlight = _track(spaceId, cancelToken);
+    try {
+      await _dio.download(
+        path,
+        savePath,
+        cancelToken: inFlight.cancelToken,
+        onReceiveProgress: onReceiveProgress,
+        deleteOnError: true,
+        options: Options(
+          headers: _headers(token, spaceId),
+          followRedirects: false,
+          receiveTimeout: const Duration(minutes: 5),
+        ),
+      );
+    } on DioException catch (e) {
+      throw await _fail(
+        normalizeDioException(e, RequestKind.authenticated),
+        RequestKind.authenticated,
+        token,
+        spaceId,
+      );
     } finally {
       _inFlight.remove(inFlight);
     }

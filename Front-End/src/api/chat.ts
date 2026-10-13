@@ -11,13 +11,37 @@ export interface VectorSearchMatch {
   metadata: Record<string, unknown>;
 }
 
+/** A source persisted with an answer; `available` is false once the reader lost access to it. */
+export interface MessageCitation {
+  available: boolean;
+  document_id?: string | null;
+  filename?: string | null;
+  chunk_index?: number | null;
+  page?: number | null;
+  excerpt?: string | null;
+}
+
 export interface ConversationMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  citations?: MessageCitation[] | null;
   sources?: VectorSearchMatch[];
 }
+
+/** Persisted citations in the shape the source chips render; score is unknown (-1) for stored sources. */
+export const citationsToSources = (citations: MessageCitation[]): VectorSearchMatch[] =>
+  citations.map((c, idx) => ({
+    chunk_id: `${c.document_id ?? "unavailable"}:${c.chunk_index ?? idx}`,
+    score: -1,
+    document_id: c.document_id ?? "",
+    filename: c.available ? c.filename ?? "" : "Source unavailable",
+    file_type: "",
+    chunk_index: c.chunk_index ?? 0,
+    text: c.available ? c.excerpt ?? "" : "You no longer have access to this source.",
+    metadata: c.page ? { page: c.page } : {},
+  }));
 
 export interface ChatSessionSummary {
   id: string;

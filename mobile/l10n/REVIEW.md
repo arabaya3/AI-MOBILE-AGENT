@@ -22,4 +22,10 @@ These translations were written during Phase 0. The terms below are uncertain or
 | `summaryCost` | The model writes the summary… | يكتب النموذج الملخص… | Confirm how usage cost should be described. |
 | `shareExplain` | Anyone with the link can read… | يستطيع أي شخص لديه الرابط… | Legal/privacy wording. Owner review required. |
 | `attachmentsUnavailable` | Attachments and documents arrive in a later release. | سيتوفر إرفاق الملفات والمستندات في إصدار لاحق. | Confirm. |
-
+| `documentsChatExplain`, `scopeAllDocuments` | Chat answers search your ready documents… | تبحث إجابات المحادثة في مستنداتك الجاهزة… | Explains what "no selection" means. Confirm. |
+| `docStateFailed` | Failed | تعذّرت المعالجة | A state label, not a verb. Confirm. |
+| `docStateIndexing` | Preparing for search… | جارٍ التجهيز للبحث… | User-facing word for indexing. Confirm. |
+| `uploadCancelled` | Stopped on this device… | أُوقف على هذا الجهاز… | Must stay honest: the server may still process the file. |
+| `localCopyExplain` | Opening downloads a copy… | يؤدي الفتح إلى تنزيل نسخة… | Privacy wording. Owner review required. |
+| `sourceUnavailableBody` | You no longer have access to this source… | لم تعد لديك صلاحية الوصول إلى هذا المصدر… | Privacy wording. Owner review required. |
+| `scopeSelectedDocuments`, `documentsNotReadyHidden` | plural forms | صيغ الجمع (مفرد، مثنى، قليل، كثير) | Check the Arabic plural forms. |

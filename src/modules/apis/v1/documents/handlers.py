@@ -1,34 +1,172 @@
-"""Document upload handlers."""
+"""Document API handlers."""
 
-import asyncio
-import hashlib
-from datetime import datetime
-from typing import List, Optional
-from uuid import uuid4
+import re
+from pathlib import Path
+from typing import AsyncIterator, List, Optional
+from urllib.parse import quote
 
-from fastapi import HTTPException, UploadFile, status
-from fastapi.responses import Response
+from fastapi import HTTPException, Request, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.observability import tracer
-from src.services.databases.postgresql.models import User
+from src.core.settings.config import settings
+from src.services.databases.postgresql.models import Document, Space, User
+from src.services.security.file_inspection import (
+    UploadRejected,
+    extension_of,
+    receive_to_temp,
+    sanitize_filename,
+)
+from . import ingest, pipeline
 from .schemas import (
     AccessibleDocument,
     DocumentPermissionGrantRequest,
     DocumentPermissionGrantResponse,
     DocumentPermissionStatusRequest,
     DocumentPermissionStatusResponse,
+    DocumentStatus,
     DocumentType,
     DocumentUploadAndVectorizeResponse,
     DocumentUploadResponse,
-    DocumentStatus,
-    DocumentVisibilityUpdateRequest,
-    DocumentVisibilityUpdateResponse,
     DocumentVectorSearchRequest,
     DocumentVectorSearchResponse,
     DocumentVectorizeResponse,
+    DocumentVisibilityUpdateRequest,
+    DocumentVisibilityUpdateResponse,
 )
 from .service import document_service
+
+_UPLOAD_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+RETRYABLE_ERRORS = {"interrupted", "timeout", "indexing_failed", "processing_failed"}
+_MEDIA_TYPES = {
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "csv": "text/csv; charset=utf-8",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "txt": "text/plain; charset=utf-8",
+}
+
+
+def _rejection(exc: UploadRejected, *, legacy: bool = False) -> HTTPException:
+    detail = exc.message if legacy else {"code": exc.code, "message": exc.message}
+    return HTTPException(status_code=exc.status_code, detail=detail)
+
+
+async def _space_context(db: AsyncSession, user: User, space_id: str) -> tuple[Space, bool]:
+    from src.modules.apis.v1.spaces.service import spaces_service
+
+    member = await spaces_service.require_active_member(db, space_id=space_id, user=user)
+    space = await db.get(Space, space_id)
+    if space is None or not space.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
+    return space, member.role == "admin" or user.role == "super_admin"
+
+
+def document_out(doc: Document, *, user: User, is_admin: bool) -> AccessibleDocument:
+    state, error = pipeline.effective_state(doc)
+    may_manage = is_admin or doc.uploaded_by_user_id == user.id
+    return AccessibleDocument(
+        id=doc.id,
+        filename=doc.filename,
+        file_type=DocumentType(doc.file_type),
+        uploaded_at=doc.uploaded_at,
+        uploaded_by_user_id=doc.uploaded_by_user_id,
+        is_hidden=bool(doc.is_hidden),
+        file_size=doc.file_size,
+        state=state,
+        error_code=error if state == pipeline.FAILED else None,
+        chunks_count=int(doc.chunks_count or 0),
+        state_updated_at=doc.state_updated_at,
+        can_retry=bool(may_manage and state == pipeline.FAILED and error in RETRYABLE_ERRORS and doc.s3_url),
+    )
+
+
+async def _accessible_document(db: AsyncSession, user: User, document_id: str, space_id: str) -> Document:
+    accessible = await document_service.list_accessible_documents(db, user, space_id=space_id)
+    doc = next((d for d in accessible if d.id == document_id), None)
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return doc
+
+
+def _check_upload_id(upload_id: str) -> None:
+    if not _UPLOAD_ID.match(upload_id):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid upload ID")
+
+
+async def handle_stream_upload(
+    request: Request,
+    upload_id: str,
+    filename: str,
+    user: User,
+    db: AsyncSession,
+    *,
+    space_id: str,
+) -> tuple[AccessibleDocument, bool]:
+    """Raw-body upload. Authorization has already run; the body is read only now, in bounded chunks."""
+    _check_upload_id(upload_id)
+    space, is_admin = await _space_context(db, user, space_id)
+    name = sanitize_filename(filename)
+    try:
+        ext = extension_of(name)
+    except UploadRejected as exc:
+        raise _rejection(exc) from exc
+
+    limit = int(settings.MAX_UPLOAD_BYTES)
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > limit:
+        raise _rejection(UploadRejected("too_large", f"Files must be {limit // (1024 * 1024)} MiB or smaller.", 413))
+
+    received = None
+    try:
+        received = await receive_to_temp(request.stream(), limit=limit, directory=pipeline.WORK_DIR)
+        result = await ingest.ingest(
+            db, user=user, space=space, received=received, filename=name, ext=ext, upload_id=upload_id
+        )
+    except UploadRejected as exc:
+        raise _rejection(exc) from exc
+    finally:
+        if received is not None:
+            received.path.unlink(missing_ok=True)
+    await db.refresh(result.document)
+    return document_out(result.document, user=user, is_admin=is_admin), result.created
+
+
+async def handle_get_upload(upload_id: str, user: User, db: AsyncSession, *, space_id: str) -> AccessibleDocument:
+    """Reconcile an upload whose response was lost: the uploader can look it up by its client ID."""
+    _check_upload_id(upload_id)
+    _, is_admin = await _space_context(db, user, space_id)
+    # Resolves duplicates too, and re-checks that the uploader can still read the document.
+    doc = await ingest.resolve_receipt(db, user, space_id, upload_id)
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Upload not found")
+    return document_out(doc, user=user, is_admin=is_admin)
+
+
+async def handle_get_document(document_id: str, user: User, db: AsyncSession, *, space_id: str) -> AccessibleDocument:
+    _, is_admin = await _space_context(db, user, space_id)
+    doc = await _accessible_document(db, user, document_id, space_id)
+    return document_out(doc, user=user, is_admin=is_admin)
+
+
+async def handle_retry_document(document_id: str, user: User, db: AsyncSession, *, space_id: str) -> AccessibleDocument:
+    _, is_admin = await _space_context(db, user, space_id)
+    doc = await _accessible_document(db, user, document_id, space_id)
+    if not document_out(doc, user=user, is_admin=is_admin).can_retry:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This document cannot be retried")
+    if not await pipeline.claim_for_retry(db, doc.id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Processing is already running")
+    await ingest.retry(db, doc, Path(doc.s3_url).suffix.lower())
+    await db.refresh(doc)
+    return document_out(doc, user=user, is_admin=is_admin)
+
+
+async def _upload_file_chunks(file: UploadFile) -> AsyncIterator[bytes]:
+    await file.seek(0)
+    while chunk := await file.read(64 * 1024):
+        yield chunk
 
 
 async def handle_upload_document(
@@ -38,144 +176,44 @@ async def handle_upload_document(
     *,
     space_id: str,
 ) -> DocumentUploadResponse:
-    """Handle single document upload and processing.
-    
-    Args:
-        file: Uploaded file
-        
-    Returns:
-        DocumentUploadResponse with upload details
-        
-    Raises:
-        HTTPException: If file type not supported or processing fails
-    """
-    parent_span = tracer.get_current_span()
-    span = tracer.start_child_span(
-        parent_span,
-        "documents.upload",
-        input={
-            "filename": file.filename,
-            "content_type": file.content_type,
-        },
-    )
-
+    """Legacy multipart upload (web). Same validation and pipeline as the streaming route."""
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    span = tracer.start_child_span(tracer.get_current_span(), "documents.upload", input={})
+    space, _ = await _space_context(db, user, space_id)
+    name = sanitize_filename(file.filename)
+    received = None
     try:
-        file_type = document_service.get_file_type(file.filename)
-    except ValueError as exc:
-        tracer.end_span(span, status_message=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc)
-        ) from exc
-
-    try:
-        await file.seek(0)
-        file_bytes = await file.read()
-        duplicate_hash = hashlib.sha256(file_bytes).hexdigest()
+        ext = extension_of(name)
+        received = await receive_to_temp(
+            _upload_file_chunks(file), limit=int(settings.MAX_UPLOAD_BYTES), directory=pipeline.WORK_DIR
+        )
+        result = await ingest.ingest(db, user=user, space=space, received=received, filename=name, ext=ext)
+    except UploadRejected as exc:
+        tracer.end_span(span, status_message=exc.code)
+        raise _rejection(exc, legacy=True) from exc
     finally:
-        await file.seek(0)
-
-    existing_doc = await document_service.get_document_by_hash(db, duplicate_hash, space_id=space_id)
-    if existing_doc is not None:
-        if user is not None:
-            try:
-                await document_service.grant_document_permissions(
-                    db,
-                    space_id=space_id,
-                    user_id=user.id,
-                    document_ids=[existing_doc.id],
-                )
-            except Exception:
-                pass
-        existing_status = DocumentStatus(existing_doc.status)
-        response = DocumentUploadResponse(
-            document_id=existing_doc.id,
-            filename=existing_doc.filename,
-            file_type=DocumentType(existing_doc.file_type),
-            file_size=existing_doc.file_size,
-            status=existing_status,
-            chunks_count=existing_doc.chunks_count,
-            uploaded_at=existing_doc.uploaded_at or datetime.utcnow(),
-            message="Document already uploaded; returning existing record.",
-        )
-        tracer.end_span(
-            span,
-            metadata={
-                "document_id": existing_doc.id,
-                "status": existing_status.value,
-                "duplicate": True,
-            },
-        )
-        return response
-
-    document_id = str(uuid4())
-
-    file_path = None
-
-    try:
-        from src.services.databases.postgresql.models import Space
-
-        space = await db.get(Space, space_id)
-        if space is None or not space.is_active:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
-
-        file_path, file_hash, s3_url = await document_service.save_file(
-            file,
-            document_id,
-            space_id=space_id,
-            bucket=space.s3_bucket,
-        )
-        file_size = file_path.stat().st_size
-        result = await document_service.process_document(file_path, file_type)
-        await document_service.save_to_db(
-            db,
-            document_id,
-            space_id,
-            file.filename,
-            file_type,
-            file_size,
-            file_hash,
-            s3_url,
-            result,
-            uploaded_by_user_id=user.id if user is not None else None,
-        )
-        if user is not None:
-            try:
-                await document_service.grant_document_permissions(
-                    db,
-                    space_id=space_id,
-                    user_id=user.id,
-                    document_ids=[document_id],
-                )
-            except Exception:
-                pass
-    except Exception as exc:  # noqa: BLE001
-        tracer.end_span(span, status_message=str(exc))
-        raise
-    finally:
-        if file_path is not None:
-            document_service.cleanup_file(file_path)
-
-    response = DocumentUploadResponse(
-        document_id=document_id,
-        filename=file.filename,
-        file_type=file_type,
-        file_size=file_size,
-        status=result["status"],
-        chunks_count=result.get("chunks_count", 0),
-        message=result.get("error", "Document processed successfully"),
+        if received is not None:
+            received.path.unlink(missing_ok=True)
+    doc = result.document
+    await db.refresh(doc)
+    state, error = pipeline.effective_state(doc)
+    tracer.end_span(span, metadata={"document_id": doc.id, "state": state})
+    message = "Document already uploaded; returning existing record." if result.duplicate else (
+        "Document processed successfully" if state == pipeline.READY else f"Document processing failed ({error})"
     )
-
-    tracer.end_span(
-        span,
-        metadata={
-            "document_id": document_id,
-            "status": response.status.value,
-            "chunks_count": response.chunks_count,
-        },
+    return DocumentUploadResponse(
+        document_id=doc.id,
+        filename=doc.filename,
+        file_type=DocumentType(doc.file_type),
+        file_size=doc.file_size,
+        status=DocumentStatus.COMPLETED if state == pipeline.READY else (
+            DocumentStatus.FAILED if state == pipeline.FAILED else DocumentStatus.PROCESSING
+        ),
+        chunks_count=doc.chunks_count,
+        uploaded_at=doc.uploaded_at,
+        message=message,
     )
-
-    return response
 
 
 async def handle_upload_documents(
@@ -185,215 +223,34 @@ async def handle_upload_documents(
     *,
     space_id: str,
 ) -> List[DocumentUploadResponse]:
-    """Handle multiple document uploads and processing.
-    
-    Args:
-        files: List of uploaded files
-        db: Database session
-        
-    Returns:
-        List of DocumentUploadResponse for each file
-    """
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.upload_batch",
-        input={"files": len(files)},
-    )
-    try:
-        tasks = [handle_upload_document(file, db, user, space_id=space_id) for file in files]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        tracer.end_span(span, metadata={"files": len(files)})
-        return results
-    except Exception as exc:  # noqa: BLE001
-        tracer.end_span(span, status_message=str(exc))
-        raise
+    """Uploads run one after another: they share one database session."""
+    results = []
+    for file in files:
+        try:
+            results.append(await handle_upload_document(file, db, user, space_id=space_id))
+        except HTTPException as exc:
+            results.append(exc)
+    return results
 
 
 async def handle_vectorize_document(document_id: str, user: User, db: AsyncSession, *, space_id: str) -> DocumentVectorizeResponse:
-    """Index document chunks into the vector store."""
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.vectorize",
-        input={"document_id": document_id},
-    )
+    """Re-index an extracted document. Indexing replaces the document's vectors, so repeats are safe."""
+    doc = await _accessible_document(db, user, document_id, space_id)
+    if not doc.chunks_data:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document has no extracted text")
+    await pipeline._set_state(db, doc, pipeline.INDEXING)
     try:
-        doc = await document_service.get_document(db, document_id)
-        if doc is None or doc.space_id != space_id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-        result = await document_service.vectorize_document(db, document_id)
-        if str(result.get("status")) != "success" or int(result.get("chunks_indexed") or 0) <= 0:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(result.get("error") or "Document vectorization failed"),
-            )
-    except ValueError as exc:
-        tracer.end_span(span, status_message=str(exc))
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        tracer.end_span(span, status_message=str(exc))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
-
-    embedding_model = result.get("embedding_model")
-    embedding_usage = result.get("embedding_usage") or {}
-    if embedding_model and embedding_usage:
-        from src.modules.apis.v1.chat.service import chat_service
-        from src.core.observability import tracer as _tracer
-
-        cost_details = _tracer.estimate_cost(str(embedding_model), embedding_usage)
-        await chat_service.record_usage_event(
-            db,
-            space_id=space_id,
-            user_id=user.id,
-            session_id=None,
-            endpoint="documents.vectorize.embed",
-            model=str(embedding_model),
-            usage_details=embedding_usage,
-            cost_usd=cost_details.get("total_cost_usd") if cost_details else None,
-            meta_payload={"document_id": document_id, "chunks_indexed": int(result.get("chunks_indexed") or 0)},
-        )
-
-    response = DocumentVectorizeResponse(
-        document_id=result["document_id"],
-        chunks_indexed=result["chunks_indexed"],
-        collection=result["collection"],
+        details = await pipeline.index_document(doc)
+    except Exception as exc:  # noqa: BLE001
+        await pipeline._set_state(db, doc, pipeline.FAILED, "indexing_failed")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Document indexing failed") from exc
+    await pipeline._set_state(db, doc, pipeline.READY)
+    return DocumentVectorizeResponse(
+        document_id=doc.id,
+        chunks_indexed=details["chunks_indexed"],
+        collection=document_service.collection_name,
         message="Document chunks stored in vector database",
     )
-    tracer.end_span(
-        span,
-        metadata={
-            "document_id": document_id,
-            "chunks_indexed": response.chunks_indexed,
-        },
-    )
-    return response
-
-
-async def handle_vector_search(
-    payload: DocumentVectorSearchRequest,
-    user: User,
-    db: AsyncSession,
-    *,
-    space_id: str,
-) -> DocumentVectorSearchResponse:
-    """Perform a semantic search over indexed chunks honoring user permissions."""
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.vector_search",
-        input={"query": payload.query, "limit": payload.limit, "user_id": user.id},
-    )
-    accessible_docs = await document_service.list_accessible_documents(db, user, space_id=space_id)
-    if not accessible_docs:
-        tracer.end_span(span, metadata={"results": 0, "answer_present": False})
-        return DocumentVectorSearchResponse(query=payload.query, limit=payload.limit, results=[], answer="")
-    allowed_ids = {doc.id for doc in accessible_docs}
-    selected_ids = None
-    if payload.document_ids:
-        invalid = set(payload.document_ids) - allowed_ids
-        if invalid:
-            tracer.end_span(span, status_message="Unauthorized document access requested")
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Document access denied")
-        selected_ids = payload.document_ids
-    else:
-        selected_ids = list(allowed_ids)
-    try:
-        # Capture embedding usage for query vectorization.
-        from src.services.embeddings.openai import embedding_service
-        from src.modules.apis.v1.chat.service import chat_service
-        from src.core.observability import tracer as _tracer
-
-        query_embeddings, usage_details = await embedding_service.embed_texts_with_usage([payload.query])
-        query_embedding = query_embeddings[0] if query_embeddings else None
-
-        if usage_details:
-            cost_details = _tracer.estimate_cost(embedding_service.model, usage_details)
-            await chat_service.record_usage_event(
-                db,
-                space_id=space_id,
-                user_id=user.id,
-                session_id=None,
-                endpoint="documents.vector_search.embed",
-                model=embedding_service.model,
-                usage_details=usage_details,
-                cost_usd=cost_details.get("total_cost_usd") if cost_details else None,
-                meta_payload={"limit": payload.limit},
-            )
-
-        search_payload = await document_service.search_vectors(
-            payload.query,
-            payload.limit,
-            allowed_document_ids=selected_ids,
-            query_embedding=query_embedding,
-            space_id=space_id,
-        )
-    except RuntimeError as exc:
-        tracer.end_span(span, status_message=str(exc))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
-
-    response = DocumentVectorSearchResponse(
-        query=payload.query,
-        limit=payload.limit,
-        results=search_payload.get("results", []),
-        answer=search_payload.get("answer", ""),
-    )
-
-    tracer.end_span(
-        span,
-        metadata={
-            "results": len(response.results),
-            "answer_present": bool(response.answer),
-        },
-    )
-
-    return response
-
-
-async def handle_list_accessible_documents(user: User, db: AsyncSession, *, space_id: str) -> List[AccessibleDocument]:
-    """Return documents available to the current user."""
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.list_accessible",
-        input={"user_id": user.id},
-    )
-    documents = await document_service.list_accessible_documents(db, user, space_id=space_id)
-    response = [
-        AccessibleDocument(
-            id=doc.id,
-            filename=doc.filename,
-            file_type=DocumentType(doc.file_type),
-            uploaded_at=doc.uploaded_at,
-            uploaded_by_user_id=getattr(doc, "uploaded_by_user_id", None),
-            is_hidden=bool(getattr(doc, "is_hidden", False)),
-        )
-        for doc in documents
-    ]
-    tracer.end_span(span, metadata={"count": len(response)})
-    return response
-
-
-async def handle_grant_permissions(
-    payload: DocumentPermissionGrantRequest,
-    db: AsyncSession,
-    *,
-    space_id: str,
-) -> DocumentPermissionGrantResponse:
-    """Grant document access to a user."""
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.grant_permissions",
-        input={"user_id": payload.user_id, "documents": len(payload.document_ids)},
-    )
-    try:
-        granted = await document_service.grant_document_permissions(
-            db,
-            space_id=space_id,
-            user_id=payload.user_id,
-            document_ids=payload.document_ids,
-        )
-    except ValueError as exc:
-        tracer.end_span(span, status_message=str(exc))
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    tracer.end_span(span, metadata={"granted": granted})
-    return DocumentPermissionGrantResponse(granted=granted)
 
 
 async def handle_upload_and_vectorize(
@@ -403,53 +260,78 @@ async def handle_upload_and_vectorize(
     *,
     space_id: str,
 ) -> DocumentUploadAndVectorizeResponse:
-    """Upload a document and immediately index it into the vector store."""
-
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.upload_and_vectorize",
-        input={"filename": file.filename},
+    """Legacy web route: the pipeline already indexes, so this reports the result of one upload."""
+    upload = await handle_upload_document(file, db, user, space_id=space_id)
+    if upload.status != DocumentStatus.COMPLETED:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=upload.message)
+    return DocumentUploadAndVectorizeResponse(
+        upload=upload,
+        vectorization=DocumentVectorizeResponse(
+            document_id=upload.document_id,
+            chunks_indexed=int(upload.chunks_count or 0),
+            collection=document_service.collection_name,
+        ),
     )
-    try:
-        upload_response = await handle_upload_document(file, db, user, space_id=space_id)
-        if (
-            upload_response.status != DocumentStatus.COMPLETED
-            or int(upload_response.chunks_count or 0) <= 0
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    upload_response.message
-                    or "Document has no extractable text. For scanned PDFs, ensure OCR dependencies (Tesseract) are installed."
-                ),
-            )
-        vector_response = await handle_vectorize_document(upload_response.document_id, user, db, space_id=space_id)
-    except Exception as exc:  # noqa: BLE001
-        tracer.end_span(span, status_message=str(exc))
-        raise
-
-    combined = DocumentUploadAndVectorizeResponse(
-        upload=upload_response,
-        vectorization=vector_response,
-    )
-    tracer.end_span(span, metadata={"document_id": upload_response.document_id})
-    return combined
 
 
-async def handle_revoke_permissions(
-    payload,
+async def handle_vector_search(
+    payload: DocumentVectorSearchRequest,
+    user: User,
     db: AsyncSession,
     *,
     space_id: str,
-):
-    """Revoke document access from a user."""
-    from .schemas import DocumentPermissionRevokeRequest, DocumentPermissionRevokeResponse
-    
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.revoke_permissions",
-        input={"user_id": payload.user_id, "documents": len(payload.document_ids)},
+) -> DocumentVectorSearchResponse:
+    """Semantic search over the caller's ready documents."""
+    ready = document_service.ready_ids(await document_service.list_accessible_documents(db, user, space_id=space_id))
+    if payload.document_ids:
+        if set(payload.document_ids) - ready:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Document access denied")
+        selected = list(payload.document_ids)
+    else:
+        selected = list(ready)
+    if not selected:
+        return DocumentVectorSearchResponse(query=payload.query, limit=payload.limit, results=[], answer="")
+    try:
+        search_payload = await document_service.search_vectors(
+            payload.query, payload.limit, allowed_document_ids=selected, space_id=space_id
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Search is unavailable") from exc
+    return DocumentVectorSearchResponse(
+        query=payload.query,
+        limit=payload.limit,
+        results=[document_service.public_match(r) for r in search_payload.get("results", [])],
+        answer=search_payload.get("answer", ""),
     )
+
+
+async def handle_list_accessible_documents(user: User, db: AsyncSession, *, space_id: str) -> List[AccessibleDocument]:
+    _, is_admin = await _space_context(db, user, space_id)
+    documents = await document_service.list_accessible_documents(db, user, space_id=space_id)
+    return [document_out(doc, user=user, is_admin=is_admin) for doc in documents]
+
+
+async def handle_grant_permissions(
+    payload: DocumentPermissionGrantRequest,
+    db: AsyncSession,
+    *,
+    space_id: str,
+) -> DocumentPermissionGrantResponse:
+    try:
+        granted = await document_service.grant_document_permissions(
+            db,
+            space_id=space_id,
+            user_id=payload.user_id,
+            document_ids=payload.document_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return DocumentPermissionGrantResponse(granted=granted)
+
+
+async def handle_revoke_permissions(payload, db: AsyncSession, *, space_id: str):
+    from .schemas import DocumentPermissionRevokeResponse
+
     try:
         revoked = await document_service.revoke_document_permissions(
             db,
@@ -458,9 +340,7 @@ async def handle_revoke_permissions(
             document_ids=payload.document_ids,
         )
     except ValueError as exc:
-        tracer.end_span(span, status_message=str(exc))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    tracer.end_span(span, metadata={"revoked": revoked})
     return DocumentPermissionRevokeResponse(revoked=revoked)
 
 
@@ -470,58 +350,31 @@ async def handle_permission_status(
     *,
     space_id: str,
 ) -> DocumentPermissionStatusResponse:
-    """Return user-id sets used to filter grant vs revoke lists in the UI."""
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.permission_status",
-        input={"documents": len(payload.document_ids)},
-    )
     any_set, all_set = await document_service.get_permission_user_sets(
         db,
         space_id=space_id,
         document_ids=payload.document_ids,
     )
-    response = DocumentPermissionStatusResponse(
-        any_user_ids=sorted(any_set),
-        all_user_ids=sorted(all_set),
-    )
-    tracer.end_span(span, metadata={"any": len(any_set), "all": len(all_set)})
-    return response
+    return DocumentPermissionStatusResponse(any_user_ids=sorted(any_set), all_user_ids=sorted(all_set))
 
 
-async def handle_get_document_chunks(
-    document_id: str,
-    db: AsyncSession,
-    *,
-    space_id: str,
-):
-    """Retrieve all chunks for a document."""
-    from .schemas import DocumentChunksResponse, ChunkDetail
-    
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.get_chunks",
-        input={"document_id": document_id},
-    )
-    try:
-        doc = await document_service.get_document(db, document_id)
-        if not doc or doc.space_id != space_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found",
-            )
-        chunks = await document_service.get_document_chunks(db, document_id)
-    except ValueError as exc:
-        tracer.end_span(span, status_message=str(exc))
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    
-    response = DocumentChunksResponse(
+async def handle_get_document_chunks(document_id: str, user: User, db: AsyncSession, *, space_id: str):
+    """Chunks of a document the caller may read (previously any space member could read any document's chunks)."""
+    from .schemas import ChunkDetail, DocumentChunksResponse
+
+    doc = await _accessible_document(db, user, document_id, space_id)
+    chunks = await document_service.get_document_chunks(db, document_id)
+    return DocumentChunksResponse(
         document_id=document_id,
         filename=doc.filename,
         chunks=[ChunkDetail(**chunk) for chunk in chunks],
     )
-    tracer.end_span(span, metadata={"chunks_count": len(chunks)})
-    return response
+
+
+def content_disposition(filename: str, disposition: str = "inline") -> str:
+    ascii_name = sanitize_filename(filename).encode("ascii", "replace").decode("ascii").replace("?", "_")
+    ascii_name = ascii_name.replace('"', "_")
+    return f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(sanitize_filename(filename))}"
 
 
 async def handle_download_document(
@@ -530,63 +383,36 @@ async def handle_download_document(
     db: AsyncSession,
     *,
     space_id: str,
-) -> Response:
-    """Stream the original document bytes back to the client."""
-
-    # Ensure the user can access this document within the current space.
-    accessible = await document_service.list_accessible_documents(db, user, space_id=space_id)
-    doc = next((d for d in accessible if d.id == document_id), None)
-    if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-
-    s3_url = (doc.s3_url or "").strip()
-    if not s3_url.startswith("s3://"):
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Document storage URL is invalid")
-
-    # Parse s3://bucket/key
-    _, _, remainder = s3_url.partition("s3://")
-    bucket, _, key = remainder.partition("/")
-    if not bucket or not key:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Document storage URL is invalid")
-
+) -> StreamingResponse:
+    """Stream the stored original from object storage through the API; storage URLs never reach clients."""
     from src.services.cloud.aws.s3 import s3_service
 
-    content_types = {
-        "pdf": "application/pdf",
-        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "csv": "text/csv",
-        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "txt": "text/plain",
-    }
-    media_type = content_types.get((doc.file_type or "").lower(), "application/octet-stream")
+    doc = await _accessible_document(db, user, document_id, space_id)
+    if not doc.s3_url:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The file was not stored")
+    stream = s3_service.iter_object(doc.s3_url)
+    try:
+        first = await stream.__anext__()
+    except StopAsyncIteration:
+        first = b""
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The file is unavailable") from exc
 
-    async with s3_service.session.client("s3") as s3:
-        try:
-            obj = await s3.get_object(Bucket=bucket, Key=key)
-            body = obj.get("Body")
-            if body is None:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Document body is missing")
-            content = await body.read()
-        except HTTPException:
-            raise
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to fetch document: {exc}") from exc
-        finally:
-            try:
-                body_close = getattr(locals().get("body"), "close", None)
-                if callable(body_close):
-                    result = body_close()
-                    if asyncio.iscoroutine(result):
-                        await result
-            except Exception:
-                pass
+    async def body():
+        yield first
+        async for chunk in stream:
+            yield chunk
 
     headers = {
-        "Content-Disposition": f'inline; filename="{doc.filename}"',
+        "Content-Disposition": content_disposition(doc.filename),
         "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox; default-src 'none'",
     }
-    return Response(content=content, media_type=media_type, headers=headers)
+    if doc.file_size:
+        headers["Content-Length"] = str(doc.file_size)
+    media_type = _MEDIA_TYPES.get((doc.file_type or "").lower(), "application/octet-stream")
+    return StreamingResponse(body(), media_type=media_type, headers=headers)
 
 
 async def handle_update_visibility(
@@ -596,12 +422,6 @@ async def handle_update_visibility(
     *,
     space_id: str,
 ) -> DocumentVisibilityUpdateResponse:
-    """Allow an admin to hide/unhide a document within a space."""
-    span = tracer.start_child_span(
-        tracer.get_current_span(),
-        "documents.update_visibility",
-        input={"document_id": document_id, "is_hidden": payload.is_hidden},
-    )
     try:
         doc = await document_service.set_document_visibility(
             db,
@@ -610,9 +430,5 @@ async def handle_update_visibility(
             is_hidden=payload.is_hidden,
         )
     except ValueError as exc:
-        tracer.end_span(span, status_message=str(exc))
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-
-    response = DocumentVisibilityUpdateResponse(document_id=doc.id, is_hidden=bool(doc.is_hidden))
-    tracer.end_span(span, metadata={"document_id": doc.id, "is_hidden": response.is_hidden})
-    return response
+    return DocumentVisibilityUpdateResponse(document_id=doc.id, is_hidden=bool(doc.is_hidden))
