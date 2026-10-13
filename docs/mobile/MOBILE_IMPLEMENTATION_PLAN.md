@@ -430,7 +430,10 @@ Backend (details and the behavior found before the changes are in `MOBILE_DISCOV
   - New `PUT /documents/uploads/{upload_id}?filename=` takes the raw file body.
   - Authorization runs before a single byte is read.
   - The hard 25 MiB limit (`MAX_UPLOAD_BYTES`) is enforced while streaming, including chunked bodies without `Content-Length`; anything over gets 413 and the partial file is deleted.
-  - `upload_id` is chosen by the client. Repeating it returns the existing document, and `GET /documents/uploads/{upload_id}` lets the uploader reconcile an uncertain upload without sending it again.
+  - `upload_id` is chosen by the client. Every accepted ID gets a receipt (`document_upload_receipts`, unique per space, uploader and ID), duplicates included.
+  - `GET /documents/uploads/{upload_id}` resolves the receipt, re-checking that the uploader can still read the document; otherwise 404.
+  - Repeating an ID with the same bytes returns the original result. Different bytes get 409 `upload_id_reused`.
+  - **Deduplication never grants access:** identical bytes already in the space resolve to that document only when the uploader can currently read it. Otherwise the answer is a generic 409 `duplicate_conflict`, with no metadata, no new permission and no change to the original document. Concurrent races resolve through the same checks.
   - The web's multipart routes keep their response shapes. They now go through the same pipeline, plus an ASGI middleware that caps the body before the framework spools it.
 - **Validation:**
   - Content is checked by bytes, not by name or client MIME: PDF magic, OOXML structure with zip-bomb bounds, encrypted or legacy Office rejected, UTF-8-only text.
@@ -491,12 +494,12 @@ Mobile:
 
 Verified:
 - **Backend:**
-  - **86** pytest tests through the real routes, the real extraction subprocess, a local S3-compatible server (moto), Qdrant local mode and the embedding stub.
+  - **94** pytest tests (8 for deduplication and receipts, 7 of which fail on the code before the review fix) through the real routes, the real extraction subprocess, a local S3-compatible server (moto), Qdrant local mode and the embedding stub.
   - Coverage: size boundary (exact, +1 byte, real 25 MiB + 1, chunked without `Content-Length`), content and encryption checks, traversal, authorization, cross-user and cross-space access, retry claims, lease expiry, timeout, idempotent re-indexing, selected-document retrieval, citations on both paths plus branching, revocation, hidden documents, shares, legacy multipart and the middleware cap.
 - **Disconnect regression:** a new test runs a real uvicorn server with the app's pooled engine. It fails with `500 connection is closed` when `pool_pre_ping` is removed and passes with it.
 - **Interruption reconciliation:** the Phase 2 regression test fails without its fix ("Expected null, Actual PendingTurn") and passes with it.
 - **Migration:** `20261013_0001` was applied twice to the local e2e database and checked on a scratch copy with legacy rows (`completed` with chunks → `ready`; without chunks → `failed/no_text`; `failed` → `failed/processing_failed`; stuck → `failed/interrupted`) and on a fresh `create_all` schema.
-- **Mobile:** **174** Flutter tests, analyze clean, Android dev debug APK built (only the `INTERNET` permission).
+- **Mobile:** **175** Flutter tests, analyze clean, Android dev debug APK built (only the `INTERNET` permission).
 - **Web:** `tsc -b` and `vite build` pass; no new lint problems.
 - **End to end:**
   - Local backend, local Postgres, moto S3, Qdrant and stub providers; no remote services.
@@ -553,7 +556,8 @@ Not done in Phase 3: a chunks view on mobile, document delete (no backend endpoi
 | S13 | Typed `code` on every stream `error` event; generic `internal` error | 2 | **Done (Phase 2)** |
 | S14 | `pool_pre_ping` so a client disconnect does not break the next request | 2 | **Done (Phase 2)** |
 | S15 | Local chat provider stub, refused outside development and test | 2 | **Done (Phase 2)** |
-| S16 | Durable document states, upload IDs for reconciliation, authorized single retry | 3 | **Done (Phase 3)** |
+| S16 | Durable document states, upload receipts for reconciliation, authorized single retry | 3 | **Done (Phase 3)** |
+| S24 | Identical-bytes deduplication granted the uploader access to the existing document (pre-existing) | 3 | **Done (Phase 3 review)**: access re-checked, generic 409, no grant |
 | S17 | Content validation by bytes, filename sanitizing, isolated and bounded extraction | 3 | **Done (Phase 3)** |
 | S18 | Streaming authorized download with safe headers; no storage metadata in sources | 3 | **Done (Phase 3)** |
 | S19 | `/vector-search` router passed no space (always 500) | 3 | **Done (Phase 3)** |

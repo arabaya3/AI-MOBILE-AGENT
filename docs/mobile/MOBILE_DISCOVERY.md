@@ -346,7 +346,7 @@ Verified against `chat/handlers.py` and changed in a backward-compatible way:
   - Synchronous inside the request. `status` was written once, at the end.
   - `/upload` did not index at all; only the web's `upload-and-vectorize` did.
   - A failed embedding batch produced zero vectors that were indexed and reported as success.
-- **Duplicates:** identical bytes in a space return the existing document and grant the uploader access. **Kept unchanged.**
+- **Duplicates:** identical bytes in a space returned the existing document and granted the uploader access to it, even if hidden or revoked. **Changed in the Phase 3 review:** access is never granted by deduplication.
 - **Retrieval:**
   - Dense search took the global top 50 and filtered afterwards, so selected documents could be missed.
   - "No selection" meant all accessible documents. The non-streaming path let a global `admin` select documents they could not read.
@@ -363,7 +363,7 @@ Verified against `chat/handlers.py` and changed in a backward-compatible way:
 | Endpoint | Purpose |
 |---|---|
 | `PUT /documents/uploads/{upload_id}?filename=` | Raw-body upload (≤ 25 MiB, enforced while reading). 201 new, 200 when the upload ID was already used. |
-| `GET /documents/uploads/{upload_id}` | The uploader's own upload, for reconciling an uncertain upload (404 if never received). |
+| `GET /documents/uploads/{upload_id}` | Resolves the uploader's receipt for that ID (also for accepted duplicates), re-checking current access; 404 if never accepted or no longer readable. |
 | `GET /documents/accessible`, `GET /documents/{id}` | Adds `state`, `error_code`, `file_size`, `chunks_count`, `state_updated_at`, `can_retry`. |
 | `POST /documents/{id}/retry` | Uploader or space admin; retryable failures only; 409 when not allowed or already running. |
 | `GET /documents/{id}/download` | Streams the original with safe headers. |
@@ -374,6 +374,7 @@ Verified against `chat/handlers.py` and changed in a backward-compatible way:
   - 413: `too_large`.
   - 415: `unsupported_type`, `invalid_content`, `unsupported_encoding`.
   - 422: `empty`, `encrypted`, `corrupt`.
+  - 409: `duplicate_conflict` (identical bytes exist and the uploader can't read them; nothing about the document is revealed) and `upload_id_reused` (same upload ID, different bytes).
 - **Failure codes on documents:** `encrypted`, `corrupt`, `no_text`, `too_complex`, `timeout`, `indexing_failed`, `storage_failed`, `interrupted`, `processing_failed`.
 - **Chat errors:**
   - Stream: `document_access_denied` or `document_not_ready`.

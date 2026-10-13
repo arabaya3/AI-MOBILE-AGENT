@@ -1837,6 +1837,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The link couldn\'t be opened.'**
   String get openLinkFailed;
+
+  /// No description provided for @docErrorDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'This file can\'t be added to this space. If you need it, ask a space admin for access.'**
+  String get docErrorDuplicate;
 }
 
 class _AppLocalizationsDelegate

@@ -248,6 +248,45 @@ void main() {
   });
 
   test(
+    'a duplicate the user may not read is final and reveals nothing',
+    () async {
+      final backend = FakeBackend()
+        ..json('GET /documents/accessible', 200, <Object>[]);
+      backend.onAny(
+        (o) => o.method == 'PUT'
+            ? jsonBody(409, {
+                'detail': {
+                  'code': 'duplicate_conflict',
+                  'message': "This file can't be added to this space.",
+                },
+              })
+            : null,
+      );
+      final c = await docsContainer(backend);
+      await settle();
+      await c
+          .read(documentsControllerProvider.notifier)
+          .upload(source('a.txt', [65, 66]));
+      await settle();
+      final task = stateOf(c).uploads.single;
+      expect(task.phase, UploadPhase.failed);
+      expect(task.error!.code, 'duplicate_conflict');
+      expect(task.document, isNull);
+      expect(
+        backend.adapter.requests.where((r) => r.method == 'PUT'),
+        hasLength(1),
+      );
+      expect(
+        backend.adapter.requests.where(
+          (r) =>
+              r.method == 'GET' && r.uri.path.contains('/documents/uploads/'),
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
     'an uncertain failure is reconciled by upload ID instead of being resent',
     () async {
       final backend = FakeBackend()

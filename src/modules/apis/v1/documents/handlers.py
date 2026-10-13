@@ -114,10 +114,6 @@ async def handle_stream_upload(
     except UploadRejected as exc:
         raise _rejection(exc) from exc
 
-    existing = await ingest.find_by_upload_id(db, space_id=space_id, user_id=user.id, upload_id=upload_id)
-    if existing is not None:
-        return document_out(existing, user=user, is_admin=is_admin), False
-
     limit = int(settings.MAX_UPLOAD_BYTES)
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > limit:
@@ -142,7 +138,8 @@ async def handle_get_upload(upload_id: str, user: User, db: AsyncSession, *, spa
     """Reconcile an upload whose response was lost: the uploader can look it up by its client ID."""
     _check_upload_id(upload_id)
     _, is_admin = await _space_context(db, user, space_id)
-    doc = await ingest.find_by_upload_id(db, space_id=space_id, user_id=user.id, upload_id=upload_id)
+    # Resolves duplicates too, and re-checks that the uploader can still read the document.
+    doc = await ingest.resolve_receipt(db, user, space_id, upload_id)
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Upload not found")
     return document_out(doc, user=user, is_admin=is_admin)

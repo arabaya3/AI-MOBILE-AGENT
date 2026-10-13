@@ -1,5 +1,6 @@
 """Documents over the real routes: extraction subprocess, local S3 (moto), Qdrant local mode, stub embeddings."""
 
+import asyncio
 import io
 import uuid
 import zipfile
@@ -83,7 +84,7 @@ async def test_upload_processes_to_ready_and_is_idempotent_by_upload_id(client, 
     assert doc["state"] == "ready" and doc["chunks_count"] >= 1 and doc["error_code"] is None
     assert await count_points(doc["id"]) == doc["chunks_count"]
 
-    again = await put(client, world["alice"], world["team"], "notes.txt", b"different bytes entirely", upload_id)
+    again = await put(client, world["alice"], world["team"], "notes.txt", b"Falcon migration plan for spring.", upload_id)
     assert again.status_code == 200 and again.json()["id"] == doc["id"]
 
     looked_up = await client.get(f"{DOCS}/uploads/{upload_id}", headers=auth_headers(world["alice"], world["team"]))
@@ -267,3 +268,144 @@ async def test_legacy_multipart_upload_still_works_and_is_capped(client, world, 
     big = {"file": ("big.txt", b"z" * (200 * 1024), "text/plain")}
     response = await client.post(f"{DOCS}/upload-and-vectorize", files=big, headers=auth_headers(world["alice"], world["team"]))
     assert response.status_code == 413
+
+
+# --- Deduplication never grants access; every accepted upload ID has a receipt -------------------
+
+
+async def uploader(factory, world, email):
+    user = await factory.user(email)
+    await factory.member(world["team"], user)
+    await factory.execute("UPDATE space_members SET can_upload_documents = true WHERE user_id = :u", u=user.id)
+    return user
+
+
+async def permission_count(factory, user) -> int:
+    result = await factory.execute("SELECT count(*) FROM user_document_permissions WHERE user_id = :u", u=user.id)
+    return result.scalar()
+
+
+def assert_reveals_nothing(response, doc):
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "duplicate_conflict"
+    assert doc["id"] not in response.text and doc["filename"] not in response.text
+
+
+async def test_identical_bytes_of_an_inaccessible_document_are_refused(client, world, factory):
+    carol = await uploader(factory, world, "carol@example.com")
+    doc = (await put(client, world["alice"], world["team"], "secret-plan.txt", b"Merger terms draft v3")).json()
+    before = await permission_count(factory, carol)
+
+    response = await put(client, carol, world["team"], "mine.txt", b"Merger terms draft v3")
+    assert_reveals_nothing(response, doc)
+    assert await permission_count(factory, carol) == before
+    listing = await client.get(f"{DOCS}/accessible", headers=auth_headers(carol, world["team"]))
+    assert listing.json() == []
+
+
+async def test_identical_bytes_after_revocation_are_refused_and_old_receipts_stop_resolving(client, world, factory):
+    carol = await uploader(factory, world, "carol@example.com")
+    doc = (await put(client, world["alice"], world["team"], "plan.txt", b"Shared roadmap 2027")).json()
+    await client.post(
+        f"{DOCS}/permissions",
+        json={"user_id": carol.id, "document_ids": [doc["id"]]},
+        headers=auth_headers(world["admin"], world["team"]),
+    )
+    first_id = str(uuid.uuid4())
+    authorized = await put(client, carol, world["team"], "copy.txt", b"Shared roadmap 2027", first_id)
+    assert authorized.status_code == 200 and authorized.json()["id"] == doc["id"]
+    resolved = await client.get(f"{DOCS}/uploads/{first_id}", headers=auth_headers(carol, world["team"]))
+    assert resolved.status_code == 200 and resolved.json()["id"] == doc["id"]
+
+    await client.request(
+        "DELETE",
+        f"{DOCS}/permissions",
+        json={"user_id": carol.id, "document_ids": [doc["id"]]},
+        headers=auth_headers(world["admin"], world["team"]),
+    )
+    after = await put(client, carol, world["team"], "copy.txt", b"Shared roadmap 2027")
+    assert_reveals_nothing(after, doc)
+    replayed = await put(client, carol, world["team"], "copy.txt", b"Shared roadmap 2027", first_id)
+    assert_reveals_nothing(replayed, doc)
+    stale = await client.get(f"{DOCS}/uploads/{first_id}", headers=auth_headers(carol, world["team"]))
+    assert stale.status_code == 404 and doc["id"] not in stale.text
+    assert await permission_count(factory, carol) == 0
+
+
+async def test_authorized_duplicate_gets_its_own_receipt_without_changing_the_original(client, world, factory):
+    original_id = str(uuid.uuid4())
+    doc = (await put(client, world["alice"], world["team"], "report.txt", b"Annual report text", original_id)).json()
+    duplicate_id = str(uuid.uuid4())
+    duplicate = await put(client, world["alice"], world["team"], "report-again.txt", b"Annual report text", duplicate_id)
+    assert duplicate.status_code == 200 and duplicate.json()["id"] == doc["id"]
+
+    # A lost response is reconciled through the duplicate's own upload ID.
+    for upload_id in (original_id, duplicate_id):
+        found = await client.get(f"{DOCS}/uploads/{upload_id}", headers=auth_headers(world["alice"], world["team"]))
+        assert found.status_code == 200 and found.json()["id"] == doc["id"]
+    row = (await factory.execute("SELECT filename, uploaded_by_user_id FROM documents WHERE id = :d", d=doc["id"])).one()
+    assert tuple(row) == ("report.txt", world["alice"].id)
+    receipts = await factory.execute("SELECT count(*) FROM document_upload_receipts WHERE document_id = :d", d=doc["id"])
+    assert receipts.scalar() == 2
+
+
+async def test_an_upload_id_reused_for_different_content_is_refused(client, world):
+    upload_id = str(uuid.uuid4())
+    first = await put(client, world["alice"], world["team"], "a.txt", b"first content here", upload_id)
+    assert first.status_code == 201
+    other = await put(client, world["alice"], world["team"], "b.txt", b"completely different content", upload_id)
+    assert other.status_code == 409 and other.json()["detail"]["code"] == "upload_id_reused"
+    same = await put(client, world["alice"], world["team"], "a.txt", b"first content here", upload_id)
+    assert same.status_code == 200 and same.json()["id"] == first.json()["id"]
+    listing = await client.get(f"{DOCS}/accessible", headers=auth_headers(world["alice"], world["team"]))
+    assert len(listing.json()) == 1
+
+
+async def test_receipts_are_isolated_per_user_and_space(client, world, factory):
+    carol = await uploader(factory, world, "carol@example.com")
+    upload_id = str(uuid.uuid4())
+    await put(client, world["alice"], world["team"], "a.txt", b"isolated receipt text", upload_id)
+    for user, space in ((carol, world["team"]), (world["admin"], world["team"]), (world["alice"], world["other"])):
+        response = await client.get(f"{DOCS}/uploads/{upload_id}", headers=auth_headers(user, space))
+        assert response.status_code == 404
+
+    # The same upload ID used by another uploader is an independent upload, not a replay.
+    theirs = await put(client, carol, world["team"], "c.txt", b"carol has different text", upload_id)
+    assert theirs.status_code == 201
+
+
+async def test_concurrent_identical_uploads_never_grant_access(client, world, factory):
+    carol = await uploader(factory, world, "carol@example.com")
+    body = b"Concurrent identical body " * 20
+    responses = await asyncio.gather(
+        put(client, world["alice"], world["team"], "a.txt", body),
+        put(client, carol, world["team"], "c.txt", body),
+    )
+    assert sorted(r.status_code for r in responses) == [201, 409]
+    loser = next(r for r in responses if r.status_code == 409)
+    assert loser.json()["detail"]["code"] == "duplicate_conflict"
+    winner = next(r for r in responses if r.status_code == 201).json()
+    other = carol if winner["uploaded_by_user_id"] == world["alice"].id else world["alice"]
+    assert (await client.get(f"{DOCS}/{winner['id']}", headers=auth_headers(other, world["team"]))).status_code == 404
+    assert await permission_count(factory, other) == 0
+
+
+async def test_concurrent_identical_uploads_by_one_reader_share_the_document(client, world):
+    body = b"Same reader, two upload IDs " * 20
+    ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+    responses = await asyncio.gather(*(put(client, world["alice"], world["team"], "a.txt", body, i) for i in ids))
+    assert sorted(r.status_code for r in responses) == [200, 201]
+    assert len({r.json()["id"] for r in responses}) == 1
+    for upload_id in ids:
+        found = await client.get(f"{DOCS}/uploads/{upload_id}", headers=auth_headers(world["alice"], world["team"]))
+        assert found.status_code == 200
+
+
+async def test_legacy_multipart_duplicates_follow_the_same_rule(client, world, factory):
+    carol = await uploader(factory, world, "carol@example.com")
+    doc = (await put(client, world["alice"], world["team"], "x.txt", b"Legacy duplicate body")).json()
+    files = {"file": ("y.txt", b"Legacy duplicate body", "text/plain")}
+    response = await client.post(f"{DOCS}/upload", files=files, headers=auth_headers(carol, world["team"]))
+    assert response.status_code == 409
+    assert doc["id"] not in response.text
+    assert await permission_count(factory, carol) == 0

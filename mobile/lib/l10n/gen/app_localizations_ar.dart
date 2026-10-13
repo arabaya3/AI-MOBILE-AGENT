@@ -967,4 +967,8 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get openLinkFailed => 'تعذّر فتح الرابط.';
+
+  @override
+  String get docErrorDuplicate =>
+      'لا يمكن إضافة هذا الملف إلى مساحة العمل هذه. إن كنت بحاجة إليه فاطلب الصلاحية من مسؤول مساحة العمل.';
 }

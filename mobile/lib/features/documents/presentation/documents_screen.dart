@@ -325,9 +325,11 @@ class _UploadCard extends ConsumerWidget {
       ),
       UploadPhase.done => (l10n.uploadReceived, StatusTone.info),
       UploadPhase.failed => (
-        upload.error == null
-            ? l10n.docErrorGeneric
-            : describeApiException(l10n, upload.error!),
+        switch (upload.error) {
+          null => l10n.docErrorGeneric,
+          final e when e.code == 'duplicate_conflict' => l10n.docErrorDuplicate,
+          final e => describeApiException(l10n, e),
+        },
         StatusTone.error,
       ),
       UploadPhase.cancelled => (l10n.uploadCancelled, StatusTone.warning),

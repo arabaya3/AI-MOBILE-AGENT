@@ -333,6 +333,7 @@ class DocumentsController extends Notifier<DocumentsState> {
       e is UnsupportedMediaException ||
       e is ValidationException ||
       e is ForbiddenException ||
+      e is ConflictException ||
       e is BadRequestException;
 
   /// Asks the server whether an upload arrived. Uses the upload ID, so it never creates a duplicate.

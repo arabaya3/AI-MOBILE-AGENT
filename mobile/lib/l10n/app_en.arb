@@ -386,5 +386,6 @@
     }
   },
   "imageNotLoaded": "Image not loaded",
-  "openLinkFailed": "The link couldn't be opened."
+  "openLinkFailed": "The link couldn't be opened.",
+  "docErrorDuplicate": "This file can't be added to this space. If you need it, ask a space admin for access."
 }

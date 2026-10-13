@@ -1,4 +1,9 @@
-"""Shared ingestion path for every upload route: validate, deduplicate, store, then process."""
+"""Shared ingestion path for every upload route: validate, deduplicate, store, then process.
+
+Deduplication never grants access. Identical bytes resolve to the existing document only when the
+uploader can already read it; otherwise the upload is refused without revealing anything about it.
+Every accepted client upload ID gets a receipt so a lost response can be reconciled later.
+"""
 
 from __future__ import annotations
 
@@ -14,13 +19,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.settings.logging import logger
 from src.services.cloud.aws.s3 import s3_service
-from src.services.databases.postgresql.models import Document, Space, User
-from src.services.security.file_inspection import ReceivedFile, inspect_content
+from src.services.databases.postgresql.models import Document, DocumentUploadReceipt, Space, User
+from src.services.security.file_inspection import ReceivedFile, UploadRejected, inspect_content
 
 from . import pipeline
 from .service import document_service
 
 _FILE_TYPES = {".pdf": "pdf", ".docx": "docx", ".xlsx": "xlsx", ".pptx": "pptx", ".csv": "csv"}
+
+
+def duplicate_conflict() -> UploadRejected:
+    # Deliberately generic: says nothing about who owns the matching file or whether it is hidden.
+    return UploadRejected("duplicate_conflict", "This file can't be added to this space.", 409)
+
+
+def upload_id_reused() -> UploadRejected:
+    return UploadRejected("upload_id_reused", "This upload ID was already used for a different file.", 409)
 
 
 @dataclass
@@ -31,15 +45,64 @@ class IngestResult:
     details: dict[str, Any] | None = None
 
 
-async def find_by_upload_id(db: AsyncSession, *, space_id: str, user_id: str, upload_id: str) -> Document | None:
+async def _reload(db: AsyncSession, *objects) -> None:
+    """A rollback expires every loaded object; async sessions cannot lazy-load them back."""
+    for obj in objects:
+        await db.refresh(obj)
+
+
+async def can_read(db: AsyncSession, user: User, space_id: str, document_id: str) -> bool:
+    accessible = await document_service.list_accessible_documents(db, user, space_id=space_id)
+    return any(doc.id == document_id for doc in accessible)
+
+
+async def find_receipt(db: AsyncSession, *, space_id: str, user_id: str, upload_id: str) -> DocumentUploadReceipt | None:
     result = await db.execute(
-        select(Document).where(
-            Document.space_id == space_id,
-            Document.uploaded_by_user_id == user_id,
-            Document.client_upload_id == upload_id,
+        select(DocumentUploadReceipt).where(
+            DocumentUploadReceipt.space_id == space_id,
+            DocumentUploadReceipt.user_id == user_id,
+            DocumentUploadReceipt.upload_id == upload_id,
         )
     )
     return result.scalar_one_or_none()
+
+
+async def resolve_receipt(db: AsyncSession, user: User, space_id: str, upload_id: str) -> Document | None:
+    """The document an accepted upload ID resolved to, if the uploader can still read it."""
+    receipt = await find_receipt(db, space_id=space_id, user_id=user.id, upload_id=upload_id)
+    if receipt is None or not await can_read(db, user, space_id, receipt.document_id):
+        return None
+    return await document_service.get_document(db, receipt.document_id)
+
+
+async def _replay(db: AsyncSession, user: User, space: Space, upload_id: str, sha256: str) -> IngestResult | None:
+    """A repeated upload ID: same bytes return the original result, different bytes are refused."""
+    receipt = await find_receipt(db, space_id=space.id, user_id=user.id, upload_id=upload_id)
+    if receipt is None:
+        return None
+    if receipt.file_hash != sha256:
+        raise upload_id_reused()
+    if not await can_read(db, user, space.id, receipt.document_id):
+        raise duplicate_conflict()
+    return IngestResult(await document_service.get_document(db, receipt.document_id), created=False, duplicate=True)
+
+
+async def _accept_duplicate(db: AsyncSession, user: User, space: Space, existing: Document, upload_id: str | None, sha256: str) -> IngestResult:
+    if not await can_read(db, user, space.id, existing.id):
+        raise duplicate_conflict()
+    if upload_id:
+        db.add(DocumentUploadReceipt(space_id=space.id, user_id=user.id, upload_id=upload_id, document_id=existing.id, file_hash=sha256))
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            await _reload(db, user, space)
+            # The same upload ID was accepted concurrently; answer like a repeat.
+            replay = await _replay(db, user, space, upload_id, sha256)
+            if replay is None:
+                raise
+            return replay
+    return IngestResult(existing, created=False, duplicate=True)
 
 
 async def ingest(
@@ -53,16 +116,16 @@ async def ingest(
     upload_id: str | None = None,
 ) -> IngestResult:
     """Caller owns `received.path` and must delete it. Raises UploadRejected for unacceptable content."""
+    if upload_id:
+        replay = await _replay(db, user, space, upload_id, received.sha256)
+        if replay is not None:
+            return replay
+
     await asyncio.to_thread(inspect_content, received.path, ext)
 
     existing = await document_service.get_document_by_hash(db, received.sha256, space_id=space.id)
     if existing is not None:
-        # Unchanged behavior: identical bytes in a space resolve to the existing document for the uploader.
-        await document_service.grant_document_permissions(
-            db, space_id=space.id, user_id=user.id, document_ids=[existing.id]
-        )
-        await db.commit()
-        return IngestResult(existing, created=False, duplicate=True)
+        return await _accept_duplicate(db, user, space, existing, upload_id, received.sha256)
 
     doc = Document(
         id=str(uuid4()),
@@ -75,21 +138,28 @@ async def ingest(
         status="pending",
         state=pipeline.UPLOADED,
         uploaded_by_user_id=user.id,
-        client_upload_id=upload_id,
     )
-    db.add(doc)
     try:
+        db.add(doc)
+        await db.flush()  # the receipt references the document, so it must exist first
+        if upload_id:
+            db.add(DocumentUploadReceipt(space_id=space.id, user_id=user.id, upload_id=upload_id, document_id=doc.id, file_hash=received.sha256))
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        # A concurrent request with the same upload ID or the same bytes won the insert.
-        winner = None
+        # Otherwise the failed insert stays pending and the next query flushes it again.
+        if doc in db:
+            db.expunge(doc)
+        await _reload(db, user, space)
+        # A concurrent request inserted the same upload ID or the same bytes first.
         if upload_id:
-            winner = await find_by_upload_id(db, space_id=space.id, user_id=user.id, upload_id=upload_id)
-        winner = winner or await document_service.get_document_by_hash(db, received.sha256, space_id=space.id)
+            replay = await _replay(db, user, space, upload_id, received.sha256)
+            if replay is not None:
+                return replay
+        winner = await document_service.get_document_by_hash(db, received.sha256, space_id=space.id)
         if winner is None:
             raise
-        return IngestResult(winner, created=False, duplicate=True)
+        return await _accept_duplicate(db, user, space, winner, upload_id, received.sha256)
 
     await document_service.grant_document_permissions(db, space_id=space.id, user_id=user.id, document_ids=[doc.id])
     key = f"spaces/{space.id}/documents/{doc.id}{ext}"

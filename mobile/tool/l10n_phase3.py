@@ -81,6 +81,10 @@ STRINGS = {
         "The file couldn't be stored. Upload it again.",
         "تعذّر تخزين الملف. ارفعه مرة أخرى.",
     ),
+    "docErrorDuplicate": (
+        "This file can't be added to this space. If you need it, ask a space admin for access.",
+        "لا يمكن إضافة هذا الملف إلى مساحة العمل هذه. إن كنت بحاجة إليه فاطلب الصلاحية من مسؤول مساحة العمل.",
+    ),
     "docErrorGeneric": ("The document couldn't be processed.", "تعذّرت معالجة المستند."),
     "errorUnsupportedFile": ("This file type isn't supported.", "نوع الملف غير مدعوم."),
     "documentDetailsTitle": ("Document", "المستند"),

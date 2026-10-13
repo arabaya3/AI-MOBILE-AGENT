@@ -977,4 +977,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openLinkFailed => 'The link couldn\'t be opened.';
+
+  @override
+  String get docErrorDuplicate =>
+      'This file can\'t be added to this space. If you need it, ask a space admin for access.';
 }

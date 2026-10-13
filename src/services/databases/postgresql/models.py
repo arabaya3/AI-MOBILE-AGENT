@@ -28,17 +28,7 @@ class Document(Base):
     """Document metadata and processing results."""
 
     __tablename__ = "documents"
-    __table_args__ = (
-        UniqueConstraint("space_id", "file_hash", name="uq_documents_space_hash"),
-        Index(
-            "uq_documents_client_upload",
-            "space_id",
-            "uploaded_by_user_id",
-            "client_upload_id",
-            unique=True,
-            postgresql_where=text("client_upload_id IS NOT NULL"),
-        ),
-    )
+    __table_args__ = (UniqueConstraint("space_id", "file_hash", name="uq_documents_space_hash"),)
 
     id = Column(String, primary_key=True)
     space_id = Column(String, nullable=True, index=True)
@@ -60,7 +50,25 @@ class Document(Base):
     state = Column(String(16), nullable=False, default="uploaded", server_default="uploaded")
     state_error = Column(String(32), nullable=True)
     state_updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, server_default=func.now())
-    client_upload_id = Column(String(64), nullable=True)
+
+
+class DocumentUploadReceipt(Base):
+    """An accepted client upload ID, per space and uploader, and the document it resolved to.
+
+    Duplicates get their own receipt pointing at the existing document; the document itself
+    (uploader, metadata) is never changed. Access is re-checked whenever a receipt is read.
+    """
+
+    __tablename__ = "document_upload_receipts"
+    __table_args__ = (UniqueConstraint("space_id", "user_id", "upload_id", name="uq_upload_receipts_scope"),)
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    space_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    upload_id = Column(String(64), nullable=False)
+    document_id = Column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    file_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class User(Base):
