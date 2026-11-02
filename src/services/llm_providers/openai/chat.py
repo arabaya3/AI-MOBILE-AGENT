@@ -549,6 +549,10 @@ class OpenAIChatService:
             model=selected_model,
         )
 
+        # Set when the consumer stops (e.g. the client disconnected); the reader thread then closes
+        # the HTTP stream to the provider instead of reading it to the end.
+        cancelled = threading.Event()
+
         def _run_stream() -> None:
             try:
                 create_kwargs: Dict[str, Any] = {
@@ -569,6 +573,11 @@ class OpenAIChatService:
                         **create_kwargs,
                     )
                 for event in stream:
+                    if cancelled.is_set():
+                        close = getattr(stream, "close", None)
+                        if callable(close):
+                            close()
+                        break
                     usage = getattr(event, "usage", None)
                     if usage is not None:
                         loop.call_soon_threadsafe(queue.put_nowait, ("usage", usage))
@@ -618,6 +627,8 @@ class OpenAIChatService:
         except Exception as exc:  # noqa: BLE001
             tracer.end_generation(generation, status_message=str(exc))
             raise
+        finally:
+            cancelled.set()
 
     @staticmethod
     def _is_chat_model_id(model_id: str) -> bool:

@@ -196,6 +196,33 @@ class ChatMessageReaction(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class GenerationAttempt(Base):
+    """One model generation for a chat turn, recorded before the provider is called.
+
+    `outcome` is started -> completed | failed | cancelled. `usage_state` says whether the provider
+    reported usage (`reported`) or not (`unknown`); unknown usage is never stored as zero tokens.
+    """
+
+    __tablename__ = "generation_attempts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    space_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(String, ForeignKey("chat_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_message_id = Column(String, nullable=True)
+    endpoint = Column(String(64), nullable=False)
+    model = Column(String, nullable=True)
+    outcome = Column(String(16), nullable=False, default="started")
+    usage_state = Column(String(16), nullable=False, default="unknown")
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    total_tokens = Column(Integer, nullable=True)
+    error_code = Column(String(32), nullable=True)
+    usage_event_id = Column(String, ForeignKey("llm_usage_events.id", ondelete="SET NULL"), nullable=True, unique=True)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    finished_at = Column(DateTime, nullable=True)
+
+
 class LLMUsageEvent(Base):
     """Ledger of LLM usage for billing/analytics."""
 
@@ -300,13 +327,23 @@ class SpaceRequest(Base):
             unique=True,
             postgresql_where=text("type = 'join' AND status = 'pending'"),
         ),
+        Index(
+            "uq_space_requests_pending_key",
+            "space_id",
+            "user_id",
+            "dedupe_key",
+            unique=True,
+            postgresql_where=text("dedupe_key IS NOT NULL AND status = 'pending'"),
+        ),
     )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
     space_id = Column(String, ForeignKey("spaces.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    type = Column(String, nullable=False)  # join | model_access | quota_change | other
+    type = Column(String, nullable=False)  # join | model_access | tool_access | quota_change | upload_access | other
     payload = Column(JSON, default=dict)
+    # Identifies "the same request" (type + target); one pending request per key (see migration 20261102_0001).
+    dedupe_key = Column(String(200), nullable=True)
     status = Column(String, default="pending", nullable=False)  # pending | approved | declined
     reviewed_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     review_note = Column(Text, nullable=True)

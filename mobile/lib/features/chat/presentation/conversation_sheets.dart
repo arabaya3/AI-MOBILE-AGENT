@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/files/private_files.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
@@ -12,17 +14,19 @@ import '../application/conversation_controller.dart';
 import '../data/chat_api.dart';
 import 'message_widgets.dart';
 
-enum _MenuAction { summary, export, share }
+enum _MenuAction { rename, summary, exportFile, copy, share, delete }
 
 class ConversationMenu extends ConsumerWidget {
   const ConversationMenu({
     super.key,
     required this.sessionId,
     required this.busy,
+    this.title,
   });
 
   final String sessionId;
   final bool busy;
+  final String? title;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,27 +35,126 @@ class ConversationMenu extends ConsumerWidget {
       tooltip: l10n.moreActions,
       enabled: !busy,
       onSelected: (action) => switch (action) {
+        _MenuAction.rename => _rename(context, ref),
         _MenuAction.summary => _showSummary(context, ref),
-        _MenuAction.export => _export(context, ref),
+        _MenuAction.exportFile => _exportFile(context, ref),
+        _MenuAction.copy => _export(context, ref),
         _MenuAction.share => showModalBottomSheet<void>(
           context: context,
           showDragHandle: true,
           isScrollControlled: true,
           builder: (_) => ShareSheet(sessionId: sessionId),
         ),
+        _MenuAction.delete => _delete(context, ref),
       },
       itemBuilder: (_) => [
+        PopupMenuItem(
+          value: _MenuAction.rename,
+          child: Text(l10n.renameAction),
+        ),
         PopupMenuItem(
           value: _MenuAction.summary,
           child: Text(l10n.summaryAction),
         ),
         PopupMenuItem(
-          value: _MenuAction.export,
-          child: Text(l10n.exportAction),
+          value: _MenuAction.exportFile,
+          child: Text(l10n.exportFileAction),
         ),
+        PopupMenuItem(value: _MenuAction.copy, child: Text(l10n.exportAction)),
         PopupMenuItem(value: _MenuAction.share, child: Text(l10n.shareAction)),
+        PopupMenuItem(
+          value: _MenuAction.delete,
+          child: Text(l10n.deleteConversationAction),
+        ),
       ],
     );
+  }
+
+  Future<void> _rename(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (_) => _RenameDialog(initial: title ?? ''),
+    );
+    final clean = value?.trim() ?? '';
+    if (clean.isEmpty) return;
+    try {
+      await ref.read(chatApiProvider).rename(sessionId, clean);
+      ref.invalidate(chatSessionsProvider);
+    } on ApiException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(describeApiException(l10n, e))),
+      );
+    }
+  }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteConversationTitle),
+        content: Text(l10n.deleteConversationBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancelAction),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.deleteAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(chatApiProvider).delete(sessionId);
+      ref.invalidate(chatSessionsProvider);
+      router.go('/chat');
+      messenger.showSnackBar(SnackBar(content: Text(l10n.conversationDeleted)));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(describeApiException(l10n, e))),
+      );
+    }
+  }
+
+  /// Writes the Markdown export to the app's private folder and opens the system share sheet.
+  Future<void> _exportFile(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final markdown = await ref
+          .read(chatApiProvider)
+          .exportMarkdown(sessionId);
+      final name =
+          '${(title ?? '').trim().isEmpty ? 'conversation' : title!.trim()}.md';
+      final path = await ref
+          .read(privateFilesProvider)
+          .writeText(name, markdown);
+      final outcome = await ref.read(shareFileProvider)(
+        path,
+        'text/markdown',
+        title ?? l10n.untitledConversation,
+      );
+      if (outcome == ShareOutcome.unavailable) {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.shareUnavailable)));
+      }
+    } on ApiException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(describeApiException(l10n, e))),
+      );
+    } on Exception {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.shareUnavailable)));
+    }
   }
 
   Future<void> _export(BuildContext context, WidgetRef ref) async {
@@ -283,6 +386,50 @@ class _ShareSheetState extends ConsumerState<ShareSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Owns its text controller so it is disposed only after the dialog's exit animation.
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.renameTitle),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: 120,
+        decoration: InputDecoration(labelText: l10n.conversationNameLabel),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.cancelAction),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: Text(l10n.saveAction),
+        ),
+      ],
     );
   }
 }

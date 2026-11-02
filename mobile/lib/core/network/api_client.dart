@@ -144,6 +144,24 @@ class ApiClient {
     RequestKind kind = RequestKind.authenticated,
     bool includeSpace = true,
     CancelToken? cancelToken,
+  }) => eventStream(
+    path,
+    method: 'POST',
+    data: data,
+    kind: kind,
+    includeSpace: includeSpace,
+    cancelToken: cancelToken,
+  );
+
+  /// Decodes a `text/event-stream` response. The bearer token goes in a header, never the URL.
+  Stream<SseEvent> eventStream(
+    String path, {
+    String method = 'GET',
+    Object? data,
+    RequestKind kind = RequestKind.authenticated,
+    bool includeSpace = true,
+    CancelToken? cancelToken,
+    Duration receiveTimeout = const Duration(minutes: 5),
   }) async* {
     final token = kind == RequestKind.public ? null : _readToken();
     final spaceId = includeSpace ? _readSpaceId() : null;
@@ -153,17 +171,19 @@ class ApiClient {
     try {
       final Response<ResponseBody> response;
       try {
-        response = await _dio.post<ResponseBody>(
+        response = await _dio.request<ResponseBody>(
           path,
           data: data,
           cancelToken: requestToken,
           options: Options(
+            method: method,
             responseType: ResponseType.stream,
             headers: {
               ..._headers(token, spaceId),
               'Accept': 'text/event-stream',
             },
-            receiveTimeout: const Duration(minutes: 5),
+            receiveTimeout: receiveTimeout,
+            followRedirects: false,
             validateStatus: (_) => true,
           ),
         );

@@ -145,6 +145,7 @@ class NotificationService:
         space_id: str,
         space_name: str,
         request_type: str,
+        request_id: Optional[str] = None,
     ) -> Notification:
         """Notify user that their request was approved."""
         return await self.create_notification(
@@ -155,6 +156,7 @@ class NotificationService:
             title="Request Approved",
             message=f"Your {request_type} request for '{space_name}' has been approved.",
             link=f"/spaces/{space_id}",
+            metadata={"space_name": space_name, "request_type": request_type, "request_id": request_id},
         )
 
     async def notify_request_declined(
@@ -166,6 +168,7 @@ class NotificationService:
         space_name: str,
         request_type: str,
         reason: Optional[str] = None,
+        request_id: Optional[str] = None,
     ) -> Notification:
         """Notify user that their request was declined."""
         message = f"Your {request_type} request for '{space_name}' has been declined."
@@ -180,6 +183,7 @@ class NotificationService:
             title="Request Declined",
             message=message,
             link=f"/spaces/{space_id}",
+            metadata={"space_name": space_name, "request_type": request_type, "request_id": request_id, "note": reason},
         )
 
     async def notify_policy_updated(
@@ -199,6 +203,7 @@ class NotificationService:
             title="Policy Updated",
             message=f"The access policy for '{space_name}' has been updated.",
             link=f"/spaces/{space_id}",
+            metadata={"space_name": space_name},
         )
 
     async def notify_space_invitation(
@@ -220,6 +225,7 @@ class NotificationService:
             title="Space Invitation",
             message=f"{inviter_text} invited you to join '{space_name}'.",
             link=f"/spaces/{space_id}",
+            metadata={"space_name": space_name},
         )
 
     async def notify_quota_warning(
@@ -241,9 +247,24 @@ class NotificationService:
             title="Quota Warning",
             message=f"You have used {usage_percentage:.0f}% of your {quota_type} quota in '{space_name}'.",
             link=f"/spaces/{space_id}",
-            metadata={"quota_type": quota_type, "usage_percentage": usage_percentage},
+            metadata={"quota_type": quota_type, "usage_percentage": usage_percentage, "space_name": space_name},
         )
 
 
 # Singleton instance
 notification_service = NotificationService()
+
+
+def live_payload(notification: Notification) -> dict:
+    """The same fields the REST list returns, for the live stream."""
+    return {
+        "id": notification.id,
+        "space_id": notification.space_id,
+        "type": notification.type,
+        "title": notification.title,
+        "message": notification.message,
+        "link": notification.link,
+        "metadata": notification.notification_metadata or {},
+        "read": False,
+        "created_at": notification.created_at.isoformat(),
+    }

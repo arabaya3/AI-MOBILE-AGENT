@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:teia_ai/core/providers.dart';
 import 'package:teia_ai/core/storage/token_store.dart';
+import 'package:teia_ai/features/notifications/application/notifications_controller.dart';
 
 import 'fake_backend.dart';
 import 'test_app.dart';
@@ -12,6 +13,7 @@ Future<ProviderContainer> makeContainer(
   TokenStore? store,
   Map<String, Object> prefs = const {},
   List<Override> overrides = const [],
+  bool liveNotifications = false,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
   final container = ProviderContainer(
@@ -23,6 +25,7 @@ Future<ProviderContainer> makeContainer(
       tokenStoreProvider.overrideWithValue(store ?? InMemoryTokenStore()),
       dioProvider.overrideWithValue(backend.dio),
       testCacheRoot(),
+      notificationsLiveEnabledProvider.overrideWithValue(liveNotifications),
       ...overrides,
     ],
   );

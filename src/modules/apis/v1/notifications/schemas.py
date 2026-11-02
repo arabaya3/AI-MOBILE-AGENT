@@ -13,7 +13,8 @@ class NotificationResponse(BaseModel):
     title: str
     message: str
     link: Optional[str] = None
-    metadata: dict = Field(default_factory=dict, alias="notification_metadata")
+    # Read from the model's `notification_metadata`; serialized as `metadata` (what clients expect).
+    metadata: dict = Field(default_factory=dict, validation_alias="notification_metadata")
     read: bool
     created_at: datetime
 

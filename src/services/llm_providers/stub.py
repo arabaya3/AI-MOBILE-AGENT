@@ -8,6 +8,7 @@ Enabled only when CHAT_PROVIDER_STUB=true AND APP_ENV is development or test
   [[slow]]        40 chunks, 250 ms apart (stop / disconnect tests)
   [[long]]        200 quick chunks (scrolling tests)
   [[md]]          Markdown sample with a link and code
+  [[no-usage]]    stream completes but reports no usage (like a provider that omits it)
 """
 
 from __future__ import annotations
@@ -29,6 +30,8 @@ _MARKDOWN_SAMPLE = (
 
 class StubChatProvider:
     model = STUB_MODELS[0]
+    # Streams closed by the consumer before the end (observable stand-in for upstream cancellation).
+    closed_early = 0
 
     async def list_models(self) -> List[str]:
         return list(STUB_MODELS)
@@ -40,7 +43,7 @@ class StubChatProvider:
         return {"use_web_search": False}
 
     async def answer_with_memory(self, *, question: str, usage_sink: Dict[str, int] | None = None, **_: Any) -> str:
-        if usage_sink is not None:
+        if usage_sink is not None and "[[no-usage]]" not in question:
             usage_sink.update({"input_tokens": 40, "output_tokens": 12, "total_tokens": 52})
         if "executive summary" in question.lower():
             return "## Overview\n\nStub summary of the conversation.\n\n## Next Steps\n\n- None"
@@ -74,13 +77,20 @@ class StubChatProvider:
             chunks = []
 
         emitted = 0
-        for chunk in chunks[: 3 if "[[fail-after]]" in question else None]:
-            if delay:
-                await asyncio.sleep(delay)
-            emitted += len(chunk)
-            yield chunk
+        finished = False
+        try:
+            for chunk in chunks[: 3 if "[[fail-after]]" in question else None]:
+                if delay:
+                    await asyncio.sleep(delay)
+                emitted += len(chunk)
+                yield chunk
+            finished = True
+        finally:
+            if not finished:
+                StubChatProvider.closed_early += 1
 
-        if usage_sink is not None:
+        # Like the real provider, usage is only reported after the stream ends ("[[no-usage]]" omits it).
+        if usage_sink is not None and "[[no-usage]]" not in question:
             usage_sink.update({"input_tokens": 30, "output_tokens": emitted // 4 + 1, "total_tokens": 31 + emitted // 4})
         if "[[fail-before]]" in question or "[[fail-after]]" in question:
             # Same shape the OpenAI service yields when the provider call fails.

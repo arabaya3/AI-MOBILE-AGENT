@@ -40,6 +40,17 @@ class AuthApi {
     return CurrentUser.fromJson(response.data!);
   }
 
+  /// Only preference fields; a null value clears it, an absent key leaves it unchanged.
+  Future<CurrentUser> updatePreferences(Map<String, Object?> changes) async {
+    final response = await _client.request<Map<String, dynamic>>(
+      '/auth/me',
+      method: 'PATCH',
+      includeSpace: false,
+      data: changes,
+    );
+    return CurrentUser.fromJson(response.data!);
+  }
+
   Future<void> forgotPassword(String email) => _client.request<Object>(
     '/auth/forgot-password',
     method: 'POST',

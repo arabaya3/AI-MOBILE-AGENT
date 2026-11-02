@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from src.modules.apis.dependencies import get_current_user
 from src.services.databases.postgresql.database import get_db
+from src.core.settings.logging import logger
 from src.services.databases.postgresql.models import User, UserRequest
 
 router = APIRouter(prefix="/requests", tags=["Requests"])
@@ -50,9 +51,10 @@ async def create_user_request(
         await db.commit()
         await db.refresh(new_request)
         return new_request
-    except Exception as e:
+    except Exception:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Could not create user request", extra={"user_id": current_user.id})
+        raise HTTPException(status_code=500, detail="The request could not be created")
 
 @router.get("/", response_model=List[RequestResponse])
 async def list_requests(

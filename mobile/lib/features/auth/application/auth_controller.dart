@@ -114,6 +114,19 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  /// Saves preferences and shows them without starting a new session (scope keys stay the same).
+  Future<void> savePreferences(Map<String, Object?> changes) async {
+    final epoch = _session.epoch;
+    final updated = await ref.read(authApiProvider).updatePreferences(changes);
+    final current = state;
+    if (!ref.mounted || _session.epoch != epoch) return;
+    if (current is AuthSignedIn &&
+        current.user.id == updated.id &&
+        current.epoch == epoch) {
+      state = AuthSignedIn(updated, epoch);
+    }
+  }
+
   Future<ApiException?> _verify() async {
     final epoch = _session.epoch;
     state = const AuthVerifying();

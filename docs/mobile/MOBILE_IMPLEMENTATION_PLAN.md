@@ -513,6 +513,82 @@ Not done in Phase 3: a chunks view on mobile, document delete (no backend endpoi
 - **Scope:** in-app notifications (list, badge, foreground SSE while open, refresh on resume), my requests, usage and invoice PDF, export through the share sheet, profile and preferences, and personal instructions as scoped by D5.
 - **Acceptance:** every end-user item in §10 is marked "Mobile v1" and works.
 
+**Phase 4 results (2026-11-02, branch `feature/mobile-user-features`):**
+
+Baseline: `origin/dev` at `38b3d67` (Phase 3 merge); nothing newer. Reused: authenticated SSE parsing, scoped cancellation, private-file and download handling from Phases 2 and 3.
+
+Generation accounting (closes the cancelled-generation blocker S21 as far as it can be closed locally):
+- **Ledger:** `generation_attempts` (migration `20261102_0001`). An attempt is committed **before** the provider is called, so a disconnect cannot erase it.
+- **Finalization:** one conditional update (`outcome = 'started'`), so completion, failure, cancellation and retries account a turn exactly once.
+  - Outcomes: `completed`, `failed`, `cancelled`.
+  - `usage_state`: `reported` or `unknown`.
+- **Usage rows:** written only when the provider reported tokens. Unknown usage is never stored as zero.
+- **Client disconnect:** the stream handler finalizes the attempt from a separate, shielded session as `cancelled` / `client_disconnected`, then closes the provider stream.
+  - The OpenAI adapter now signals its reader thread, which closes the HTTP stream to the provider. The stub proves this close happens (tested on a real uvicorn server).
+  - **Not claimed:** that the provider stops generating or billing when its stream is closed. The provider reports usage only at the end of a stream, so a cancelled turn has unknown usage and no local cost.
+- **Quotas:** every attempt with unknown usage (including in-flight ones) counts `QUOTA_UNKNOWN_USAGE_TOKENS` (default 4,000) against token limits, so stopping replies cannot bypass them. This is a quota rule, not recorded usage.
+- **Usage reporting:** usage and invoices show these attempts as "no reported usage", and costs as incomplete or unavailable.
+
+Backend (all backward compatible):
+- `GET /chat/usage/overview?days=1..365`: rolling UTC window, requests with reported and unknown usage (with causes), tokens, estimated cost with `complete` and `requests_without_cost`, per-model and tool rows, and limits as used/remaining or `null` for no limit.
+- The invoice PDF says costs are estimates, prints "Unavailable" instead of `$0.0000`, and states how many requests are excluded.
+- `PATCH /chat/sessions/{id}` (rename) and `DELETE /chat/sessions/{id}` (messages and share links removed; usage and attempt records kept with an empty session reference). Owner and space only.
+- Space requests:
+  - Strict per-type payloads; `quota_change` can no longer smuggle `allowed_models`.
+  - A `dedupe_key` with a partial unique index makes resubmission return the pending request, even concurrently.
+  - Upload or model requests for access the user already has get 409.
+- Global `/requests` no longer returns exception text.
+- Notifications:
+  - Metadata now includes `space_name`, `request_type`, `request_id` and `note`.
+  - Live events carry the same fields as the list.
+  - The list serializes `metadata` as the web client already expected (it previously sent `notification_metadata`).
+- `PATCH /auth/me` updates only `preferred_language` (`en`/`ar`/null) and `industry`. Other fields are rejected.
+
+Mobile:
+- **Notifications:**
+  - Bell with unread badge, list, mark read and mark all read.
+  - Live updates over the authenticated SSE stream (bearer header, never a query token).
+  - The authoritative list is reloaded after every (re)connect; events are de-duplicated by ID.
+  - Reconnect backoff is 1–30 s. The stream pauses in the background and is discarded on account change.
+  - Opening a notification re-checks access with the server (space membership) before navigating. Unreachable targets are explained. Approvals refresh membership and chat models.
+- **Usage:**
+  - Periods of 24 hours and 7, 30 and 90 days, with the window shown in local time and labelled rolling.
+  - Requests and tokens, estimated cost (never shown as zero when unknown), and limits with remaining allowance or "no limit".
+  - Per-model and tool rows.
+  - The invoice PDF is downloaded through the API into private storage and handed to the system share sheet.
+- **Requests:**
+  - History with status, reviewer notes and space.
+  - Account-level requests read-only.
+  - New request form: model access, upload rights, higher limits, other. Tool access is hidden because no tool catalog endpoint exists.
+  - Single in-flight submission. An uncertain result reloads the list instead of resending.
+- **Conversations:** rename; delete with an explicit confirmation of what is removed and kept; "Share as file" (Markdown through the share sheet) alongside "Copy as Markdown".
+- **Account:** reply language (automatic, English, Arabic) saved to the account.
+- **Home:** notifications, usage and requests are live; only space administration remains marked unavailable (admins only).
+
+Verified:
+- **Backend:** **121** pytest tests, including accounting (completion, missing usage, provider failure, unexpected failure, duplicate finalization, quota reservation, invoice PDF) and the real-uvicorn disconnect (attempt `cancelled` / `unknown`, no usage row, provider stream closed, server healthy). Also requests (contract, smuggling, concurrent dedupe, approval effect, privacy), rename/delete, notifications privacy and metadata, and preferences.
+- **Mobile:** **195** Flutter tests, analyze clean, Android dev APK built (still only the `INTERNET` permission).
+  - Notifications: dedupe, bounded backoff with authoritative reload, lifecycle, account isolation, read counts.
+  - Widget flows: usage with unknown cost, invoice share and refusal, requests and an uncertain submit, rename, share file, delete and cancel, notification to destination, inaccessible target, preferences, and Arabic/English light/dark at 2×.
+  - A lifecycle bug in the rename dialog was found by the tests and fixed.
+- **Migration:** `20261102_0001` was applied twice to the local e2e database and checked on a fresh `create_all` schema together with all earlier migrations.
+- **End to end** (local backend, Postgres, Mailpit, moto S3, Qdrant, stub providers):
+  - API: disconnect accounting, unknown usage, invoice PDF, request deduplication and self-review 403, admin approval delivered live over SSE with metadata, upload permission applied, owner-only rename, delete keeping attempts.
+  - Android emulator:
+    - Upload request from the device, approved through the local admin API, unread badge updated live.
+    - Notification opened to Requests ("Approved" with the note); home showed uploads allowed without signing in again.
+    - Usage with unknown cost, then period change, then invoice in the share sheet.
+    - Rename, export through the share sheet, delete with confirmation (attempts kept on the server).
+    - Arabic, dark, 2× text, 360 dp.
+  - Screenshots are in `docs/mobile/screenshots/phase4/`.
+
+Deferred from Phase 4:
+- Edit/regenerate (not implemented; no prompt is resent silently).
+- Tool-access requests (no tool catalog endpoint).
+- Notification delete and background push (D4).
+- Personal instructions (D5; per-user `/system-prompts` exists but its scope is unresolved).
+- Calendar-month quota periods (the server uses rolling windows).
+
 ### Phase 5 — Space administration
 - **Scope:** all D1 space-admin items, plus workspace system prompts as specified by D5.
 - **Backend:**
@@ -542,7 +618,7 @@ Not done in Phase 3: a chunks view on mobile, document delete (no backend endpoi
 | R3 | Email-only reset tokens, generic response, single use | S | **Done in this phase** |
 | R4 | `GET /auth/me` | 1 | **Done (Phase 1)** |
 | S1 | change-password returns 400, not 401, for a wrong password | 1 | **Done (Phase 1)** |
-| S2 | Rename and delete sessions | 2 | Planned (not done in Phase 2) |
+| S2 | Rename and delete sessions | 2 | **Done (Phase 4)**; usage/attempt records kept |
 | S3 | 25 MiB streaming upload limit (413) and processing timeout | 3 | **Done (Phase 3)** |
 | S4 | Persist citations | 3 | **Done (Phase 3)**; re-authorized on every read |
 | S5 | Message IDs in `meta` and `done` | 2 | **Done (Phase 2)** |
@@ -557,12 +633,15 @@ Not done in Phase 3: a chunks view on mobile, document delete (no backend endpoi
 | S14 | `pool_pre_ping` so a client disconnect does not break the next request | 2 | **Done (Phase 2)** |
 | S15 | Local chat provider stub, refused outside development and test | 2 | **Done (Phase 2)** |
 | S16 | Durable document states, upload receipts for reconciliation, authorized single retry | 3 | **Done (Phase 3)** |
+| S25 | Strict space-request payloads and pending-request de-duplication | 4 | **Done (Phase 4)** |
+| S26 | Web notification stream sends the token as a query parameter the API ignores, so the web live stream never connects | 4 | Open (web; mobile uses the header) |
+| S27 | Invoice PDF printed unknown cost as `$0.0000` | 4 | **Done (Phase 4)** |
 | S24 | Identical-bytes deduplication granted the uploader access to the existing document (pre-existing) | 3 | **Done (Phase 3 review)**: access re-checked, generic 409, no grant |
 | S17 | Content validation by bytes, filename sanitizing, isolated and bounded extraction | 3 | **Done (Phase 3)** |
 | S18 | Streaming authorized download with safe headers; no storage metadata in sources | 3 | **Done (Phase 3)** |
 | S19 | `/vector-search` router passed no space (always 500) | 3 | **Done (Phase 3)** |
 | S20 | Branching checked the space only after writing | 3 | **Done (Phase 3)** |
-| S21 | Usage of generations cancelled by a disconnect is not recorded | 2 | **Open — release blocker** |
+| S21 | Usage of generations cancelled by a disconnect is not recorded | 2 | **Done locally (Phase 4)**: attempt ledger, unknown-usage quota charge; provider billing after close still unverifiable |
 | S22 | Durable job queue for document processing (currently in-request, lease-based recovery) | 3 | Open (recommended before scale) |
 | S23 | Embedding service returns zero vectors on failure | 3 | Mitigated (pipeline fails the document); service unchanged |
 
@@ -581,7 +660,8 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 - A macOS environment for iOS builds and signing.
 - Configured SMTP for password-reset email in each environment. Without it, reset requests are accepted silently and nothing is sent, by design.
 - Rotation of the provider keys that were committed to the upstream repository history.
-- **Usage accounting (S21):** when a client disconnects mid-stream, no usage row is written although a real provider keeps generating. Missing rows must not be read as zero cost. Release blocker.
+- **Provider charges after a disconnect (S21 remainder):** the attempt is recorded as cancelled with unknown usage and the provider stream is closed, but whether the provider stops generating or billing on close cannot be verified locally; confirm with the provider before release. Costs remain estimates from list prices.
+- **Migration `20261102_0001_generation_attempts_and_request_keys.sql`** must be applied by the owner per environment (never run remotely here).
 - **Migrations to apply per environment (owner, never automatic):** `20261012_0001_unique_pending_join_request.sql` and `20261013_0001_document_processing_state.sql`. The second backfills existing documents (completed with chunks → `ready`, otherwise `failed` with a code), assuming completed web uploads were indexed, as `upload-and-vectorize` always did.
 - **Extraction limits:** memory and CPU limits apply on Linux only. The tokenizer (`tiktoken`) downloads its public encoding file on first use unless the image pre-caches it.
 - **Unresolved release items found in Phase 1:** S10 (invitation tokens stored in plaintext and returned to the inviter) and S11 (web `/join-space` route missing, so emailed invite links fail on the web). Both must be fixed before release.
@@ -625,20 +705,20 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 | Change password | ✔ | ✔ | |
 | Space list / switch / accept invite / request access | ✔ | ✔ | |
 | Chat sessions, history, streaming | ✔ | ✔ (Phase 2) | Stop is device-only |
-| Rename / delete session | ✘ | ✘ (after S2) | Not in Phase 2 |
+| Rename / delete session | ✘ | ✔ (Phase 4) | Usage records kept |
 | Model selection | ✔ | ✔ (Phase 2) | Server policy |
 | Copy / regenerate / edit / branch / react | Partial | Partial (Phase 2) | Copy, branch, react done; regenerate/edit later |
 | Citations | ✔ (Phase 3: from history) | ✔ (Phase 3) | Persisted, re-authorized on read; real pages only |
 | Summary | ✔ | ✔ (Phase 2) | |
-| Export md/json | ✔ | Partial (Phase 2) | Markdown copied to clipboard; share sheet later |
+| Export md/json | ✔ | ✔ Markdown (Phase 4) | Share sheet file and copy; JSON export on web only |
 | Share links (create / revoke) | ✔ (create; fixed in S) | ✔ (Phase 2) | Revocation UI on mobile; web gets the API |
 | Document upload / list / open / chunks | ✔ | ✔ upload, list, status, retry, open (Phase 3); chunks view later | 25 MiB, states, upload IDs |
 | Document delete | ✘ (admin hide) | ✘ | No backend endpoint; hide stays web-only |
-| In-app notifications | Broken stream | ✔ | |
+| In-app notifications | Broken stream (S26) | ✔ (Phase 4) | Live over header-authenticated SSE |
 | Background push | ✘ | ✘ (deferred, D4) | |
-| Requests (space) | ✔ | ✔ | |
-| Usage and invoice PDF | ✔ | ✔ | |
-| Personal instructions | ✔ (per-user prompts) | ✔ if kept user-scoped (D5) | |
+| Requests (space) | ✔ | ✔ own requests (Phase 4) | Review stays Phase 5 |
+| Usage and invoice PDF | ✔ | ✔ (Phase 4) | Unknown usage and cost explicit |
+| Personal instructions | ✔ (per-user prompts) | ✘ deferred (D5) | Scope unresolved |
 | **Space admin**: members, roles, upload rights, document permissions, models/tools, quotas, requests review, invites, usage, dashboard | ✔ | ✔ | D1 |
 | Workspace system prompts | ✘ (per-user only) | ✔ (after S9) | D5 |
 | **Super admin**: all spaces, global usage, global admin dashboard, global user requests, user list | ✔ | ✘ **Web only in v1** | D1 |

@@ -28,5 +28,7 @@ beautifulsoup4>=4.12,<5
 # Local S3-compatible server and a real ASGI server for the disconnect test; never remote services.
 moto[server]>=5,<6
 uvicorn>=0.32,<0.33
+# Usage invoice PDF.
+reportlab>=4.2.5,<5
 pytest>=8.3,<9
 pytest-asyncio>=0.24,<0.25

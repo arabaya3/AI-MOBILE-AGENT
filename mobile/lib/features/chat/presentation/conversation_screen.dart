@@ -183,7 +183,11 @@ class _ConversationViewState extends ConsumerState<_ConversationView> {
         title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           if (state.sessionId != null)
-            ConversationMenu(sessionId: state.sessionId!, busy: state.busy),
+            ConversationMenu(
+              sessionId: state.sessionId!,
+              busy: state.busy,
+              title: title,
+            ),
         ],
       ),
       body: SafeArea(

@@ -176,3 +176,7 @@ class MessageReactionRequest(BaseModel):
 
 class MessageReactionResponse(BaseModel):
     success: bool = True
+
+
+class RenameSessionRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=120)

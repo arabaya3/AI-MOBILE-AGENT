@@ -183,6 +183,21 @@ class ChatApi {
     return response.data!['session_id'] as String;
   }
 
+  Future<ChatSessionSummary> rename(String sessionId, String title) async {
+    final response = await _client.request<Map<String, dynamic>>(
+      '/chat/sessions/${Uri.encodeComponent(sessionId)}',
+      method: 'PATCH',
+      data: {'title': title},
+    );
+    return ChatSessionSummary.fromJson(response.data!);
+  }
+
+  /// Deletes the conversation and its share links; usage records are kept by the server.
+  Future<void> delete(String sessionId) => _client.request<Object>(
+    '/chat/sessions/${Uri.encodeComponent(sessionId)}',
+    method: 'DELETE',
+  );
+
   Future<String> exportMarkdown(String sessionId) async {
     final response = await _client.request<String>(
       '/chat/sessions/${Uri.encodeComponent(sessionId)}/export',

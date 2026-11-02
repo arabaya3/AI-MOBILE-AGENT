@@ -165,6 +165,10 @@ class Settings(BaseSettings):
     # Deterministic local embeddings for end-to-end tests (same restriction).
     EMBEDDING_PROVIDER_STUB: bool = False
 
+    # Token-quota charge per generation whose usage the provider never reported (cancelled/failed).
+    # A quota rule only: no usage or cost is recorded for these attempts.
+    QUOTA_UNKNOWN_USAGE_TOKENS: int = 4000
+
     # Password reset
     PASSWORD_RESET_TTL_MINUTES: int = 60
 
