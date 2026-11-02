@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.services.databases.postgresql.models import ChatSession, LLMUsageEvent, User
+from src.services.databases.postgresql.models import LLMUsageEvent, User
 
 from . import accounting
 
@@ -103,15 +103,9 @@ async def _events(db: AsyncSession, user: User, space_id: str, since: datetime, 
 
 
 async def _sessions_since(db: AsyncSession, user: User, space_id: str, since: datetime, until: datetime) -> int:
-    result = await db.execute(
-        select(ChatSession.id).where(
-            ChatSession.user_id == user.id,
-            ChatSession.space_id == space_id,
-            ChatSession.created_at >= since,
-            ChatSession.created_at <= until,
-        )
-    )
-    return len(result.all())
+    from .handlers import conversations_started
+
+    return await conversations_started(db, space_id=space_id, user_id=user.id, since=since, until=until)
 
 
 def _limit(key: str, unit: str, hours: int, limit: Any, used: int, reserved: int = 0) -> UsageLimit:

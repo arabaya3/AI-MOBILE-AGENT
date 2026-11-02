@@ -549,9 +549,31 @@ class OpenAIChatService:
             model=selected_model,
         )
 
-        # Set when the consumer stops (e.g. the client disconnected); the reader thread then closes
-        # the HTTP stream to the provider instead of reading it to the end.
+        # The blocking SDK stream is read on a worker thread. `cancelled` stops that thread from queueing
+        # more items, and `upstream` lets the consumer close the HTTP stream itself, which also unblocks
+        # a read that is waiting on a stalled provider. Nothing here proves the provider stops generating
+        # or billing when the connection closes.
         cancelled = threading.Event()
+        upstream: Dict[str, Any] = {}
+        upstream_lock = threading.Lock()
+
+        def _close_upstream() -> None:
+            with upstream_lock:
+                stream = upstream.pop("stream", None)
+            close = getattr(stream, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception:  # noqa: BLE001
+                    logger.debug("Provider stream close failed", exc_info=True)
+
+        def _emit(item: tuple[str, Any] | None) -> None:
+            if item is not None and cancelled.is_set():
+                return
+            try:
+                loop.call_soon_threadsafe(queue.put_nowait, item)
+            except RuntimeError:
+                pass  # The event loop is gone; nobody is reading.
 
         def _run_stream() -> None:
             try:
@@ -572,34 +594,46 @@ class OpenAIChatService:
                     stream = self._get_client(selected_model).chat.completions.create(
                         **create_kwargs,
                     )
+                with upstream_lock:
+                    upstream["stream"] = stream
+                if cancelled.is_set():
+                    return
                 for event in stream:
                     if cancelled.is_set():
-                        close = getattr(stream, "close", None)
-                        if callable(close):
-                            close()
                         break
                     usage = getattr(event, "usage", None)
                     if usage is not None:
-                        loop.call_soon_threadsafe(queue.put_nowait, ("usage", usage))
+                        _emit(("usage", usage))
                     try:
                         delta = event.choices[0].delta.content if event.choices else None
                     except Exception:  # noqa: BLE001
                         delta = None
                     if delta:
-                        loop.call_soon_threadsafe(queue.put_nowait, ("delta", str(delta)))
+                        _emit(("delta", str(delta)))
             except Exception as exc:  # noqa: BLE001
-                loop.call_soon_threadsafe(queue.put_nowait, ("error", self._format_provider_error(selected_model, exc)))
+                if not cancelled.is_set():
+                    _emit(("error", self._format_provider_error(selected_model, exc)))
             finally:
-                loop.call_soon_threadsafe(queue.put_nowait, None)
+                _close_upstream()
+                _emit(None)
 
-        threading.Thread(target=_run_stream, daemon=True).start()
+        worker = threading.Thread(target=_run_stream, daemon=True, name="openai-chat-stream")
+        worker.start()
+        idle_timeout = float(getattr(settings, "PROVIDER_STREAM_IDLE_TIMEOUT_SECONDS", 120) or 120)
 
         collected: List[str] = []
         usage_details: Dict[str, int] = {}
         start = time.time()
         try:
             while True:
-                item = await queue.get()
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=idle_timeout)
+                except asyncio.TimeoutError:
+                    # A provider that stops sending is treated as failed; the stream is closed below.
+                    message = f"provider sent nothing for {idle_timeout:g} s"
+                    collected.append(f"\n\n[stream_error] {message}")
+                    yield f"\n\n[stream_error] {message}"
+                    break
                 if item is None:
                     break
                 kind, payload = item
@@ -628,7 +662,10 @@ class OpenAIChatService:
             tracer.end_generation(generation, status_message=str(exc))
             raise
         finally:
+            # Runs on completion, error, idle timeout and when the consumer closes the generator
+            # (client disconnect): stop queueing, then close the upstream stream from this side.
             cancelled.set()
+            _close_upstream()
 
     @staticmethod
     def _is_chat_model_id(model_id: str) -> bool:

@@ -524,10 +524,18 @@ Generation accounting (closes the cancelled-generation blocker S21 as far as it 
   - `usage_state`: `reported` or `unknown`.
 - **Usage rows:** written only when the provider reported tokens. Unknown usage is never stored as zero.
 - **Client disconnect:** the stream handler finalizes the attempt from a separate, shielded session as `cancelled` / `client_disconnected`, then closes the provider stream.
-  - The OpenAI adapter now signals its reader thread, which closes the HTTP stream to the provider. The stub proves this close happens (tested on a real uvicorn server).
+  - The OpenAI adapter closes the HTTP stream to the provider from the consumer side when the reply completes, fails, times out or is cancelled. Closing from that side also unblocks a reader thread that is waiting on a stalled provider; the thread then stops without reading or queueing anything more.
+  - A provider that sends nothing for `PROVIDER_STREAM_IDLE_TIMEOUT_SECONDS` (default 120) is ended as a provider error and closed.
+  - Evidence: the real adapter against a controlled fake upstream (`tests/unit/test_openai_stream_cleanup.py`): completion, upstream error, cancellation while blocked, idle stall, a provider that keeps sending after close, and a cancel while the request is still being created. Every case closes the stream and the worker thread exits. Against the previous adapter the stalled-stream case hung.
+  - One worker thread per streamed reply, which ends when the stream closes. Its queue holds only what the provider sent before the close.
   - **Not claimed:** that the provider stops generating or billing when its stream is closed. The provider reports usage only at the end of a stream, so a cancelled turn has unknown usage and no local cost.
 - **Quotas:** every attempt with unknown usage (including in-flight ones) counts `QUOTA_UNKNOWN_USAGE_TOKENS` (default 4,000) against token limits, so stopping replies cannot bypass them. This is a quota rule, not recorded usage.
 - **Usage reporting:** usage and invoices show these attempts as "no reported usage", and costs as incomplete or unavailable.
+- **Conversation limits (review fix, S28):** limits count conversations *started*, from a `conversation_creations` ledger (migration `20261103_0001`), not from existing conversations. Deleting a conversation keeps its ledger row, so it cannot reset a limit.
+  - A new conversation and a branch each add one row; continuing a conversation adds none. Branching is checked against the same daily and monthly limits.
+  - A per-user, per-space transaction lock serializes check-and-create, so concurrent starts cannot exceed a limit.
+  - The usage overview reports conversation limits from the same ledger.
+  - Backfill: one row per existing conversation at its original creation time. Conversations deleted before the migration cannot be counted; the delete endpoint ships in the same PR, so none exist in practice.
 
 Backend (all backward compatible):
 - `GET /chat/usage/overview?days=1..365`: rolling UTC window, requests with reported and unknown usage (with causes), tokens, estimated cost with `complete` and `requests_without_cost`, per-model and tool rows, and limits as used/remaining or `null` for no limit.
@@ -566,12 +574,12 @@ Mobile:
 - **Home:** notifications, usage and requests are live; only space administration remains marked unavailable (admins only).
 
 Verified:
-- **Backend:** **121** pytest tests, including accounting (completion, missing usage, provider failure, unexpected failure, duplicate finalization, quota reservation, invoice PDF) and the real-uvicorn disconnect (attempt `cancelled` / `unknown`, no usage row, provider stream closed, server healthy). Also requests (contract, smuggling, concurrent dedupe, approval effect, privacy), rename/delete, notifications privacy and metadata, and preferences.
+- **Backend:** **134** pytest tests (121 plus 13 from the review fixes: conversation-limit deletion bypass for daily and monthly, monthly window, continuing, branching, concurrent starts, user/space isolation, and six adapter cleanup cases), including accounting (completion, missing usage, provider failure, unexpected failure, duplicate finalization, quota reservation, invoice PDF) and the real-uvicorn disconnect (attempt `cancelled` / `unknown`, no usage row, provider stream closed, server healthy). Also requests (contract, smuggling, concurrent dedupe, approval effect, privacy), rename/delete, notifications privacy and metadata, and preferences.
 - **Mobile:** **195** Flutter tests, analyze clean, Android dev APK built (still only the `INTERNET` permission).
   - Notifications: dedupe, bounded backoff with authoritative reload, lifecycle, account isolation, read counts.
   - Widget flows: usage with unknown cost, invoice share and refusal, requests and an uncertain submit, rename, share file, delete and cancel, notification to destination, inaccessible target, preferences, and Arabic/English light/dark at 2×.
   - A lifecycle bug in the rename dialog was found by the tests and fixed.
-- **Migration:** `20261102_0001` was applied twice to the local e2e database and checked on a fresh `create_all` schema together with all earlier migrations.
+- **Migration:** `20261103_0001` was applied twice to the local e2e database (17 existing conversations backfilled, second run a no-op). `20261102_0001` was applied twice to the local e2e database and checked on a fresh `create_all` schema together with all earlier migrations.
 - **End to end** (local backend, Postgres, Mailpit, moto S3, Qdrant, stub providers):
   - API: disconnect accounting, unknown usage, invoice PDF, request deduplication and self-review 403, admin approval delivered live over SSE with metadata, upload permission applied, owner-only rename, delete keeping attempts.
   - Android emulator:
@@ -636,16 +644,17 @@ Deferred from Phase 4:
 | S25 | Strict space-request payloads and pending-request de-duplication | 4 | **Done (Phase 4)** |
 | S26 | Web notification stream sends the token as a query parameter the API ignores, so the web live stream never connects | 4 | Open (web; mobile uses the header) |
 | S27 | Invoice PDF printed unknown cost as `$0.0000` | 4 | **Done (Phase 4)** |
+| S28 | Deleting conversations reset conversation limits (limits counted existing conversations) | 4 | **Done (Phase 4 review)**: start ledger, transaction lock, branch limited |
 | S24 | Identical-bytes deduplication granted the uploader access to the existing document (pre-existing) | 3 | **Done (Phase 3 review)**: access re-checked, generic 409, no grant |
 | S17 | Content validation by bytes, filename sanitizing, isolated and bounded extraction | 3 | **Done (Phase 3)** |
 | S18 | Streaming authorized download with safe headers; no storage metadata in sources | 3 | **Done (Phase 3)** |
 | S19 | `/vector-search` router passed no space (always 500) | 3 | **Done (Phase 3)** |
 | S20 | Branching checked the space only after writing | 3 | **Done (Phase 3)** |
-| S21 | Usage of generations cancelled by a disconnect is not recorded | 2 | **Done locally (Phase 4)**: attempt ledger, unknown-usage quota charge; provider billing after close still unverifiable |
+| S21 | Usage of generations cancelled by a disconnect is not recorded | 2 | **Done locally (Phase 4)**: attempt ledger, unknown-usage quota charge; provider stream closed on every exit path (fake-upstream tests); provider billing after close still unverifiable |
 | S22 | Durable job queue for document processing (currently in-request, lease-based recovery) | 3 | Open (recommended before scale) |
 | S23 | Embedding service returns zero vectors on failure | 3 | Mitigated (pipeline fails the document); service unchanged |
 
-Deferred: refresh tokens, push device registration (D4), document delete, a job queue for processing (S22), server-side stream cancellation (the provider keeps generating after a disconnect), pagination.
+Deferred: refresh tokens, push device registration (D4), document delete, a job queue for processing (S22), confirmation that the provider stops generating once its stream is closed (unverified locally), pagination.
 
 ---
 
@@ -661,7 +670,7 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 - Configured SMTP for password-reset email in each environment. Without it, reset requests are accepted silently and nothing is sent, by design.
 - Rotation of the provider keys that were committed to the upstream repository history.
 - **Provider charges after a disconnect (S21 remainder):** the attempt is recorded as cancelled with unknown usage and the provider stream is closed, but whether the provider stops generating or billing on close cannot be verified locally; confirm with the provider before release. Costs remain estimates from list prices.
-- **Migration `20261102_0001_generation_attempts_and_request_keys.sql`** must be applied by the owner per environment (never run remotely here).
+- **Migrations `20261102_0001_generation_attempts_and_request_keys.sql` and `20261103_0001_conversation_creations.sql`** must be applied by the owner per environment (never run remotely here).
 - **Migrations to apply per environment (owner, never automatic):** `20261012_0001_unique_pending_join_request.sql` and `20261013_0001_document_processing_state.sql`. The second backfills existing documents (completed with chunks → `ready`, otherwise `failed` with a code), assuming completed web uploads were indexed, as `upload-and-vectorize` always did.
 - **Extraction limits:** memory and CPU limits apply on Linux only. The tokenizer (`tiktoken`) downloads its public encoding file on first use unless the image pre-caches it.
 - **Unresolved release items found in Phase 1:** S10 (invitation tokens stored in plaintext and returned to the inviter) and S11 (web `/join-space` route missing, so emailed invite links fail on the web). Both must be fixed before release.

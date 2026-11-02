@@ -169,6 +169,9 @@ class Settings(BaseSettings):
     # A quota rule only: no usage or cost is recorded for these attempts.
     QUOTA_UNKNOWN_USAGE_TOKENS: int = 4000
 
+    # A provider stream that sends nothing for this long is ended as a provider error and closed.
+    PROVIDER_STREAM_IDLE_TIMEOUT_SECONDS: int = 120
+
     # Password reset
     PASSWORD_RESET_TTL_MINUTES: int = 60
 

@@ -196,6 +196,20 @@ class ChatMessageReaction(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class ConversationCreation(Base):
+    """One row per conversation started (new or branched); kept when the conversation is deleted,
+    so conversation limits cannot be reset by deleting conversations."""
+
+    __tablename__ = "conversation_creations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    space_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(String, ForeignKey("chat_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    kind = Column(String(16), nullable=False)  # new | branch | backfill
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
 class GenerationAttempt(Base):
     """One model generation for a chat turn, recorded before the provider is called.
 

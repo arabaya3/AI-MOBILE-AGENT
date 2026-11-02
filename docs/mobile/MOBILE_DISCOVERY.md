@@ -393,11 +393,11 @@ Verified against `chat/handlers.py` and changed in a backward-compatible way:
   - The stream accepts only a bearer header; the `token` query parameter the web sends is ignored, so the web live stream never connects (S26).
   - The list serialized `notification_metadata` while the web expected `metadata`.
 - **Usage:**
-  - Windows are rolling (last 24 h, last 30 days, UTC); "request" limits count conversations started.
+  - Windows are rolling (last 24 h, last 30 days, UTC); "request" limits count conversations, but by counting existing conversations, so deleting them would reset the limit (fixed with a start ledger, S28). Branches were not limited.
   - Costs come from a local price table (`tracer.estimate_cost`), not provider invoices.
   - Totals added only events with a cost, so partial coverage looked complete. The PDF printed unknown cost as `$0.0000`.
   - Turns without provider usage were stored as zero tokens.
-- **Disconnect:** the attempt left no record and the provider thread kept reading the stream.
+- **Disconnect:** the attempt left no record and the provider thread kept reading the stream; a stalled provider blocked it indefinitely.
 - **Requests:**
   - Space requests accepted any payload. Approving `quota_change` applied any `allowed_models` it contained.
   - Duplicates were possible except for joins.

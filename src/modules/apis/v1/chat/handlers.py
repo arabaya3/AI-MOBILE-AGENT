@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
 from fastapi.responses import Response, StreamingResponse
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.observability import tracer
@@ -34,7 +34,7 @@ from src.modules.apis.v1.chat.schemas import (
 from src.modules.apis.v1.chat import accounting, citations, usage
 from src.modules.apis.v1.chat.service import chat_service
 from src.modules.apis.v1.documents.service import document_service
-from src.services.databases.postgresql.models import ChatSession, LLMUsageEvent, Space, User
+from src.services.databases.postgresql.models import ChatSession, ConversationCreation, LLMUsageEvent, Space, User
 from src.services.databases.postgresql.models import ChatMessage, ChatMessageReaction
 from src.services.llm_providers.provider import get_chat_provider
 from src.core.settings.config import settings
@@ -277,30 +277,38 @@ async def _enforce_token_quota(db: AsyncSession, *, space_id: str, user_id: str,
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Monthly token limit reached")
 
 
+async def conversations_started(db: AsyncSession, *, space_id: str, user_id: str, since: datetime, until: datetime) -> int:
+    """Conversations started (new or branched), from the creation ledger; deleting a conversation does not reduce it."""
+    stmt = select(func.count(ConversationCreation.id)).where(
+        ConversationCreation.space_id == space_id,
+        ConversationCreation.user_id == user_id,
+        ConversationCreation.created_at >= since,
+        ConversationCreation.created_at <= until,
+    )
+    return int((await db.execute(stmt)).scalar() or 0)
+
+
 async def _enforce_conversation_quota(db: AsyncSession, *, space_id: str, user_id: str, policy: dict) -> None:
-    """Enforce daily/monthly conversation creation limits (sessions created) for the user."""
+    """Daily/monthly conversation-start limits (the request-limit fields).
+
+    Takes a per-user, per-space transaction lock first, so concurrent requests cannot both pass the
+    check: the caller must create the conversation (and its ledger row) in the same transaction.
+    """
+    if policy.get("daily_request_limit") is None and policy.get("monthly_request_limit") is None:
+        return
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"conversation-quota:{space_id}:{user_id}"},
+    )
     now = datetime.utcnow()
-    daily_start = now - timedelta(days=1)
-    monthly_start = now - timedelta(days=30)
-
-    async def _count_sessions_since(start: datetime) -> int:
-        stmt = select(func.count(ChatSession.id)).where(
-            ChatSession.space_id == space_id,
-            ChatSession.user_id == user_id,
-            ChatSession.created_at >= start,
-            ChatSession.created_at <= now,
-        )
-        return int((await db.execute(stmt)).scalar() or 0)
-
-    daily_conversations = await _count_sessions_since(daily_start)
-    monthly_conversations = await _count_sessions_since(monthly_start)
-
-    # Use existing request-limit fields as conversation limits (per requirement).
-    if policy.get("daily_request_limit") is not None and int(daily_conversations) >= int(policy["daily_request_limit"]):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Daily conversation limit reached")
-    if policy.get("monthly_request_limit") is not None and int(monthly_conversations) >= int(policy["monthly_request_limit"]):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Monthly conversation limit reached")
-
+    if policy.get("daily_request_limit") is not None:
+        used = await conversations_started(db, space_id=space_id, user_id=user_id, since=now - timedelta(days=1), until=now)
+        if used >= int(policy["daily_request_limit"]):
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Daily conversation limit reached")
+    if policy.get("monthly_request_limit") is not None:
+        used = await conversations_started(db, space_id=space_id, user_id=user_id, since=now - timedelta(days=30), until=now)
+        if used >= int(policy["monthly_request_limit"]):
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Monthly conversation limit reached")
 
 async def handle_list_all_models(user: User, db: AsyncSession, *, space_id: str) -> list[str]:
     """Return all available models for server/admin listing, ignoring space policy limits."""
@@ -1213,10 +1221,12 @@ async def handle_branch_session(
     space_id: str,
 ) -> BranchSessionResponse:
     try:
-        await _get_space_and_member(db, space_id=space_id, user=user)
+        space, member = await _get_space_and_member(db, space_id=space_id, user=user)
         source = await chat_service.get_session(db, session_id)
         if source is None or source.user_id != user.id or source.space_id != space_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+        # A branch starts a new conversation, so it uses the same limits as starting one.
+        await _enforce_conversation_quota(db, space_id=space_id, user_id=user.id, policy=_effective_policy(space, member))
         new_session = await chat_service.branch_session(
             db,
             user_id=user.id,
