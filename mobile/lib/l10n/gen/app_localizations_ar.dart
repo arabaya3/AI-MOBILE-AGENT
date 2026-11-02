@@ -130,9 +130,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get upcomingDocuments => 'المستندات';
 
   @override
-  String get upcomingNotifications => 'الإشعارات';
-
-  @override
   String get upcomingSpaceAdmin => 'إدارة مساحة العمل';
 
   @override
@@ -971,4 +968,372 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get docErrorDuplicate =>
       'لا يمكن إضافة هذا الملف إلى مساحة العمل هذه. إن كنت بحاجة إليه فاطلب الصلاحية من مسؤول مساحة العمل.';
+
+  @override
+  String get notificationsTitle => 'الإشعارات';
+
+  @override
+  String notificationsUnread(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count إشعارًا غير مقروء',
+      few: '$count إشعارات غير مقروءة',
+      two: 'إشعاران غير مقروءين',
+      one: 'إشعار واحد غير مقروء',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get markAllReadAction => 'تحديد الكل كمقروء';
+
+  @override
+  String get notificationsReconnecting =>
+      'التحديثات المباشرة متوقفة مؤقتًا، وجارٍ إعادة الاتصال. ستُحدَّث القائمة بعد الاتصال.';
+
+  @override
+  String get notificationsEmptyTitle => 'لا توجد إشعارات';
+
+  @override
+  String get notificationsEmptyBody =>
+      'تظهر هنا التحديثات الخاصة بطلباتك ومساحات العمل.';
+
+  @override
+  String get notificationTargetUnavailable => 'لم يعد هذا متاحًا لك.';
+
+  @override
+  String get notifApprovedTitle => 'تمت الموافقة على الطلب';
+
+  @override
+  String notifApprovedBody(String type, String space) {
+    return 'تمت الموافقة على طلب $type في $space.';
+  }
+
+  @override
+  String get notifDeclinedTitle => 'رُفض الطلب';
+
+  @override
+  String notifDeclinedBody(String type, String space) {
+    return 'رُفض طلب $type في $space.';
+  }
+
+  @override
+  String notifDeclinedBodyNote(String type, String space, String note) {
+    return 'رُفض طلب $type في $space. ملاحظة: $note';
+  }
+
+  @override
+  String get notifPolicyTitle => 'تغيّرت إعدادات مساحة العمل';
+
+  @override
+  String notifPolicyBody(String space) {
+    return 'حُدّثت النماذج أو الحدود في $space.';
+  }
+
+  @override
+  String get notifInviteTitle => 'دعوة';
+
+  @override
+  String notifInviteBody(String space) {
+    return 'تمت دعوتك للانضمام إلى $space.';
+  }
+
+  @override
+  String get notifQuotaTitle => 'اقتربت من حد الاستخدام';
+
+  @override
+  String notifQuotaBody(String space) {
+    return 'أنت قريب من أحد حدود الاستخدام في $space.';
+  }
+
+  @override
+  String get requestTypeJoin => 'انضمام';
+
+  @override
+  String get requestTypeModel => 'الوصول إلى نموذج';
+
+  @override
+  String get requestTypeTool => 'الوصول إلى أداة';
+
+  @override
+  String get requestTypeQuota => 'رفع الحدود';
+
+  @override
+  String get requestTypeUpload => 'رفع المستندات';
+
+  @override
+  String get requestTypeOther => 'أخرى';
+
+  @override
+  String get usageTitle => 'الاستخدام';
+
+  @override
+  String get periodDay => '24 ساعة';
+
+  @override
+  String periodDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يومًا',
+      few: '$days أيام',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String usageWindow(String start, String end) {
+    return 'من $start إلى $end بتوقيتك المحلي. تُحسب المدة رجوعًا من الآن.';
+  }
+
+  @override
+  String get usageSummaryTitle => 'الملخص';
+
+  @override
+  String get usageRequests => 'الردود المطلوبة';
+
+  @override
+  String usageUnknownRequests(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ردًا بلا استخدام مُبلَّغ عنه (مثل ردود أُوقفت أو انقطعت).',
+      few: '$count ردود بلا استخدام مُبلَّغ عنه (مثل ردود أُوقفت أو انقطعت).',
+      two: 'ردّان بلا استخدام مُبلَّغ عنه (مثل ردود أُوقفت أو انقطعت).',
+      one: 'ردّ واحد بلا استخدام مُبلَّغ عنه (مثل رد أُوقف أو انقطع).',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get usageInputTokens => 'رموز الإدخال';
+
+  @override
+  String get usageOutputTokens => 'رموز الإخراج';
+
+  @override
+  String get usageTotalTokens => 'إجمالي الرموز';
+
+  @override
+  String get usageCostTitle => 'التكلفة التقديرية';
+
+  @override
+  String get usageCostBasis =>
+      'تقدير وفق الأسعار المعلنة بالدولار الأمريكي، وليست فاتورة من المزوّد.';
+
+  @override
+  String get usageCostUnavailable => 'غير متاحة';
+
+  @override
+  String usageCostIncomplete(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ردًا بلا بيانات استخدام أو سعر وغير مشمول.',
+      few: '$count ردود بلا بيانات استخدام أو سعر وغير مشمولة.',
+      two: 'ردّان بلا بيانات استخدام أو سعر وغير مشمولين.',
+      one: 'ردّ واحد بلا بيانات استخدام أو سعر وغير مشمول.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get usageCostNone =>
+      'لا يوجد في هذه المدة رد له بيانات استخدام وسعر، لذلك لا يمكن عرض تكلفة. هذا لا يعني أنه كان مجانيًا.';
+
+  @override
+  String get usageLimitsTitle => 'الحدود';
+
+  @override
+  String get usageLimitsExplain =>
+      'تُحسب الحدود رجوعًا من الآن، وتُحسب حدود المحادثات بعدد المحادثات التي بدأتها.';
+
+  @override
+  String get usageByModel => 'حسب النموذج';
+
+  @override
+  String usageModelLine(String requests, String tokens) {
+    return '$requests ردود · $tokens رمز';
+  }
+
+  @override
+  String get usageTools => 'الأدوات';
+
+  @override
+  String usageToolCalls(String count) {
+    return '$count استدعاءات';
+  }
+
+  @override
+  String get limitTokens => 'الرموز';
+
+  @override
+  String get limitConversations => 'المحادثات';
+
+  @override
+  String get limitToolRequests => 'استدعاءات الأدوات';
+
+  @override
+  String get limitLast24h => 'آخر 24 ساعة';
+
+  @override
+  String get limitLast30d => 'آخر 30 يومًا';
+
+  @override
+  String limitNone(String used) {
+    return 'المستخدم $used · بلا حد';
+  }
+
+  @override
+  String limitValue(String used, String limit, String remaining) {
+    return 'المستخدم $used من $limit · المتبقي $remaining';
+  }
+
+  @override
+  String limitReserved(String tokens) {
+    return 'يشمل $tokens محسوبة لردود لم يُبلَّغ عن استخدامها.';
+  }
+
+  @override
+  String get invoiceAction => 'مشاركة الفاتورة (PDF)';
+
+  @override
+  String get invoiceExplain =>
+      'يُنشئ الخادم ملف PDF للمدة المختارة، ويُحفظ في التخزين الخاص بالتطبيق حتى تسجيل الخروج أو تبديل مساحة العمل.';
+
+  @override
+  String get invoiceShareSubject => 'فاتورة استخدام TEIA';
+
+  @override
+  String get shareUnavailable => 'المشاركة غير متاحة على هذا الجهاز.';
+
+  @override
+  String get requestsTitle => 'الطلبات';
+
+  @override
+  String get requestsExplain =>
+      'الطلبات التي أرسلتها إلى مسؤولي مساحات العمل. تُحدَّث صلاحياتك تلقائيًا عند الموافقة.';
+
+  @override
+  String get requestsEmptyTitle => 'لا توجد طلبات';
+
+  @override
+  String get requestsEmptyBody =>
+      'اطلب الوصول إلى نموذج أو رفع الحدود أو صلاحية الرفع.';
+
+  @override
+  String get accountRequestsTitle => 'طلبات الحساب';
+
+  @override
+  String get requestPending => 'قيد المراجعة';
+
+  @override
+  String get requestApproved => 'مقبول';
+
+  @override
+  String get requestDeclined => 'مرفوض';
+
+  @override
+  String requestSentOn(String date) {
+    return 'أُرسل في $date';
+  }
+
+  @override
+  String get reviewerNote => 'ملاحظة المراجِع';
+
+  @override
+  String get newRequestAction => 'طلب جديد';
+
+  @override
+  String get newRequestTitle => 'طلب جديد';
+
+  @override
+  String get requestUploadExplain =>
+      'اطلب صلاحية رفع المستندات في مساحة العمل هذه.';
+
+  @override
+  String get requestReason => 'ما الذي تحتاجه؟';
+
+  @override
+  String get requestReasonOptional => 'السبب (اختياري)';
+
+  @override
+  String get requestChooseModel => 'اختر نموذجًا.';
+
+  @override
+  String get requestQuotaInvalid =>
+      'أدخل رقمًا صحيحًا أكبر من صفر في حقل واحد على الأقل.';
+
+  @override
+  String get requestReasonRequired => 'صِف ما تحتاجه.';
+
+  @override
+  String get requestSent => 'أُرسل الطلب.';
+
+  @override
+  String get requestAlreadyPending => 'لديك هذا الطلب بالفعل قيد المراجعة.';
+
+  @override
+  String get requestUncertain =>
+      'تعذّر تأكيد الطلب. حُدّثت القائمة؛ راجعها قبل الإرسال مرة أخرى.';
+
+  @override
+  String get sendRequestAction => 'إرسال الطلب';
+
+  @override
+  String get quotaDailyTokens => 'الرموز لكل 24 ساعة';
+
+  @override
+  String get quotaMonthlyTokens => 'الرموز لكل 30 يومًا';
+
+  @override
+  String get quotaDailyConversations => 'المحادثات لكل 24 ساعة';
+
+  @override
+  String get quotaMonthlyConversations => 'المحادثات لكل 30 يومًا';
+
+  @override
+  String get renameAction => 'إعادة التسمية';
+
+  @override
+  String get renameTitle => 'إعادة تسمية المحادثة';
+
+  @override
+  String get conversationNameLabel => 'الاسم';
+
+  @override
+  String get saveAction => 'حفظ';
+
+  @override
+  String get exportFileAction => 'مشاركة كملف';
+
+  @override
+  String get deleteConversationAction => 'حذف';
+
+  @override
+  String get deleteConversationTitle => 'حذف هذه المحادثة؟';
+
+  @override
+  String get deleteConversationBody =>
+      'تُحذف رسائلها وتتوقف روابط مشاركتها عن العمل، وتبقى سجلات الاستخدام. لا يمكن استرجاع النسخ التي شاركتها أو صدّرتها سابقًا.';
+
+  @override
+  String get deleteAction => 'حذف';
+
+  @override
+  String get conversationDeleted => 'حُذفت المحادثة.';
+
+  @override
+  String get replyLanguageTitle => 'لغة الردود';
+
+  @override
+  String get replyLanguageExplain =>
+      'اللغة التي يجيب بها المساعد. التلقائي يتبع لغة سؤالك.';
+
+  @override
+  String get replyLanguageAuto => 'تلقائي';
+
+  @override
+  String get upcomingNotifications => 'الإشعارات';
 }

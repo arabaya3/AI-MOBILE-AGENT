@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/preferences/app_preferences.dart';
 import '../core/providers.dart';
 import '../core/theme/app_theme.dart';
+import '../core/files/private_files.dart';
 import '../features/documents/application/document_files.dart';
+import '../features/notifications/application/notifications_controller.dart';
 import '../l10n/gen/app_localizations.dart';
 import 'router.dart';
 
@@ -46,6 +48,9 @@ class _TeiaAppState extends ConsumerState<TeiaApp> {
   Widget build(BuildContext context) {
     // Keeps downloaded copies tied to the current account and space.
     ref.watch(documentFilesProvider);
+    ref.watch(privateFilesProvider);
+    // Starts the live notification link once signed in; it follows the account and app lifecycle.
+    ref.listen(notificationsControllerProvider, (_, _) {});
     final locale = ref.watch(localeProvider);
     return MaterialApp.router(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,

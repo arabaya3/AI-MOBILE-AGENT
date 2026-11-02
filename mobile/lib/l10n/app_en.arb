@@ -39,7 +39,6 @@
   "sectionUpcoming": "Coming in later releases",
   "upcomingChat": "Chat",
   "upcomingDocuments": "Documents",
-  "upcomingNotifications": "Notifications",
   "upcomingSpaceAdmin": "Space administration",
   "notAvailableYet": "Not available yet",
   "sectionDeveloper": "Developer build",
@@ -387,5 +386,245 @@
   },
   "imageNotLoaded": "Image not loaded",
   "openLinkFailed": "The link couldn't be opened.",
-  "docErrorDuplicate": "This file can't be added to this space. If you need it, ask a space admin for access."
+  "docErrorDuplicate": "This file can't be added to this space. If you need it, ask a space admin for access.",
+  "notificationsTitle": "Notifications",
+  "notificationsUnread": "{count, plural, =1{1 unread notification} other{{count} unread notifications}}",
+  "@notificationsUnread": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "markAllReadAction": "Mark all read",
+  "notificationsReconnecting": "Live updates are paused; reconnecting. The list refreshes once connected.",
+  "notificationsEmptyTitle": "No notifications",
+  "notificationsEmptyBody": "Updates about your requests and spaces appear here.",
+  "notificationTargetUnavailable": "This is no longer available to you.",
+  "notifApprovedTitle": "Request approved",
+  "notifApprovedBody": "Your {type} request in {space} was approved.",
+  "@notifApprovedBody": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "space": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDeclinedTitle": "Request declined",
+  "notifDeclinedBody": "Your {type} request in {space} was declined.",
+  "@notifDeclinedBody": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "space": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDeclinedBodyNote": "Your {type} request in {space} was declined. Note: {note}",
+  "@notifDeclinedBodyNote": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "space": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "notifPolicyTitle": "Space settings changed",
+  "notifPolicyBody": "The models or limits in {space} were updated.",
+  "@notifPolicyBody": {
+    "placeholders": {
+      "space": {
+        "type": "String"
+      }
+    }
+  },
+  "notifInviteTitle": "Invitation",
+  "notifInviteBody": "You were invited to join {space}.",
+  "@notifInviteBody": {
+    "placeholders": {
+      "space": {
+        "type": "String"
+      }
+    }
+  },
+  "notifQuotaTitle": "Usage limit approaching",
+  "notifQuotaBody": "You are close to a usage limit in {space}.",
+  "@notifQuotaBody": {
+    "placeholders": {
+      "space": {
+        "type": "String"
+      }
+    }
+  },
+  "requestTypeJoin": "Join",
+  "requestTypeModel": "Model access",
+  "requestTypeTool": "Tool access",
+  "requestTypeQuota": "Higher limits",
+  "requestTypeUpload": "Document uploads",
+  "requestTypeOther": "Other",
+  "usageTitle": "Usage",
+  "periodDay": "24 hours",
+  "periodDays": "{days} days",
+  "@periodDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "usageWindow": "From {start} to {end}, your local time. Windows roll back from now.",
+  "@usageWindow": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "usageSummaryTitle": "Summary",
+  "usageRequests": "Replies requested",
+  "usageUnknownRequests": "{count, plural, =1{1 reply has no reported usage (for example stopped or interrupted).} other{{count} replies have no reported usage (for example stopped or interrupted).}}",
+  "@usageUnknownRequests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "usageInputTokens": "Input tokens",
+  "usageOutputTokens": "Output tokens",
+  "usageTotalTokens": "Total tokens",
+  "usageCostTitle": "Estimated cost",
+  "usageCostBasis": "Estimated from list prices in US dollars; not a provider invoice.",
+  "usageCostUnavailable": "Unavailable",
+  "usageCostIncomplete": "{count, plural, =1{1 reply has no usage or price data and is not included.} other{{count} replies have no usage or price data and are not included.}}",
+  "@usageCostIncomplete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "usageCostNone": "No reply in this period has usage and price data, so no cost can be shown. This does not mean it was free.",
+  "usageLimitsTitle": "Limits",
+  "usageLimitsExplain": "Limits count back from now. Conversation limits count conversations started.",
+  "usageByModel": "By model",
+  "usageModelLine": "{requests} replies · {tokens} tokens",
+  "@usageModelLine": {
+    "placeholders": {
+      "requests": {
+        "type": "String"
+      },
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "usageTools": "Tools",
+  "usageToolCalls": "{count} calls",
+  "@usageToolCalls": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "limitTokens": "Tokens",
+  "limitConversations": "Conversations",
+  "limitToolRequests": "Tool calls",
+  "limitLast24h": "last 24 hours",
+  "limitLast30d": "last 30 days",
+  "limitNone": "{used} used · no limit",
+  "@limitNone": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      }
+    }
+  },
+  "limitValue": "{used} of {limit} used · {remaining} left",
+  "@limitValue": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      },
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "limitReserved": "Includes {tokens} counted for replies whose usage was never reported.",
+  "@limitReserved": {
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "invoiceAction": "Share invoice (PDF)",
+  "invoiceExplain": "The PDF is created by the server for the selected period and kept in this app's private storage until you sign out or switch space.",
+  "invoiceShareSubject": "TEIA usage invoice",
+  "shareUnavailable": "Sharing isn't available on this device.",
+  "requestsTitle": "Requests",
+  "requestsExplain": "Requests you sent to space administrators. Approvals update your access automatically.",
+  "requestsEmptyTitle": "No requests",
+  "requestsEmptyBody": "Ask for model access, higher limits or upload rights.",
+  "accountRequestsTitle": "Account requests",
+  "requestPending": "Pending",
+  "requestApproved": "Approved",
+  "requestDeclined": "Declined",
+  "requestSentOn": "Sent {date}",
+  "@requestSentOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewerNote": "Reviewer's note",
+  "newRequestAction": "New request",
+  "newRequestTitle": "New request",
+  "requestUploadExplain": "Ask to upload documents in this space.",
+  "requestReason": "What do you need?",
+  "requestReasonOptional": "Reason (optional)",
+  "requestChooseModel": "Choose a model.",
+  "requestQuotaInvalid": "Enter at least one whole number above zero.",
+  "requestReasonRequired": "Describe what you need.",
+  "requestSent": "Request sent.",
+  "requestAlreadyPending": "You already have this request pending.",
+  "requestUncertain": "We couldn't confirm the request. The list was refreshed; check it before sending again.",
+  "sendRequestAction": "Send request",
+  "quotaDailyTokens": "Tokens per 24 hours",
+  "quotaMonthlyTokens": "Tokens per 30 days",
+  "quotaDailyConversations": "Conversations per 24 hours",
+  "quotaMonthlyConversations": "Conversations per 30 days",
+  "renameAction": "Rename",
+  "renameTitle": "Rename conversation",
+  "conversationNameLabel": "Name",
+  "saveAction": "Save",
+  "exportFileAction": "Share as file",
+  "deleteConversationAction": "Delete",
+  "deleteConversationTitle": "Delete this conversation?",
+  "deleteConversationBody": "Its messages are deleted and its share links stop working. Usage records are kept. Copies you already shared or exported can't be recalled.",
+  "deleteAction": "Delete",
+  "conversationDeleted": "Conversation deleted.",
+  "replyLanguageTitle": "Reply language",
+  "replyLanguageExplain": "The language the assistant answers in. Automatic follows your question.",
+  "replyLanguageAuto": "Automatic",
+  "upcomingNotifications": "Notifications"
 }

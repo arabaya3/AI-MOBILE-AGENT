@@ -287,7 +287,7 @@ class SpacesService:
         return space
 
     async def update_policy(self, db: AsyncSession, *, space: Space, **fields) -> Space:
-        from src.services.notifications.service import notification_service
+        from src.services.notifications.service import live_payload, notification_service
         from src.services.notifications.broadcaster import broadcaster
         
         self._validate_quota_fields(fields)
@@ -322,15 +322,7 @@ class SpacesService:
             await broadcaster.broadcast_to_user(
                 member.user_id,
                 "notification",
-                {
-                    "id": notification.id,
-                    "type": notification.type,
-                    "title": notification.title,
-                    "message": notification.message,
-                    "link": notification.link,
-                    "read": False,
-                    "created_at": notification.created_at.isoformat(),
-                }
+                live_payload(notification)
             )
         
         logger.info(
@@ -472,6 +464,37 @@ class SpacesService:
         )
         return req
 
+    async def create_keyed_request(
+        self, db: AsyncSession, *, space_id: str, user: User, type_value: str, payload: dict, dedupe_key: str | None
+    ) -> SpaceRequest:
+        """One pending request per (user, space, key): a resubmission returns the pending one."""
+        if dedupe_key:
+            existing = await self._pending_by_key(db, space_id=space_id, user_id=user.id, dedupe_key=dedupe_key)
+            if existing is not None:
+                return existing
+        try:
+            async with db.begin_nested():
+                req = SpaceRequest(
+                    space_id=space_id, user_id=user.id, type=type_value, payload=payload, status="pending", dedupe_key=dedupe_key
+                )
+                db.add(req)
+                await db.flush()
+            return req
+        except IntegrityError:
+            existing = await self._pending_by_key(db, space_id=space_id, user_id=user.id, dedupe_key=dedupe_key)
+            if existing is None:
+                raise
+            return existing
+
+    async def _pending_by_key(self, db: AsyncSession, *, space_id: str, user_id: str, dedupe_key: str | None) -> Optional[SpaceRequest]:
+        stmt = select(SpaceRequest).where(
+            SpaceRequest.space_id == space_id,
+            SpaceRequest.user_id == user_id,
+            SpaceRequest.dedupe_key == dedupe_key,
+            SpaceRequest.status == "pending",
+        )
+        return (await db.execute(stmt)).scalars().first()
+
     async def create_join_request(self, db: AsyncSession, *, space_id: str, user: User) -> SpaceRequest:
         """Idempotent under concurrency: the partial unique index decides the winner."""
         try:
@@ -513,7 +536,7 @@ class SpacesService:
         return rows
 
     async def review_request(self, db: AsyncSession, *, req: SpaceRequest, reviewer: User, decision: str, note: str | None) -> SpaceRequest:
-        from src.services.notifications.service import notification_service
+        from src.services.notifications.service import live_payload, notification_service
         from src.services.notifications.broadcaster import broadcaster
         from src.services.email.service import email_service
         
@@ -543,6 +566,7 @@ class SpacesService:
                 space_id=req.space_id,
                 space_name=space.name,
                 request_type=req.type,
+                request_id=req.id,
             )
         else:
             notification = await notification_service.notify_request_declined(
@@ -552,21 +576,14 @@ class SpacesService:
                 space_name=space.name,
                 request_type=req.type,
                 reason=note,
+                request_id=req.id,
             )
         
         # Broadcast real-time notification
         await broadcaster.broadcast_to_user(
             req.user_id,
             "notification",
-            {
-                "id": notification.id,
-                "type": notification.type,
-                "title": notification.title,
-                "message": notification.message,
-                "link": notification.link,
-                "read": False,
-                "created_at": notification.created_at.isoformat(),
-            }
+            live_payload(notification)
         )
         
         # Send email notification

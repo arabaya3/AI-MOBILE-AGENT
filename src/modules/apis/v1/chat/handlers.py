@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
 from fastapi.responses import Response, StreamingResponse
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.observability import tracer
@@ -31,10 +31,10 @@ from src.modules.apis.v1.chat.schemas import (
     UsageLimits,
     ToolUsageSummary,
 )
-from src.modules.apis.v1.chat import citations
+from src.modules.apis.v1.chat import accounting, citations, usage
 from src.modules.apis.v1.chat.service import chat_service
 from src.modules.apis.v1.documents.service import document_service
-from src.services.databases.postgresql.models import ChatSession, LLMUsageEvent, Space, User
+from src.services.databases.postgresql.models import ChatSession, ConversationCreation, LLMUsageEvent, Space, User
 from src.services.databases.postgresql.models import ChatMessage, ChatMessageReaction
 from src.services.llm_providers.provider import get_chat_provider
 from src.core.settings.config import settings
@@ -258,6 +258,15 @@ async def _enforce_token_quota(db: AsyncSession, *, space_id: str, user_id: str,
 
     daily_req, daily_tokens = await _sum_since(daily_start)
     monthly_req, monthly_tokens = await _sum_since(monthly_start)
+    # Generations whose usage was never reported (cancelled, failed, in progress) are charged a fixed
+    # reservation so that stopping replies early cannot be used to bypass token limits.
+    reservation = accounting.unknown_usage_reservation()
+    daily_tokens = int(daily_tokens) + reservation * await accounting.unknown_usage_count(
+        db, space_id=space_id, user_id=user_id, since=daily_start, until=now
+    )
+    monthly_tokens = int(monthly_tokens) + reservation * await accounting.unknown_usage_count(
+        db, space_id=space_id, user_id=user_id, since=monthly_start, until=now
+    )
 
     # Note: request limits are enforced as conversation creation limits elsewhere.
     _ = daily_req
@@ -268,30 +277,38 @@ async def _enforce_token_quota(db: AsyncSession, *, space_id: str, user_id: str,
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Monthly token limit reached")
 
 
+async def conversations_started(db: AsyncSession, *, space_id: str, user_id: str, since: datetime, until: datetime) -> int:
+    """Conversations started (new or branched), from the creation ledger; deleting a conversation does not reduce it."""
+    stmt = select(func.count(ConversationCreation.id)).where(
+        ConversationCreation.space_id == space_id,
+        ConversationCreation.user_id == user_id,
+        ConversationCreation.created_at >= since,
+        ConversationCreation.created_at <= until,
+    )
+    return int((await db.execute(stmt)).scalar() or 0)
+
+
 async def _enforce_conversation_quota(db: AsyncSession, *, space_id: str, user_id: str, policy: dict) -> None:
-    """Enforce daily/monthly conversation creation limits (sessions created) for the user."""
+    """Daily/monthly conversation-start limits (the request-limit fields).
+
+    Takes a per-user, per-space transaction lock first, so concurrent requests cannot both pass the
+    check: the caller must create the conversation (and its ledger row) in the same transaction.
+    """
+    if policy.get("daily_request_limit") is None and policy.get("monthly_request_limit") is None:
+        return
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"conversation-quota:{space_id}:{user_id}"},
+    )
     now = datetime.utcnow()
-    daily_start = now - timedelta(days=1)
-    monthly_start = now - timedelta(days=30)
-
-    async def _count_sessions_since(start: datetime) -> int:
-        stmt = select(func.count(ChatSession.id)).where(
-            ChatSession.space_id == space_id,
-            ChatSession.user_id == user_id,
-            ChatSession.created_at >= start,
-            ChatSession.created_at <= now,
-        )
-        return int((await db.execute(stmt)).scalar() or 0)
-
-    daily_conversations = await _count_sessions_since(daily_start)
-    monthly_conversations = await _count_sessions_since(monthly_start)
-
-    # Use existing request-limit fields as conversation limits (per requirement).
-    if policy.get("daily_request_limit") is not None and int(daily_conversations) >= int(policy["daily_request_limit"]):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Daily conversation limit reached")
-    if policy.get("monthly_request_limit") is not None and int(monthly_conversations) >= int(policy["monthly_request_limit"]):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Monthly conversation limit reached")
-
+    if policy.get("daily_request_limit") is not None:
+        used = await conversations_started(db, space_id=space_id, user_id=user_id, since=now - timedelta(days=1), until=now)
+        if used >= int(policy["daily_request_limit"]):
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Daily conversation limit reached")
+    if policy.get("monthly_request_limit") is not None:
+        used = await conversations_started(db, space_id=space_id, user_id=user_id, since=now - timedelta(days=30), until=now)
+        if used >= int(policy["monthly_request_limit"]):
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Monthly conversation limit reached")
 
 async def handle_list_all_models(user: User, db: AsyncSession, *, space_id: str) -> list[str]:
     """Return all available models for server/admin listing, ignoring space policy limits."""
@@ -739,15 +756,36 @@ async def handle_chat_query(
 
         tool_usage_sink: dict[str, int] = {}
         usage_sink: dict[str, int] = {}
-        reply = await chat_service.generate_reply(
-            message=payload.message,
-            history=history,
-            contexts=contexts,
+        attempt_kwargs = {
+            "model": selected_model,
+            "space_id": space_id,
+            "user_id": user.id,
+            "session_id": session.id,
+            "endpoint": "chat.query",
+        }
+        attempt_id = await accounting.start(
+            db,
+            space_id=space_id,
+            user_id=user.id,
+            session_id=session.id,
+            user_message_id=None,
+            endpoint="chat.query",
             model=selected_model,
-            allowed_tools=allowed_tools,
-            tool_usage_sink=tool_usage_sink,
-            usage_sink=usage_sink,
         )
+        try:
+            reply = await chat_service.generate_reply(
+                message=payload.message,
+                history=history,
+                contexts=contexts,
+                model=selected_model,
+                allowed_tools=allowed_tools,
+                tool_usage_sink=tool_usage_sink,
+                usage_sink=usage_sink,
+            )
+        except BaseException as exc:
+            outcome = accounting.CANCELLED if isinstance(exc, asyncio.CancelledError) else accounting.FAILED
+            await accounting.finalize_detached(attempt_id, outcome=outcome, usage=dict(usage_sink), error_code="generation_failed", **attempt_kwargs)
+            raise
 
         await chat_service.append_message(
             db,
@@ -759,19 +797,14 @@ async def handle_chat_query(
 
         updated_history = await chat_service.get_history(db, session_id=session.id)
 
-        cost_details = tracer.estimate_cost(selected_model, usage_sink) if usage_sink else {}
-        cost_usd = float(cost_details.get("total_cost_usd")) if cost_details and cost_details.get("total_cost_usd") is not None else None
-        await chat_service.record_usage_event(
+        await accounting.finalize(
             db,
-            space_id=space_id,
-            user_id=user.id,
-            session_id=session.id,
-            endpoint="chat.query",
-            model=selected_model,
-            usage_details=usage_sink or None,
-            cost_usd=cost_usd,
-            meta_payload={"source_count": len(contexts)},
-            tool_usage=tool_usage_sink or None,
+            attempt_id,
+            outcome=accounting.COMPLETED,
+            usage=usage_sink,
+            meta={"source_count": len(contexts)},
+            tool_usage=tool_usage_sink,
+            **attempt_kwargs,
         )
 
         return ChatQueryResponse(
@@ -860,6 +893,10 @@ async def handle_chat_query_stream(
     async def _event_stream():
         turn_span = None
         turn_token = None
+        attempt_id: str | None = None
+        attempt_kwargs: dict = {}
+        usage_sink: dict[str, int] = {}
+        provider_stream = None
         try:
             space, member = await _get_space_and_member(db, space_id=space_id, user=user)
             policy = _effective_policy(space, member)
@@ -1020,6 +1057,22 @@ async def handle_chat_query_stream(
                     yield _sse_done(session.id, user_message.id, assistant_message.id)
                     return
 
+            attempt_kwargs = {
+                "model": selected_model,
+                "space_id": space_id,
+                "user_id": user.id,
+                "session_id": session.id,
+                "endpoint": "chat.query.stream",
+            }
+            attempt_id = await accounting.start(
+                db,
+                space_id=space_id,
+                user_id=user.id,
+                session_id=session.id,
+                user_message_id=user_message.id,
+                endpoint="chat.query.stream",
+                model=selected_model,
+            )
             meta = {
                 "session_id": session.id,
                 "user_message_id": user_message.id,
@@ -1028,9 +1081,8 @@ async def handle_chat_query_stream(
             yield f"event: meta\ndata: {json.dumps(meta, ensure_ascii=False)}\n\n"
 
             collected: list[str] = []
-            usage_sink: dict[str, int] = {}
             provider_error: str | None = None
-            async for delta in get_chat_provider().stream_with_memory(
+            provider_stream = get_chat_provider().stream_with_memory(
                 history=[{"role": item.role, "content": item.content} for item in history],
                 question=payload.message,
                 contexts=contexts,
@@ -1038,7 +1090,8 @@ async def handle_chat_query_stream(
                 usage_sink=usage_sink,
                 user_industry=getattr(payload, "user_industry", None),
                 user_language=getattr(payload, "user_language", None),
-            ):
+            )
+            async for delta in provider_stream:
                 if PROVIDER_ERROR_MARKER in delta:
                     # The provider reports failures in-band; never stream or store them as an answer.
                     before, _, provider_error = delta.partition(PROVIDER_ERROR_MARKER)
@@ -1055,16 +1108,14 @@ async def handle_chat_query_stream(
                     "Chat provider failed during stream",
                     extra={"session_id": session.id, "model": selected_model, "partial": bool(reply)},
                 )
-                await chat_service.record_usage_event(
+                await accounting.finalize(
                     db,
-                    space_id=space_id,
-                    user_id=user.id,
-                    session_id=session.id,
-                    endpoint="chat.query.stream",
-                    model=selected_model,
-                    usage_details=usage_sink,
-                    cost_usd=None,
-                    meta_payload={"source_count": len(contexts), "provider_error": True},
+                    attempt_id,
+                    outcome=accounting.FAILED,
+                    usage=usage_sink,
+                    error_code="provider_error",
+                    meta={"source_count": len(contexts), "provider_error": True},
+                    **attempt_kwargs,
                 )
                 await db.commit()
                 yield _sse_error(
@@ -1081,17 +1132,13 @@ async def handle_chat_query_stream(
                 content=reply,
                 meta_payload=citations.with_citations({"source_count": len(contexts), "model": payload.model}, contexts),
             )
-            cost_details = tracer.estimate_cost(selected_model, usage_sink) if usage_sink else {}
-            await chat_service.record_usage_event(
+            await accounting.finalize(
                 db,
-                space_id=space_id,
-                user_id=user.id,
-                session_id=session.id,
-                endpoint="chat.query.stream",
-                model=selected_model,
-                usage_details=usage_sink,
-                cost_usd=cost_details.get("total_cost_usd") if cost_details else None,
-                meta_payload={"source_count": len(contexts)},
+                attempt_id,
+                outcome=accounting.COMPLETED,
+                usage=usage_sink,
+                meta={"source_count": len(contexts)},
+                **attempt_kwargs,
             )
             await db.commit()
 
@@ -1099,18 +1146,39 @@ async def handle_chat_query_stream(
             return
         except asyncio.CancelledError:
             await db.rollback()
+            if attempt_id:
+                # The client went away. The attempt was committed before generation, so it survives;
+                # usage stays unknown unless the provider had already reported it.
+                await accounting.finalize_detached(
+                    attempt_id,
+                    outcome=accounting.CANCELLED,
+                    usage=dict(usage_sink),
+                    error_code="client_disconnected",
+                    **attempt_kwargs,
+                )
             raise
         except HTTPException as exc:
             await db.rollback()
+            if attempt_id:
+                await accounting.finalize_detached(
+                    attempt_id, outcome=accounting.FAILED, usage=dict(usage_sink), error_code="request_failed", **attempt_kwargs
+                )
             code = {429: "quota_exceeded", 403: "forbidden", 404: "not_found"}.get(exc.status_code, "request_failed")
             yield _sse_error(str(exc.detail), code)
             return
         except Exception:
             await db.rollback()
+            if attempt_id:
+                await accounting.finalize_detached(
+                    attempt_id, outcome=accounting.FAILED, usage=dict(usage_sink), error_code="internal", **attempt_kwargs
+                )
             logger.exception("Chat stream failed", extra={"space_id": space_id, "user_id": user.id})
             yield _sse_error("The reply could not be completed.", "internal")
             return
         finally:
+            if provider_stream is not None:
+                # Closing the generator tells the provider adapter to close its upstream stream.
+                await provider_stream.aclose()
             tracer.end_span(turn_span)
             tracer.reset_context(turn_token)
             await db.close()
@@ -1153,10 +1221,12 @@ async def handle_branch_session(
     space_id: str,
 ) -> BranchSessionResponse:
     try:
-        await _get_space_and_member(db, space_id=space_id, user=user)
+        space, member = await _get_space_and_member(db, space_id=space_id, user=user)
         source = await chat_service.get_session(db, session_id)
         if source is None or source.user_id != user.id or source.space_id != space_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+        # A branch starts a new conversation, so it uses the same limits as starting one.
+        await _enforce_conversation_quota(db, space_id=space_id, user_id=user.id, policy=_effective_policy(space, member))
         new_session = await chat_service.branch_session(
             db,
             user_id=user.id,
@@ -1705,12 +1775,13 @@ async def handle_usage_invoice_pdf(
     story.append(Spacer(1, 10))
 
     totals = invoice.totals
-    total_cost = float(totals.cost_usd or 0.0)
+    coverage = await handle_usage_overview(user, db, space_id=space_id, days=days)
+    total_cost_text = "Unavailable" if coverage.cost.amount is None else f"${coverage.cost.amount:,.4f} (estimated)"
     summary_tbl = Table(
         [
-            ["Requests", f"{totals.requests:,}"],
+            ["Requests", f"{coverage.requests.total:,}"],
             ["Tokens", f"{totals.total_tokens:,} (in {totals.input_tokens:,} / out {totals.output_tokens:,})"],
-            ["Total (USD)", f"${total_cost:,.4f}"],
+            ["Total (USD)", total_cost_text],
         ],
         colWidths=[30 * mm, None],
         hAlign="LEFT",
@@ -1728,6 +1799,14 @@ async def handle_usage_invoice_pdf(
         )
     )
     story.append(summary_tbl)
+    story.append(Spacer(1, 4))
+    coverage_note = "Costs are estimated from configured list prices, not provider invoices."
+    if not coverage.cost.complete:
+        coverage_note += (
+            f" {coverage.cost.requests_without_cost:,} request(s) have no reported usage or price"
+            " (for example stopped or interrupted replies) and are not included in the total."
+        )
+    story.append(Paragraph(coverage_note, style_small))
     story.append(Spacer(1, 12))
 
     story.append(Paragraph("Usage by model", styles["Heading3"]))
@@ -1740,7 +1819,7 @@ async def handle_usage_invoice_pdf(
                 f"{row.input_tokens:,}",
                 f"{row.output_tokens:,}",
                 f"{row.total_tokens:,}",
-                f"${float(row.cost_usd or 0.0):,.4f}",
+                "—" if row.cost_usd is None else f"${float(row.cost_usd):,.4f}",
             ]
         )
     by_model_tbl = Table(by_model_rows, hAlign="LEFT")
@@ -1823,4 +1902,42 @@ async def handle_usage_invoice_pdf(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+async def _owned_session(db: AsyncSession, user: User, space_id: str, session_id: str) -> ChatSession:
+    session = await chat_service.get_session(db, session_id)
+    if session is None or session.user_id != user.id or session.space_id != space_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return session
+
+
+async def handle_rename_session(session_id: str, title: str, user: User, db: AsyncSession, *, space_id: str) -> ChatSessionSummary:
+    session = await _owned_session(db, user, space_id, session_id)
+    clean = " ".join(title.split())
+    if not clean:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Title is required")
+    session.title = clean[:120]
+    await db.flush()
+    return ChatSessionSummary.model_validate(session)
+
+
+async def handle_delete_session(session_id: str, user: User, db: AsyncSession, *, space_id: str) -> None:
+    """Deletes the conversation, its messages and its share links. Usage and generation records stay
+    (their session reference becomes empty), so accounting and quotas are unaffected."""
+    session = await _owned_session(db, user, space_id, session_id)
+    await db.delete(session)
+    await db.flush()
+
+
+async def handle_usage_overview(user: User, db: AsyncSession, *, space_id: str, days: int) -> "usage.UsageOverview":
+    space, member = await _get_space_and_member(db, space_id=space_id, user=user)
+    return await usage.overview(
+        db,
+        user=user,
+        space_id=space_id,
+        policy=_effective_policy(space, member),
+        days=days,
+        tool_usage_of=_sum_tool_usage,
+        tool_costs_of=_calc_tool_costs,
     )

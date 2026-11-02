@@ -332,12 +332,6 @@ abstract class AppLocalizations {
   /// **'Documents'**
   String get upcomingDocuments;
 
-  /// No description provided for @upcomingNotifications.
-  ///
-  /// In en, this message translates to:
-  /// **'Notifications'**
-  String get upcomingNotifications;
-
   /// No description provided for @upcomingSpaceAdmin.
   ///
   /// In en, this message translates to:
@@ -1843,6 +1837,588 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This file can\'t be added to this space. If you need it, ask a space admin for access.'**
   String get docErrorDuplicate;
+
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsUnread.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 unread notification} other{{count} unread notifications}}'**
+  String notificationsUnread(int count);
+
+  /// No description provided for @markAllReadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all read'**
+  String get markAllReadAction;
+
+  /// No description provided for @notificationsReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Live updates are paused; reconnecting. The list refreshes once connected.'**
+  String get notificationsReconnecting;
+
+  /// No description provided for @notificationsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications'**
+  String get notificationsEmptyTitle;
+
+  /// No description provided for @notificationsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates about your requests and spaces appear here.'**
+  String get notificationsEmptyBody;
+
+  /// No description provided for @notificationTargetUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This is no longer available to you.'**
+  String get notificationTargetUnavailable;
+
+  /// No description provided for @notifApprovedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request approved'**
+  String get notifApprovedTitle;
+
+  /// No description provided for @notifApprovedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your {type} request in {space} was approved.'**
+  String notifApprovedBody(String type, String space);
+
+  /// No description provided for @notifDeclinedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request declined'**
+  String get notifDeclinedTitle;
+
+  /// No description provided for @notifDeclinedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your {type} request in {space} was declined.'**
+  String notifDeclinedBody(String type, String space);
+
+  /// No description provided for @notifDeclinedBodyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your {type} request in {space} was declined. Note: {note}'**
+  String notifDeclinedBodyNote(String type, String space, String note);
+
+  /// No description provided for @notifPolicyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Space settings changed'**
+  String get notifPolicyTitle;
+
+  /// No description provided for @notifPolicyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The models or limits in {space} were updated.'**
+  String notifPolicyBody(String space);
+
+  /// No description provided for @notifInviteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation'**
+  String get notifInviteTitle;
+
+  /// No description provided for @notifInviteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You were invited to join {space}.'**
+  String notifInviteBody(String space);
+
+  /// No description provided for @notifQuotaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage limit approaching'**
+  String get notifQuotaTitle;
+
+  /// No description provided for @notifQuotaBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You are close to a usage limit in {space}.'**
+  String notifQuotaBody(String space);
+
+  /// No description provided for @requestTypeJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Join'**
+  String get requestTypeJoin;
+
+  /// No description provided for @requestTypeModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model access'**
+  String get requestTypeModel;
+
+  /// No description provided for @requestTypeTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool access'**
+  String get requestTypeTool;
+
+  /// No description provided for @requestTypeQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher limits'**
+  String get requestTypeQuota;
+
+  /// No description provided for @requestTypeUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Document uploads'**
+  String get requestTypeUpload;
+
+  /// No description provided for @requestTypeOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get requestTypeOther;
+
+  /// No description provided for @usageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get usageTitle;
+
+  /// No description provided for @periodDay.
+  ///
+  /// In en, this message translates to:
+  /// **'24 hours'**
+  String get periodDay;
+
+  /// No description provided for @periodDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days'**
+  String periodDays(int days);
+
+  /// No description provided for @usageWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'From {start} to {end}, your local time. Windows roll back from now.'**
+  String usageWindow(String start, String end);
+
+  /// No description provided for @usageSummaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get usageSummaryTitle;
+
+  /// No description provided for @usageRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies requested'**
+  String get usageRequests;
+
+  /// No description provided for @usageUnknownRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 reply has no reported usage (for example stopped or interrupted).} other{{count} replies have no reported usage (for example stopped or interrupted).}}'**
+  String usageUnknownRequests(int count);
+
+  /// No description provided for @usageInputTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Input tokens'**
+  String get usageInputTokens;
+
+  /// No description provided for @usageOutputTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Output tokens'**
+  String get usageOutputTokens;
+
+  /// No description provided for @usageTotalTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Total tokens'**
+  String get usageTotalTokens;
+
+  /// No description provided for @usageCostTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated cost'**
+  String get usageCostTitle;
+
+  /// No description provided for @usageCostBasis.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated from list prices in US dollars; not a provider invoice.'**
+  String get usageCostBasis;
+
+  /// No description provided for @usageCostUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get usageCostUnavailable;
+
+  /// No description provided for @usageCostIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 reply has no usage or price data and is not included.} other{{count} replies have no usage or price data and are not included.}}'**
+  String usageCostIncomplete(int count);
+
+  /// No description provided for @usageCostNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No reply in this period has usage and price data, so no cost can be shown. This does not mean it was free.'**
+  String get usageCostNone;
+
+  /// No description provided for @usageLimitsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Limits'**
+  String get usageLimitsTitle;
+
+  /// No description provided for @usageLimitsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Limits count back from now. Conversation limits count conversations started.'**
+  String get usageLimitsExplain;
+
+  /// No description provided for @usageByModel.
+  ///
+  /// In en, this message translates to:
+  /// **'By model'**
+  String get usageByModel;
+
+  /// No description provided for @usageModelLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{requests} replies · {tokens} tokens'**
+  String usageModelLine(String requests, String tokens);
+
+  /// No description provided for @usageTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get usageTools;
+
+  /// No description provided for @usageToolCalls.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} calls'**
+  String usageToolCalls(String count);
+
+  /// No description provided for @limitTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens'**
+  String get limitTokens;
+
+  /// No description provided for @limitConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations'**
+  String get limitConversations;
+
+  /// No description provided for @limitToolRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calls'**
+  String get limitToolRequests;
+
+  /// No description provided for @limitLast24h.
+  ///
+  /// In en, this message translates to:
+  /// **'last 24 hours'**
+  String get limitLast24h;
+
+  /// No description provided for @limitLast30d.
+  ///
+  /// In en, this message translates to:
+  /// **'last 30 days'**
+  String get limitLast30d;
+
+  /// No description provided for @limitNone.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} used · no limit'**
+  String limitNone(String used);
+
+  /// No description provided for @limitValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {limit} used · {remaining} left'**
+  String limitValue(String used, String limit, String remaining);
+
+  /// No description provided for @limitReserved.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes {tokens} counted for replies whose usage was never reported.'**
+  String limitReserved(String tokens);
+
+  /// No description provided for @invoiceAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share invoice (PDF)'**
+  String get invoiceAction;
+
+  /// No description provided for @invoiceExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'The PDF is created by the server for the selected period and kept in this app\'s private storage until you sign out or switch space.'**
+  String get invoiceExplain;
+
+  /// No description provided for @invoiceShareSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'TEIA usage invoice'**
+  String get invoiceShareSubject;
+
+  /// No description provided for @shareUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing isn\'t available on this device.'**
+  String get shareUnavailable;
+
+  /// No description provided for @requestsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get requestsTitle;
+
+  /// No description provided for @requestsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests you sent to space administrators. Approvals update your access automatically.'**
+  String get requestsExplain;
+
+  /// No description provided for @requestsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No requests'**
+  String get requestsEmptyTitle;
+
+  /// No description provided for @requestsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for model access, higher limits or upload rights.'**
+  String get requestsEmptyBody;
+
+  /// No description provided for @accountRequestsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account requests'**
+  String get accountRequestsTitle;
+
+  /// No description provided for @requestPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get requestPending;
+
+  /// No description provided for @requestApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get requestApproved;
+
+  /// No description provided for @requestDeclined.
+  ///
+  /// In en, this message translates to:
+  /// **'Declined'**
+  String get requestDeclined;
+
+  /// No description provided for @requestSentOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent {date}'**
+  String requestSentOn(String date);
+
+  /// No description provided for @reviewerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewer\'s note'**
+  String get reviewerNote;
+
+  /// No description provided for @newRequestAction.
+  ///
+  /// In en, this message translates to:
+  /// **'New request'**
+  String get newRequestAction;
+
+  /// No description provided for @newRequestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New request'**
+  String get newRequestTitle;
+
+  /// No description provided for @requestUploadExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask to upload documents in this space.'**
+  String get requestUploadExplain;
+
+  /// No description provided for @requestReason.
+  ///
+  /// In en, this message translates to:
+  /// **'What do you need?'**
+  String get requestReason;
+
+  /// No description provided for @requestReasonOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (optional)'**
+  String get requestReasonOptional;
+
+  /// No description provided for @requestChooseModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a model.'**
+  String get requestChooseModel;
+
+  /// No description provided for @requestQuotaInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter at least one whole number above zero.'**
+  String get requestQuotaInvalid;
+
+  /// No description provided for @requestReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe what you need.'**
+  String get requestReasonRequired;
+
+  /// No description provided for @requestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Request sent.'**
+  String get requestSent;
+
+  /// No description provided for @requestAlreadyPending.
+  ///
+  /// In en, this message translates to:
+  /// **'You already have this request pending.'**
+  String get requestAlreadyPending;
+
+  /// No description provided for @requestUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t confirm the request. The list was refreshed; check it before sending again.'**
+  String get requestUncertain;
+
+  /// No description provided for @sendRequestAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Send request'**
+  String get sendRequestAction;
+
+  /// No description provided for @quotaDailyTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens per 24 hours'**
+  String get quotaDailyTokens;
+
+  /// No description provided for @quotaMonthlyTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens per 30 days'**
+  String get quotaMonthlyTokens;
+
+  /// No description provided for @quotaDailyConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations per 24 hours'**
+  String get quotaDailyConversations;
+
+  /// No description provided for @quotaMonthlyConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations per 30 days'**
+  String get quotaMonthlyConversations;
+
+  /// No description provided for @renameAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get renameAction;
+
+  /// No description provided for @renameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename conversation'**
+  String get renameTitle;
+
+  /// No description provided for @conversationNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get conversationNameLabel;
+
+  /// No description provided for @saveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get saveAction;
+
+  /// No description provided for @exportFileAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share as file'**
+  String get exportFileAction;
+
+  /// No description provided for @deleteConversationAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteConversationAction;
+
+  /// No description provided for @deleteConversationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this conversation?'**
+  String get deleteConversationTitle;
+
+  /// No description provided for @deleteConversationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Its messages are deleted and its share links stop working. Usage records are kept. Copies you already shared or exported can\'t be recalled.'**
+  String get deleteConversationBody;
+
+  /// No description provided for @deleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteAction;
+
+  /// No description provided for @conversationDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation deleted.'**
+  String get conversationDeleted;
+
+  /// No description provided for @replyLanguageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply language'**
+  String get replyLanguageTitle;
+
+  /// No description provided for @replyLanguageExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'The language the assistant answers in. Automatic follows your question.'**
+  String get replyLanguageExplain;
+
+  /// No description provided for @replyLanguageAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get replyLanguageAuto;
+
+  /// No description provided for @upcomingNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get upcomingNotifications;
 }
 
 class _AppLocalizationsDelegate

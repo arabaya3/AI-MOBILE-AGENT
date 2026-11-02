@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -261,10 +263,67 @@ async def handle_create_request(space_id: str, payload: SpaceRequestCreate, user
             return SpaceRequestSummary.model_validate(pending)
         req = await spaces_service.create_join_request(db, space_id=space_id, user=user)
         return SpaceRequestSummary.model_validate(req)
-    else:
-        await spaces_service.require_active_member(db, space_id=space_id, user=user)
-    req = await spaces_service.create_request(db, space_id=space_id, user=user, type_value=type_value, payload=payload.payload)
+    member = await spaces_service.require_active_member(db, space_id=space_id, user=user)
+    clean, dedupe_key = validate_request_payload(type_value, payload.payload or {}, member=member)
+    req = await spaces_service.create_keyed_request(
+        db, space_id=space_id, user=user, type_value=type_value, payload=clean, dedupe_key=dedupe_key
+    )
     return SpaceRequestSummary.model_validate(req)
+
+
+_TOOL_NAME = re.compile(r"^[a-z0-9_]{1,64}$")
+_QUOTA_FIELDS = ("daily_token_limit", "monthly_token_limit", "daily_request_limit", "monthly_request_limit")
+
+
+def _reason(payload: dict, *, required: bool = False) -> dict:
+    reason = payload.get("reason")
+    if reason is None or (isinstance(reason, str) and not reason.strip()):
+        if required:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A reason is required")
+        return {}
+    if not isinstance(reason, str) or len(reason) > 500:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Reason must be text of at most 500 characters")
+    return {"reason": reason.strip()}
+
+
+def validate_request_payload(type_value: str, payload: dict, *, member) -> tuple[dict, str | None]:
+    """Only the fields each request type needs; returns the stored payload and its de-duplication key."""
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid request details")
+    if type_value == "model_access":
+        model = payload.get("model")
+        if not isinstance(model, str) or not model.strip() or len(model) > 100:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Choose a model")
+        model = model.strip()
+        if model in (member.allowed_models or []):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You already have access to this model")
+        return {"model": model, **_reason(payload)}, f"model_access:{model}"
+    if type_value == "tool_access":
+        tool = payload.get("tool")
+        if not isinstance(tool, str) or not _TOOL_NAME.match(tool.strip()):
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Choose a tool")
+        tool = tool.strip()
+        if tool in (member.allowed_tools or []):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You already have access to this tool")
+        return {"tool": tool, **_reason(payload)}, f"tool_access:{tool}"
+    if type_value == "upload_access":
+        if member.role == "admin" or member.can_upload_documents:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You can already upload documents")
+        return {"can_upload_documents": True, **_reason(payload)}, "upload_access"
+    if type_value == "quota_change":
+        limits: dict[str, int] = {}
+        for key in _QUOTA_FIELDS:
+            value = payload.get(key)
+            if value is None:
+                continue
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 < value <= 1_000_000_000:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid {key}")
+            limits[key] = value
+        if not limits:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Request at least one limit")
+        # Never accept model lists here: approving a quota change must not rewrite model access.
+        return {**limits, **_reason(payload)}, "quota_change"
+    return _reason(payload, required=True), None
 
 
 async def handle_list_my_requests(user: User, db: AsyncSession) -> list[SpaceRequestSummary]:
