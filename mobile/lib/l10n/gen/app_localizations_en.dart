@@ -1336,4 +1336,499 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get upcomingNotifications => 'Notifications';
+
+  @override
+  String get manageSpaceTitle => 'Manage space';
+
+  @override
+  String get adminOverviewTitle => 'Space';
+
+  @override
+  String get renameSpaceAction => 'Rename space';
+
+  @override
+  String get spaceNameLabel => 'Space name';
+
+  @override
+  String get spaceNameInvalid => 'Use 2 to 80 characters.';
+
+  @override
+  String get adminMembersTitle => 'Members';
+
+  @override
+  String get adminInvitesTitle => 'Invitations';
+
+  @override
+  String get adminRequestsTitle => 'Requests to review';
+
+  @override
+  String get adminModelsToolsTitle => 'Models and tools';
+
+  @override
+  String get adminLimitsTitle => 'Usage limits';
+
+  @override
+  String get adminDocumentsTitle => 'Document access';
+
+  @override
+  String get adminUsageTitle => 'Space usage';
+
+  @override
+  String get adminWebOnlyNote =>
+      'Creating or deactivating spaces, platform-wide settings and global system prompts are managed on the web.';
+
+  @override
+  String get adminSaved => 'Saved.';
+
+  @override
+  String get adminAccessLost => 'You no longer manage this space.';
+
+  @override
+  String get adminLastAdmin =>
+      'A space must keep at least one active admin. Make someone else an admin first.';
+
+  @override
+  String get adminSpaceInactive => 'This space is not active.';
+
+  @override
+  String get adminUnsupportedChoice =>
+      'One of the choices is not supported by this service.';
+
+  @override
+  String get adminInvalidValue =>
+      'That value is not allowed. Check the numbers and try again.';
+
+  @override
+  String get adminUncertain =>
+      'We couldn\'t confirm the change. The screen was refreshed; check it before trying again.';
+
+  @override
+  String get memberSearchLabel => 'Search by email';
+
+  @override
+  String get membersEmptyTitle => 'No members';
+
+  @override
+  String get membersEmptyBody => 'Invite people to add them to this space.';
+
+  @override
+  String get membersNoMatch => 'No member matches this search.';
+
+  @override
+  String get memberStatusRevoked => 'Access removed';
+
+  @override
+  String get memberDetailTitle => 'Member';
+
+  @override
+  String get memberGoneTitle => 'Member not found';
+
+  @override
+  String get memberGoneBody => 'This person is no longer listed in this space.';
+
+  @override
+  String get memberIsYou => 'This is you.';
+
+  @override
+  String get memberAccessTitle => 'Role and access';
+
+  @override
+  String get memberAdminRole => 'Space admin';
+
+  @override
+  String get memberAdminRoleExplain =>
+      'Admins manage members, invitations, requests, policy and documents.';
+
+  @override
+  String get memberCanUpload => 'Can upload documents';
+
+  @override
+  String get memberAdminsCanUpload => 'Admins can always upload.';
+
+  @override
+  String get makeAdminTitle => 'Make this member an admin?';
+
+  @override
+  String get makeAdminBody =>
+      'They will be able to manage everything in this space, including other admins.';
+
+  @override
+  String get makeAdminAction => 'Make admin';
+
+  @override
+  String get removeAdminTitle => 'Remove admin role?';
+
+  @override
+  String get removeAdminBody =>
+      'They stay a member but can no longer manage this space.';
+
+  @override
+  String get removeOwnAdminTitle => 'Remove your own admin role?';
+
+  @override
+  String get removeOwnAdminBody =>
+      'You will leave these screens at once and can\'t undo this yourself. Another admin would have to restore it.';
+
+  @override
+  String get removeAdminAction => 'Remove admin role';
+
+  @override
+  String get revokeAccessTitle => 'Remove access to this space?';
+
+  @override
+  String get revokeOwnAccessTitle => 'Remove your own access?';
+
+  @override
+  String get revokeAccessBody =>
+      'They can no longer open the space, its conversations or its documents. Their records are kept, and access can be restored later.';
+
+  @override
+  String get revokeAccessAction => 'Remove access';
+
+  @override
+  String get restoreAccessTitle => 'Restore access?';
+
+  @override
+  String get restoreAccessBody =>
+      'They will be able to use this space again with their previous settings.';
+
+  @override
+  String get restoreAccessAction => 'Restore access';
+
+  @override
+  String get memberLimitsTitle => 'Limits for this member';
+
+  @override
+  String get memberLimitsExplain =>
+      'Unset limits follow the space default. A limit set here applies only to this member.';
+
+  @override
+  String get memberExtraModelsTitle => 'Additional models';
+
+  @override
+  String get memberExtraToolsTitle => 'Additional tools';
+
+  @override
+  String get memberAdditionsExplain =>
+      'Granted to this member on top of the space policy, usually by an approved request.';
+
+  @override
+  String get memberNoAdditions => 'None';
+
+  @override
+  String get removeGrantTitle => 'Remove this access?';
+
+  @override
+  String get removeGrantBody =>
+      'The member keeps whatever the space policy allows.';
+
+  @override
+  String get removeGrantAction => 'Remove';
+
+  @override
+  String get limitUnlimited => 'No limit';
+
+  @override
+  String get limitBlocked => '0 (blocked)';
+
+  @override
+  String limitInherited(String value) {
+    return 'Space default: $value';
+  }
+
+  @override
+  String get limitInheritedShort => 'Follows the space default';
+
+  @override
+  String get limitExplicitShort => 'Set for this member';
+
+  @override
+  String get limitUseDefault => 'Use the space default';
+
+  @override
+  String get limitSetValue => 'Set a limit';
+
+  @override
+  String get limitZeroBlocks => '0 blocks this completely.';
+
+  @override
+  String get limitInvalid => 'Enter a whole number from 0 to 1,000,000,000.';
+
+  @override
+  String get quotaDailyToolRequests => 'Tool uses per 24 hours';
+
+  @override
+  String get quotaMonthlyToolRequests => 'Tool uses per 30 days';
+
+  @override
+  String get spaceDefaultsTitle => 'Space defaults';
+
+  @override
+  String get spaceDefaultsExplain =>
+      'Apply to every member without their own limit. Windows count back from now.';
+
+  @override
+  String get memberOverridesHint =>
+      'To give one member a different limit, open them in Members.';
+
+  @override
+  String get blockLimitTitle => 'Block this for everyone?';
+
+  @override
+  String get blockLimitBody =>
+      'A limit of 0 stops every member who has no own limit.';
+
+  @override
+  String get blockLimitAction => 'Set to 0';
+
+  @override
+  String get allowedModelsTitle => 'Allowed models';
+
+  @override
+  String get allowedModelsExplain =>
+      'Members can choose these. If none is selected, the service default applies.';
+
+  @override
+  String get allowedToolsTitle => 'Allowed tools';
+
+  @override
+  String get allowedToolsExplain =>
+      'The assistant may use these in this space. If none is selected, the service default applies.';
+
+  @override
+  String get catalogEmpty => 'Nothing is available.';
+
+  @override
+  String get catalogNoLongerSupported => 'No longer offered by this service';
+
+  @override
+  String get saveChangesAction => 'Save changes';
+
+  @override
+  String get discardChangesTitle => 'Discard changes?';
+
+  @override
+  String get discardChangesBody => 'Your unsaved choices will be lost.';
+
+  @override
+  String get discardAction => 'Discard';
+
+  @override
+  String get invitesExplain =>
+      'Invitations are sent by email and expire after 7 days. Links are never shown here.';
+
+  @override
+  String get invitesEmptyTitle => 'No invitations';
+
+  @override
+  String get invitesEmptyBody => 'Invite someone by email.';
+
+  @override
+  String get inviteMemberAction => 'Invite';
+
+  @override
+  String get inviteMemberTitle => 'Invite by email';
+
+  @override
+  String get inviteExplain =>
+      'They join as a member after signing in with this address.';
+
+  @override
+  String get sendInviteAction => 'Send invitation';
+
+  @override
+  String inviteSent(String email) {
+    return 'Invitation sent to $email.';
+  }
+
+  @override
+  String inviteResent(String email) {
+    return 'A new link was sent to $email. Earlier links no longer work.';
+  }
+
+  @override
+  String get inviteRevoked => 'Invitation revoked.';
+
+  @override
+  String get inviteAlreadyMember => 'This person is already a member.';
+
+  @override
+  String get inviteEmailFailed =>
+      'The invitation email could not be sent, so no invitation was created. Try again later.';
+
+  @override
+  String get inviteNewerOpen =>
+      'A newer invitation to this address is already open.';
+
+  @override
+  String get inviteStatusPending => 'Waiting';
+
+  @override
+  String get inviteStatusAccepted => 'Accepted';
+
+  @override
+  String get inviteStatusRevoked => 'Revoked';
+
+  @override
+  String get inviteStatusExpired => 'Expired';
+
+  @override
+  String inviteExpires(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String inviteSentTimes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sent $count times',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get resendInviteAction => 'Send a new link';
+
+  @override
+  String get revokeInviteAction => 'Revoke';
+
+  @override
+  String get revokeInviteTitle => 'Revoke this invitation?';
+
+  @override
+  String revokeInviteBody(String email) {
+    return 'The link sent to $email will stop working.';
+  }
+
+  @override
+  String get requestsPendingTab => 'Pending';
+
+  @override
+  String get requestsHistoryTab => 'History';
+
+  @override
+  String get noPendingRequestsTitle => 'Nothing to review';
+
+  @override
+  String get noPendingRequestsBody => 'New requests from members appear here.';
+
+  @override
+  String get noReviewedRequestsTitle => 'No reviewed requests';
+
+  @override
+  String get noReviewedRequestsBody =>
+      'Approved and declined requests appear here.';
+
+  @override
+  String requestSummaryModel(String model) {
+    return 'Model: $model';
+  }
+
+  @override
+  String requestSummaryTool(String tool) {
+    return 'Tool: $tool';
+  }
+
+  @override
+  String get requestSummaryUpload => 'Permission to upload documents';
+
+  @override
+  String get requestSummaryJoin => 'Wants to join this space';
+
+  @override
+  String get requestReasonLabel => 'Reason';
+
+  @override
+  String get reviewNoteLabel => 'Note to the requester (optional)';
+
+  @override
+  String get approveAction => 'Approve';
+
+  @override
+  String get declineAction => 'Decline';
+
+  @override
+  String get requestApprovedDone => 'Approved. The member was notified.';
+
+  @override
+  String get requestDeclinedDone => 'Declined. The member was notified.';
+
+  @override
+  String get reviewAlreadyDone =>
+      'This request was already reviewed. The list was refreshed.';
+
+  @override
+  String get reviewOwnRequest =>
+      'Your own requests are reviewed by another admin.';
+
+  @override
+  String get requestChooseTool => 'Choose a tool.';
+
+  @override
+  String get toolLabel => 'Tool';
+
+  @override
+  String get adminDocumentsExplain =>
+      'Members see documents they uploaded or were given. Hidden documents are visible to admins only.';
+
+  @override
+  String get adminDocumentsEmpty => 'No documents in this space yet.';
+
+  @override
+  String get documentHiddenSwitch => 'Hide from members';
+
+  @override
+  String get documentHiddenExplain =>
+      'Hidden documents are not shown or used for answers for members, even those given access.';
+
+  @override
+  String get hideDocumentTitle => 'Hide this document?';
+
+  @override
+  String get hideDocumentBody =>
+      'Members lose access at once, and earlier answers that cite it will show the source as unavailable to them.';
+
+  @override
+  String get hideDocumentAction => 'Hide';
+
+  @override
+  String get documentAccessTitle => 'Members with access';
+
+  @override
+  String get documentAccessExplain =>
+      'Admins and the uploader always have access.';
+
+  @override
+  String get documentUploader => 'Uploaded it';
+
+  @override
+  String get documentNoMembers => 'No other members to give access to.';
+
+  @override
+  String get documentGone => 'This document is no longer available.';
+
+  @override
+  String get removeDocAccessTitle => 'Remove access to this document?';
+
+  @override
+  String removeDocAccessBody(String email) {
+    return '$email will no longer see it, and earlier answers that cite it will show the source as unavailable.';
+  }
+
+  @override
+  String get removeDocAccessAction => 'Remove access';
+
+  @override
+  String get spaceTotalsTitle => 'Totals';
+
+  @override
+  String get spaceUsageExplain =>
+      'All members, from recorded usage. Replies without reported usage are not included. Costs are estimates from list prices.';
+
+  @override
+  String get usageNoRequests => 'No recorded usage in this period.';
+
+  @override
+  String get myUsageAction => 'My usage';
 }

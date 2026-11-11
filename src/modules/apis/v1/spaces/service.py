@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -580,7 +580,9 @@ class SpacesService:
                 func.coalesce(func.sum(LLMUsageEvent.output_tokens), 0),
                 func.coalesce(func.sum(LLMUsageEvent.total_tokens), 0),
                 func.coalesce(func.sum(LLMUsageEvent.request_count), 0),
-                func.coalesce(func.sum(LLMUsageEvent.cost_usd), 0.0),
+                # No coalesce: a model whose events have no price must not read as free.
+                func.sum(LLMUsageEvent.cost_usd),
+                func.coalesce(func.sum(case((LLMUsageEvent.cost_usd.is_(None), LLMUsageEvent.request_count), else_=0)), 0),
             )
             .where(
                 LLMUsageEvent.space_id == space_id,

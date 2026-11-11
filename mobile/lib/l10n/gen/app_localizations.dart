@@ -2419,6 +2419,888 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notifications'**
   String get upcomingNotifications;
+
+  /// No description provided for @manageSpaceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage space'**
+  String get manageSpaceTitle;
+
+  /// No description provided for @adminOverviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Space'**
+  String get adminOverviewTitle;
+
+  /// No description provided for @renameSpaceAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename space'**
+  String get renameSpaceAction;
+
+  /// No description provided for @spaceNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Space name'**
+  String get spaceNameLabel;
+
+  /// No description provided for @spaceNameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Use 2 to 80 characters.'**
+  String get spaceNameInvalid;
+
+  /// No description provided for @adminMembersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get adminMembersTitle;
+
+  /// No description provided for @adminInvitesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitations'**
+  String get adminInvitesTitle;
+
+  /// No description provided for @adminRequestsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests to review'**
+  String get adminRequestsTitle;
+
+  /// No description provided for @adminModelsToolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Models and tools'**
+  String get adminModelsToolsTitle;
+
+  /// No description provided for @adminLimitsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage limits'**
+  String get adminLimitsTitle;
+
+  /// No description provided for @adminDocumentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Document access'**
+  String get adminDocumentsTitle;
+
+  /// No description provided for @adminUsageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Space usage'**
+  String get adminUsageTitle;
+
+  /// No description provided for @adminWebOnlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating or deactivating spaces, platform-wide settings and global system prompts are managed on the web.'**
+  String get adminWebOnlyNote;
+
+  /// No description provided for @adminSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved.'**
+  String get adminSaved;
+
+  /// No description provided for @adminAccessLost.
+  ///
+  /// In en, this message translates to:
+  /// **'You no longer manage this space.'**
+  String get adminAccessLost;
+
+  /// No description provided for @adminLastAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'A space must keep at least one active admin. Make someone else an admin first.'**
+  String get adminLastAdmin;
+
+  /// No description provided for @adminSpaceInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'This space is not active.'**
+  String get adminSpaceInactive;
+
+  /// No description provided for @adminUnsupportedChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'One of the choices is not supported by this service.'**
+  String get adminUnsupportedChoice;
+
+  /// No description provided for @adminInvalidValue.
+  ///
+  /// In en, this message translates to:
+  /// **'That value is not allowed. Check the numbers and try again.'**
+  String get adminInvalidValue;
+
+  /// No description provided for @adminUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t confirm the change. The screen was refreshed; check it before trying again.'**
+  String get adminUncertain;
+
+  /// No description provided for @memberSearchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by email'**
+  String get memberSearchLabel;
+
+  /// No description provided for @membersEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No members'**
+  String get membersEmptyTitle;
+
+  /// No description provided for @membersEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite people to add them to this space.'**
+  String get membersEmptyBody;
+
+  /// No description provided for @membersNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No member matches this search.'**
+  String get membersNoMatch;
+
+  /// No description provided for @memberStatusRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Access removed'**
+  String get memberStatusRevoked;
+
+  /// No description provided for @memberDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Member'**
+  String get memberDetailTitle;
+
+  /// No description provided for @memberGoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Member not found'**
+  String get memberGoneTitle;
+
+  /// No description provided for @memberGoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This person is no longer listed in this space.'**
+  String get memberGoneBody;
+
+  /// No description provided for @memberIsYou.
+  ///
+  /// In en, this message translates to:
+  /// **'This is you.'**
+  String get memberIsYou;
+
+  /// No description provided for @memberAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Role and access'**
+  String get memberAccessTitle;
+
+  /// No description provided for @memberAdminRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Space admin'**
+  String get memberAdminRole;
+
+  /// No description provided for @memberAdminRoleExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Admins manage members, invitations, requests, policy and documents.'**
+  String get memberAdminRoleExplain;
+
+  /// No description provided for @memberCanUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Can upload documents'**
+  String get memberCanUpload;
+
+  /// No description provided for @memberAdminsCanUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Admins can always upload.'**
+  String get memberAdminsCanUpload;
+
+  /// No description provided for @makeAdminTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make this member an admin?'**
+  String get makeAdminTitle;
+
+  /// No description provided for @makeAdminBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They will be able to manage everything in this space, including other admins.'**
+  String get makeAdminBody;
+
+  /// No description provided for @makeAdminAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Make admin'**
+  String get makeAdminAction;
+
+  /// No description provided for @removeAdminTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove admin role?'**
+  String get removeAdminTitle;
+
+  /// No description provided for @removeAdminBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They stay a member but can no longer manage this space.'**
+  String get removeAdminBody;
+
+  /// No description provided for @removeOwnAdminTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove your own admin role?'**
+  String get removeOwnAdminTitle;
+
+  /// No description provided for @removeOwnAdminBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will leave these screens at once and can\'t undo this yourself. Another admin would have to restore it.'**
+  String get removeOwnAdminBody;
+
+  /// No description provided for @removeAdminAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove admin role'**
+  String get removeAdminAction;
+
+  /// No description provided for @revokeAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove access to this space?'**
+  String get revokeAccessTitle;
+
+  /// No description provided for @revokeOwnAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove your own access?'**
+  String get revokeOwnAccessTitle;
+
+  /// No description provided for @revokeAccessBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They can no longer open the space, its conversations or its documents. Their records are kept, and access can be restored later.'**
+  String get revokeAccessBody;
+
+  /// No description provided for @revokeAccessAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove access'**
+  String get revokeAccessAction;
+
+  /// No description provided for @restoreAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore access?'**
+  String get restoreAccessTitle;
+
+  /// No description provided for @restoreAccessBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They will be able to use this space again with their previous settings.'**
+  String get restoreAccessBody;
+
+  /// No description provided for @restoreAccessAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore access'**
+  String get restoreAccessAction;
+
+  /// No description provided for @memberLimitsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Limits for this member'**
+  String get memberLimitsTitle;
+
+  /// No description provided for @memberLimitsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Unset limits follow the space default. A limit set here applies only to this member.'**
+  String get memberLimitsExplain;
+
+  /// No description provided for @memberExtraModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional models'**
+  String get memberExtraModelsTitle;
+
+  /// No description provided for @memberExtraToolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional tools'**
+  String get memberExtraToolsTitle;
+
+  /// No description provided for @memberAdditionsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Granted to this member on top of the space policy, usually by an approved request.'**
+  String get memberAdditionsExplain;
+
+  /// No description provided for @memberNoAdditions.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get memberNoAdditions;
+
+  /// No description provided for @removeGrantTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this access?'**
+  String get removeGrantTitle;
+
+  /// No description provided for @removeGrantBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The member keeps whatever the space policy allows.'**
+  String get removeGrantBody;
+
+  /// No description provided for @removeGrantAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get removeGrantAction;
+
+  /// No description provided for @limitUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'No limit'**
+  String get limitUnlimited;
+
+  /// No description provided for @limitBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'0 (blocked)'**
+  String get limitBlocked;
+
+  /// No description provided for @limitInherited.
+  ///
+  /// In en, this message translates to:
+  /// **'Space default: {value}'**
+  String limitInherited(String value);
+
+  /// No description provided for @limitInheritedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows the space default'**
+  String get limitInheritedShort;
+
+  /// No description provided for @limitExplicitShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Set for this member'**
+  String get limitExplicitShort;
+
+  /// No description provided for @limitUseDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the space default'**
+  String get limitUseDefault;
+
+  /// No description provided for @limitSetValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a limit'**
+  String get limitSetValue;
+
+  /// No description provided for @limitZeroBlocks.
+  ///
+  /// In en, this message translates to:
+  /// **'0 blocks this completely.'**
+  String get limitZeroBlocks;
+
+  /// No description provided for @limitInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number from 0 to 1,000,000,000.'**
+  String get limitInvalid;
+
+  /// No description provided for @quotaDailyToolRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool uses per 24 hours'**
+  String get quotaDailyToolRequests;
+
+  /// No description provided for @quotaMonthlyToolRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool uses per 30 days'**
+  String get quotaMonthlyToolRequests;
+
+  /// No description provided for @spaceDefaultsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Space defaults'**
+  String get spaceDefaultsTitle;
+
+  /// No description provided for @spaceDefaultsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to every member without their own limit. Windows count back from now.'**
+  String get spaceDefaultsExplain;
+
+  /// No description provided for @memberOverridesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'To give one member a different limit, open them in Members.'**
+  String get memberOverridesHint;
+
+  /// No description provided for @blockLimitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block this for everyone?'**
+  String get blockLimitTitle;
+
+  /// No description provided for @blockLimitBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A limit of 0 stops every member who has no own limit.'**
+  String get blockLimitBody;
+
+  /// No description provided for @blockLimitAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Set to 0'**
+  String get blockLimitAction;
+
+  /// No description provided for @allowedModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed models'**
+  String get allowedModelsTitle;
+
+  /// No description provided for @allowedModelsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Members can choose these. If none is selected, the service default applies.'**
+  String get allowedModelsExplain;
+
+  /// No description provided for @allowedToolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed tools'**
+  String get allowedToolsTitle;
+
+  /// No description provided for @allowedToolsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant may use these in this space. If none is selected, the service default applies.'**
+  String get allowedToolsExplain;
+
+  /// No description provided for @catalogEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is available.'**
+  String get catalogEmpty;
+
+  /// No description provided for @catalogNoLongerSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'No longer offered by this service'**
+  String get catalogNoLongerSupported;
+
+  /// No description provided for @saveChangesAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get saveChangesAction;
+
+  /// No description provided for @discardChangesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get discardChangesTitle;
+
+  /// No description provided for @discardChangesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your unsaved choices will be lost.'**
+  String get discardChangesBody;
+
+  /// No description provided for @discardAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discardAction;
+
+  /// No description provided for @invitesExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitations are sent by email and expire after 7 days. Links are never shown here.'**
+  String get invitesExplain;
+
+  /// No description provided for @invitesEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No invitations'**
+  String get invitesEmptyTitle;
+
+  /// No description provided for @invitesEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite someone by email.'**
+  String get invitesEmptyBody;
+
+  /// No description provided for @inviteMemberAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite'**
+  String get inviteMemberAction;
+
+  /// No description provided for @inviteMemberTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite by email'**
+  String get inviteMemberTitle;
+
+  /// No description provided for @inviteExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'They join as a member after signing in with this address.'**
+  String get inviteExplain;
+
+  /// No description provided for @sendInviteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Send invitation'**
+  String get sendInviteAction;
+
+  /// No description provided for @inviteSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation sent to {email}.'**
+  String inviteSent(String email);
+
+  /// No description provided for @inviteResent.
+  ///
+  /// In en, this message translates to:
+  /// **'A new link was sent to {email}. Earlier links no longer work.'**
+  String inviteResent(String email);
+
+  /// No description provided for @inviteRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation revoked.'**
+  String get inviteRevoked;
+
+  /// No description provided for @inviteAlreadyMember.
+  ///
+  /// In en, this message translates to:
+  /// **'This person is already a member.'**
+  String get inviteAlreadyMember;
+
+  /// No description provided for @inviteEmailFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The invitation email could not be sent, so no invitation was created. Try again later.'**
+  String get inviteEmailFailed;
+
+  /// No description provided for @inviteNewerOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'A newer invitation to this address is already open.'**
+  String get inviteNewerOpen;
+
+  /// No description provided for @inviteStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get inviteStatusPending;
+
+  /// No description provided for @inviteStatusAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted'**
+  String get inviteStatusAccepted;
+
+  /// No description provided for @inviteStatusRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked'**
+  String get inviteStatusRevoked;
+
+  /// No description provided for @inviteStatusExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get inviteStatusExpired;
+
+  /// No description provided for @inviteExpires.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String inviteExpires(String date);
+
+  /// No description provided for @inviteSentTimes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{Sent {count} times}}'**
+  String inviteSentTimes(int count);
+
+  /// No description provided for @resendInviteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a new link'**
+  String get resendInviteAction;
+
+  /// No description provided for @revokeInviteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get revokeInviteAction;
+
+  /// No description provided for @revokeInviteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke this invitation?'**
+  String get revokeInviteTitle;
+
+  /// No description provided for @revokeInviteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The link sent to {email} will stop working.'**
+  String revokeInviteBody(String email);
+
+  /// No description provided for @requestsPendingTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get requestsPendingTab;
+
+  /// No description provided for @requestsHistoryTab.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get requestsHistoryTab;
+
+  /// No description provided for @noPendingRequestsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to review'**
+  String get noPendingRequestsTitle;
+
+  /// No description provided for @noPendingRequestsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'New requests from members appear here.'**
+  String get noPendingRequestsBody;
+
+  /// No description provided for @noReviewedRequestsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviewed requests'**
+  String get noReviewedRequestsTitle;
+
+  /// No description provided for @noReviewedRequestsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved and declined requests appear here.'**
+  String get noReviewedRequestsBody;
+
+  /// No description provided for @requestSummaryModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model: {model}'**
+  String requestSummaryModel(String model);
+
+  /// No description provided for @requestSummaryTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool: {tool}'**
+  String requestSummaryTool(String tool);
+
+  /// No description provided for @requestSummaryUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission to upload documents'**
+  String get requestSummaryUpload;
+
+  /// No description provided for @requestSummaryJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Wants to join this space'**
+  String get requestSummaryJoin;
+
+  /// No description provided for @requestReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get requestReasonLabel;
+
+  /// No description provided for @reviewNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note to the requester (optional)'**
+  String get reviewNoteLabel;
+
+  /// No description provided for @approveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get approveAction;
+
+  /// No description provided for @declineAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get declineAction;
+
+  /// No description provided for @requestApprovedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved. The member was notified.'**
+  String get requestApprovedDone;
+
+  /// No description provided for @requestDeclinedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Declined. The member was notified.'**
+  String get requestDeclinedDone;
+
+  /// No description provided for @reviewAlreadyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'This request was already reviewed. The list was refreshed.'**
+  String get reviewAlreadyDone;
+
+  /// No description provided for @reviewOwnRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own requests are reviewed by another admin.'**
+  String get reviewOwnRequest;
+
+  /// No description provided for @requestChooseTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a tool.'**
+  String get requestChooseTool;
+
+  /// No description provided for @toolLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool'**
+  String get toolLabel;
+
+  /// No description provided for @adminDocumentsExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Members see documents they uploaded or were given. Hidden documents are visible to admins only.'**
+  String get adminDocumentsExplain;
+
+  /// No description provided for @adminDocumentsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No documents in this space yet.'**
+  String get adminDocumentsEmpty;
+
+  /// No description provided for @documentHiddenSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide from members'**
+  String get documentHiddenSwitch;
+
+  /// No description provided for @documentHiddenExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden documents are not shown or used for answers for members, even those given access.'**
+  String get documentHiddenExplain;
+
+  /// No description provided for @hideDocumentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide this document?'**
+  String get hideDocumentTitle;
+
+  /// No description provided for @hideDocumentBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Members lose access at once, and earlier answers that cite it will show the source as unavailable to them.'**
+  String get hideDocumentBody;
+
+  /// No description provided for @hideDocumentAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get hideDocumentAction;
+
+  /// No description provided for @documentAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Members with access'**
+  String get documentAccessTitle;
+
+  /// No description provided for @documentAccessExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Admins and the uploader always have access.'**
+  String get documentAccessExplain;
+
+  /// No description provided for @documentUploader.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded it'**
+  String get documentUploader;
+
+  /// No description provided for @documentNoMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'No other members to give access to.'**
+  String get documentNoMembers;
+
+  /// No description provided for @documentGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This document is no longer available.'**
+  String get documentGone;
+
+  /// No description provided for @removeDocAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove access to this document?'**
+  String get removeDocAccessTitle;
+
+  /// No description provided for @removeDocAccessBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{email} will no longer see it, and earlier answers that cite it will show the source as unavailable.'**
+  String removeDocAccessBody(String email);
+
+  /// No description provided for @removeDocAccessAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove access'**
+  String get removeDocAccessAction;
+
+  /// No description provided for @spaceTotalsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Totals'**
+  String get spaceTotalsTitle;
+
+  /// No description provided for @spaceUsageExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'All members, from recorded usage. Replies without reported usage are not included. Costs are estimates from list prices.'**
+  String get spaceUsageExplain;
+
+  /// No description provided for @usageNoRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No recorded usage in this period.'**
+  String get usageNoRequests;
+
+  /// No description provided for @myUsageAction.
+  ///
+  /// In en, this message translates to:
+  /// **'My usage'**
+  String get myUsageAction;
 }
 
 class _AppLocalizationsDelegate

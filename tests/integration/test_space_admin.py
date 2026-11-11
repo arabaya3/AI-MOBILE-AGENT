@@ -222,3 +222,41 @@ async def test_requests_list_shows_requester_and_is_space_scoped(client, world):
     listed = (await client.get(f"{SPACES}/{world['team'].id}/requests", headers=auth_headers(world["ann"]))).json()
     assert listed[0]["user_email"] == "mia@example.com"
     assert (await client.get(f"{SPACES}/{world['other'].id}/requests", headers=auth_headers(world["ann"]))).status_code == 403
+
+
+async def test_space_usage_never_reports_unknown_cost_as_zero(client, world, factory):
+    await factory.execute(
+        "INSERT INTO llm_usage_events (id, space_id, user_id, endpoint, model, request_count, input_tokens, output_tokens, total_tokens, cost_usd, created_at) VALUES "
+        "('e1', :s, :u, 'chat', 'priced', 1, 10, 5, 15, 0.5, now() at time zone 'utc'), "
+        "('e2', :s, :u, 'chat', 'unpriced', 2, 10, 5, 15, NULL, now() at time zone 'utc')",
+        s=world["team"].id, u=world["mia"].id,
+    )
+    usage = (await client.get(f"{SPACES}/{world['team'].id}/usage?days=1", headers=auth_headers(world["ann"]))).json()
+    assert usage["by_model"]["unpriced"]["cost_usd"] is None
+    assert usage["by_model"]["unpriced"]["requests_without_cost"] == 2
+    assert usage["totals"]["cost_usd"] == 0.5 and usage["totals"]["requests_without_cost"] == 2
+
+
+async def test_membership_reports_tools_the_member_can_use(client, world):
+    await client.patch(f"{SPACES}/{world['team'].id}/policy", json={"allowed_tools": ["calculator"]}, headers=auth_headers(world["ann"]))
+    me = (await client.get(f"{SPACES}/{world['team'].id}/me", headers=auth_headers(world["mia"]))).json()
+    assert me["effective_tools"] == ["calculator"]
+
+
+async def test_space_usage_never_shows_unknown_cost_as_zero(client, world, factory):
+    await factory.execute(
+        "INSERT INTO llm_usage_events (id, space_id, user_id, endpoint, model, request_count, input_tokens, output_tokens, total_tokens, cost_usd, created_at) VALUES "
+        "('e1', :s, :u, 'chat', 'teia-stub-1', 2, 10, 5, 15, NULL, now() at time zone 'utc'), "
+        "('e2', :s, :u, 'chat', 'teia-stub-2', 1, 10, 5, 15, 0.5, now() at time zone 'utc')",
+        s=world["team"].id, u=world["mia"].id,
+    )
+    usage = (await client.get(f"{SPACES}/{world['team'].id}/usage", headers=auth_headers(world["ann"]))).json()
+    assert usage["by_model"]["teia-stub-1"]["cost_usd"] is None
+    assert usage["by_model"]["teia-stub-1"]["requests_without_cost"] == 2
+    assert usage["totals"]["cost_usd"] == 0.5 and usage["totals"]["requests_without_cost"] == 2
+
+
+async def test_membership_reports_effective_tools(client, world, factory):
+    await factory.execute("UPDATE spaces SET allowed_tools = '[\"calculator\"]' WHERE id = :s", s=world["team"].id)
+    me = (await client.get(f"{SPACES}/{world['team'].id}/me", headers=auth_headers(world["mia"]))).json()
+    assert me["effective_tools"] == ["calculator"]

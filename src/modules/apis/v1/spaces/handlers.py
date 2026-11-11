@@ -297,7 +297,12 @@ async def handle_my_membership(space_id: str, user: User, db: AsyncSession) -> M
             member = await spaces_service.require_space_admin(db, space_id=space_id, user=user)
     else:
         member = await spaces_service.require_active_member(db, space_id=space_id, user=user)
-    return _membership_from_member(member)
+    from src.modules.apis.v1.chat.handlers import _effective_policy
+
+    space = await spaces_service._ensure_space(db, space_id)
+    membership = _membership_from_member(member)
+    membership.effective_tools = _effective_policy(space, member)["allowed_tools"]
+    return membership
 
 
 async def handle_create_request(space_id: str, payload: SpaceRequestCreate, user: User, db: AsyncSession) -> SpaceRequestSummary:
@@ -439,7 +444,7 @@ async def handle_space_usage(space_id: str, user: User, db: AsyncSession, *, day
     has_cost = False
     total_cost = 0.0
 
-    for model, inp, out, tot, reqs, cost in rows:
+    for model, inp, out, tot, reqs, cost, without_cost in rows:
         key = model or "unknown"
         by_model[key] = UsageTotals(
             input_tokens=int(inp or 0),
@@ -447,7 +452,9 @@ async def handle_space_usage(space_id: str, user: User, db: AsyncSession, *, day
             total_tokens=int(tot or 0),
             requests=int(reqs or 0),
             cost_usd=float(cost) if cost is not None else None,
+            requests_without_cost=int(without_cost or 0),
         )
+        totals.requests_without_cost += int(without_cost or 0)
         totals.input_tokens += int(inp or 0)
         totals.output_tokens += int(out or 0)
         totals.total_tokens += int(tot or 0)

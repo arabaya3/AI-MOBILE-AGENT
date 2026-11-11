@@ -1336,4 +1336,496 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get upcomingNotifications => 'الإشعارات';
+
+  @override
+  String get manageSpaceTitle => 'إدارة المساحة';
+
+  @override
+  String get adminOverviewTitle => 'المساحة';
+
+  @override
+  String get renameSpaceAction => 'إعادة تسمية المساحة';
+
+  @override
+  String get spaceNameLabel => 'اسم المساحة';
+
+  @override
+  String get spaceNameInvalid => 'استخدم من 2 إلى 80 حرفًا.';
+
+  @override
+  String get adminMembersTitle => 'الأعضاء';
+
+  @override
+  String get adminInvitesTitle => 'الدعوات';
+
+  @override
+  String get adminRequestsTitle => 'طلبات للمراجعة';
+
+  @override
+  String get adminModelsToolsTitle => 'النماذج والأدوات';
+
+  @override
+  String get adminLimitsTitle => 'حدود الاستخدام';
+
+  @override
+  String get adminDocumentsTitle => 'الوصول إلى المستندات';
+
+  @override
+  String get adminUsageTitle => 'استخدام المساحة';
+
+  @override
+  String get adminWebOnlyNote =>
+      'إنشاء المساحات أو إيقافها والإعدادات العامة للمنصة وتعليمات النظام العامة تُدار من موقع الويب.';
+
+  @override
+  String get adminSaved => 'تم الحفظ.';
+
+  @override
+  String get adminAccessLost => 'لم تعد مسؤولًا عن إدارة هذه المساحة.';
+
+  @override
+  String get adminLastAdmin =>
+      'يجب أن يبقى في المساحة مسؤول نشط واحد على الأقل. اجعل شخصًا آخر مسؤولًا أولًا.';
+
+  @override
+  String get adminSpaceInactive => 'هذه المساحة غير نشطة.';
+
+  @override
+  String get adminUnsupportedChoice => 'أحد الخيارات غير مدعوم في هذه الخدمة.';
+
+  @override
+  String get adminInvalidValue =>
+      'هذه القيمة غير مسموح بها. تحقق من الأرقام وحاول مرة أخرى.';
+
+  @override
+  String get adminUncertain =>
+      'تعذر تأكيد التغيير. تم تحديث الشاشة؛ تحقق منها قبل المحاولة مرة أخرى.';
+
+  @override
+  String get memberSearchLabel => 'البحث بالبريد الإلكتروني';
+
+  @override
+  String get membersEmptyTitle => 'لا يوجد أعضاء';
+
+  @override
+  String get membersEmptyBody => 'ادعُ أشخاصًا لإضافتهم إلى هذه المساحة.';
+
+  @override
+  String get membersNoMatch => 'لا يوجد عضو يطابق هذا البحث.';
+
+  @override
+  String get memberStatusRevoked => 'تمت إزالة الوصول';
+
+  @override
+  String get memberDetailTitle => 'العضو';
+
+  @override
+  String get memberGoneTitle => 'العضو غير موجود';
+
+  @override
+  String get memberGoneBody => 'لم يعد هذا الشخص مدرجًا في هذه المساحة.';
+
+  @override
+  String get memberIsYou => 'هذا أنت.';
+
+  @override
+  String get memberAccessTitle => 'الدور والوصول';
+
+  @override
+  String get memberAdminRole => 'مسؤول المساحة';
+
+  @override
+  String get memberAdminRoleExplain =>
+      'يدير المسؤولون الأعضاء والدعوات والطلبات والسياسة والمستندات.';
+
+  @override
+  String get memberCanUpload => 'يمكنه رفع المستندات';
+
+  @override
+  String get memberAdminsCanUpload => 'يمكن للمسؤولين الرفع دائمًا.';
+
+  @override
+  String get makeAdminTitle => 'هل تريد جعل هذا العضو مسؤولًا؟';
+
+  @override
+  String get makeAdminBody =>
+      'سيتمكن من إدارة كل شيء في هذه المساحة، بما في ذلك المسؤولون الآخرون.';
+
+  @override
+  String get makeAdminAction => 'جعله مسؤولًا';
+
+  @override
+  String get removeAdminTitle => 'هل تريد إزالة دور المسؤول؟';
+
+  @override
+  String get removeAdminBody =>
+      'سيبقى عضوًا لكنه لن يتمكن من إدارة هذه المساحة.';
+
+  @override
+  String get removeOwnAdminTitle => 'هل تريد إزالة دور المسؤول عنك؟';
+
+  @override
+  String get removeOwnAdminBody =>
+      'ستغادر هذه الشاشات فورًا ولن تتمكن من التراجع بنفسك. سيحتاج مسؤول آخر إلى إعادته.';
+
+  @override
+  String get removeAdminAction => 'إزالة دور المسؤول';
+
+  @override
+  String get revokeAccessTitle => 'هل تريد إزالة الوصول إلى هذه المساحة؟';
+
+  @override
+  String get revokeOwnAccessTitle => 'هل تريد إزالة وصولك أنت؟';
+
+  @override
+  String get revokeAccessBody =>
+      'لن يتمكن من فتح المساحة أو محادثاتها أو مستنداتها. تُحفظ سجلاته، ويمكن إعادة الوصول لاحقًا.';
+
+  @override
+  String get revokeAccessAction => 'إزالة الوصول';
+
+  @override
+  String get restoreAccessTitle => 'هل تريد إعادة الوصول؟';
+
+  @override
+  String get restoreAccessBody =>
+      'سيتمكن من استخدام هذه المساحة مرة أخرى بإعداداته السابقة.';
+
+  @override
+  String get restoreAccessAction => 'إعادة الوصول';
+
+  @override
+  String get memberLimitsTitle => 'حدود هذا العضو';
+
+  @override
+  String get memberLimitsExplain =>
+      'الحدود غير المحددة تتبع الإعداد الافتراضي للمساحة. الحد المحدد هنا ينطبق على هذا العضو فقط.';
+
+  @override
+  String get memberExtraModelsTitle => 'نماذج إضافية';
+
+  @override
+  String get memberExtraToolsTitle => 'أدوات إضافية';
+
+  @override
+  String get memberAdditionsExplain =>
+      'مُنحت لهذا العضو إضافة إلى سياسة المساحة، غالبًا عبر طلب تمت الموافقة عليه.';
+
+  @override
+  String get memberNoAdditions => 'لا شيء';
+
+  @override
+  String get removeGrantTitle => 'هل تريد إزالة هذا الوصول؟';
+
+  @override
+  String get removeGrantBody => 'سيحتفظ العضو بما تسمح به سياسة المساحة.';
+
+  @override
+  String get removeGrantAction => 'إزالة';
+
+  @override
+  String get limitUnlimited => 'بلا حد';
+
+  @override
+  String get limitBlocked => '0 (محظور)';
+
+  @override
+  String limitInherited(String value) {
+    return 'الافتراضي للمساحة: $value';
+  }
+
+  @override
+  String get limitInheritedShort => 'يتبع الإعداد الافتراضي للمساحة';
+
+  @override
+  String get limitExplicitShort => 'محدد لهذا العضو';
+
+  @override
+  String get limitUseDefault => 'استخدام الإعداد الافتراضي للمساحة';
+
+  @override
+  String get limitSetValue => 'تحديد حد';
+
+  @override
+  String get limitZeroBlocks => 'القيمة 0 تمنع ذلك تمامًا.';
+
+  @override
+  String get limitInvalid => 'أدخل عددًا صحيحًا من 0 إلى 1,000,000,000.';
+
+  @override
+  String get quotaDailyToolRequests => 'استخدامات الأدوات كل 24 ساعة';
+
+  @override
+  String get quotaMonthlyToolRequests => 'استخدامات الأدوات كل 30 يومًا';
+
+  @override
+  String get spaceDefaultsTitle => 'الإعدادات الافتراضية للمساحة';
+
+  @override
+  String get spaceDefaultsExplain =>
+      'تنطبق على كل عضو ليس له حد خاص. تُحسب الفترات رجوعًا من الآن.';
+
+  @override
+  String get memberOverridesHint =>
+      'لتحديد حد مختلف لعضو واحد، افتحه في قائمة الأعضاء.';
+
+  @override
+  String get blockLimitTitle => 'هل تريد منع ذلك عن الجميع؟';
+
+  @override
+  String get blockLimitBody => 'الحد 0 يوقف كل عضو ليس له حد خاص.';
+
+  @override
+  String get blockLimitAction => 'تعيين إلى 0';
+
+  @override
+  String get allowedModelsTitle => 'النماذج المسموح بها';
+
+  @override
+  String get allowedModelsExplain =>
+      'يمكن للأعضاء اختيارها. إذا لم يُحدد أي منها، يُطبق الإعداد الافتراضي للخدمة.';
+
+  @override
+  String get allowedToolsTitle => 'الأدوات المسموح بها';
+
+  @override
+  String get allowedToolsExplain =>
+      'قد يستخدمها المساعد في هذه المساحة. إذا لم يُحدد أي منها، يُطبق الإعداد الافتراضي للخدمة.';
+
+  @override
+  String get catalogEmpty => 'لا يتوفر شيء.';
+
+  @override
+  String get catalogNoLongerSupported => 'لم يعد متاحًا في هذه الخدمة';
+
+  @override
+  String get saveChangesAction => 'حفظ التغييرات';
+
+  @override
+  String get discardChangesTitle => 'هل تريد تجاهل التغييرات؟';
+
+  @override
+  String get discardChangesBody => 'ستفقد اختياراتك غير المحفوظة.';
+
+  @override
+  String get discardAction => 'تجاهل';
+
+  @override
+  String get invitesExplain =>
+      'تُرسل الدعوات بالبريد الإلكتروني وتنتهي بعد 7 أيام. لا تُعرض الروابط هنا أبدًا.';
+
+  @override
+  String get invitesEmptyTitle => 'لا توجد دعوات';
+
+  @override
+  String get invitesEmptyBody => 'ادعُ شخصًا بالبريد الإلكتروني.';
+
+  @override
+  String get inviteMemberAction => 'دعوة';
+
+  @override
+  String get inviteMemberTitle => 'الدعوة بالبريد الإلكتروني';
+
+  @override
+  String get inviteExplain => 'ينضم كعضو بعد تسجيل الدخول بهذا العنوان.';
+
+  @override
+  String get sendInviteAction => 'إرسال الدعوة';
+
+  @override
+  String inviteSent(String email) {
+    return 'تم إرسال الدعوة إلى $email.';
+  }
+
+  @override
+  String inviteResent(String email) {
+    return 'تم إرسال رابط جديد إلى $email. الروابط السابقة لم تعد تعمل.';
+  }
+
+  @override
+  String get inviteRevoked => 'تم إلغاء الدعوة.';
+
+  @override
+  String get inviteAlreadyMember => 'هذا الشخص عضو بالفعل.';
+
+  @override
+  String get inviteEmailFailed =>
+      'تعذر إرسال بريد الدعوة، لذلك لم تُنشأ أي دعوة. حاول لاحقًا.';
+
+  @override
+  String get inviteNewerOpen => 'توجد دعوة أحدث مفتوحة لهذا العنوان بالفعل.';
+
+  @override
+  String get inviteStatusPending => 'بانتظار القبول';
+
+  @override
+  String get inviteStatusAccepted => 'مقبولة';
+
+  @override
+  String get inviteStatusRevoked => 'ملغاة';
+
+  @override
+  String get inviteStatusExpired => 'منتهية';
+
+  @override
+  String inviteExpires(String date) {
+    return 'تنتهي في $date';
+  }
+
+  @override
+  String inviteSentTimes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'أُرسلت $count مرة',
+      many: 'أُرسلت $count مرة',
+      few: 'أُرسلت $count مرات',
+      two: 'أُرسلت مرتين',
+      one: 'أُرسلت مرة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get resendInviteAction => 'إرسال رابط جديد';
+
+  @override
+  String get revokeInviteAction => 'إلغاء الدعوة';
+
+  @override
+  String get revokeInviteTitle => 'هل تريد إلغاء هذه الدعوة؟';
+
+  @override
+  String revokeInviteBody(String email) {
+    return 'سيتوقف الرابط المرسل إلى $email عن العمل.';
+  }
+
+  @override
+  String get requestsPendingTab => 'قيد الانتظار';
+
+  @override
+  String get requestsHistoryTab => 'السجل';
+
+  @override
+  String get noPendingRequestsTitle => 'لا شيء للمراجعة';
+
+  @override
+  String get noPendingRequestsBody => 'تظهر هنا الطلبات الجديدة من الأعضاء.';
+
+  @override
+  String get noReviewedRequestsTitle => 'لا توجد طلبات تمت مراجعتها';
+
+  @override
+  String get noReviewedRequestsBody => 'تظهر هنا الطلبات المقبولة والمرفوضة.';
+
+  @override
+  String requestSummaryModel(String model) {
+    return 'النموذج: $model';
+  }
+
+  @override
+  String requestSummaryTool(String tool) {
+    return 'الأداة: $tool';
+  }
+
+  @override
+  String get requestSummaryUpload => 'إذن رفع المستندات';
+
+  @override
+  String get requestSummaryJoin => 'يريد الانضمام إلى هذه المساحة';
+
+  @override
+  String get requestReasonLabel => 'السبب';
+
+  @override
+  String get reviewNoteLabel => 'ملاحظة لمقدم الطلب (اختيارية)';
+
+  @override
+  String get approveAction => 'موافقة';
+
+  @override
+  String get declineAction => 'رفض';
+
+  @override
+  String get requestApprovedDone => 'تمت الموافقة. تم إشعار العضو.';
+
+  @override
+  String get requestDeclinedDone => 'تم الرفض. تم إشعار العضو.';
+
+  @override
+  String get reviewAlreadyDone =>
+      'تمت مراجعة هذا الطلب بالفعل. تم تحديث القائمة.';
+
+  @override
+  String get reviewOwnRequest => 'يراجع طلباتك مسؤول آخر.';
+
+  @override
+  String get requestChooseTool => 'اختر أداة.';
+
+  @override
+  String get toolLabel => 'الأداة';
+
+  @override
+  String get adminDocumentsExplain =>
+      'يرى الأعضاء المستندات التي رفعوها أو مُنحت لهم. المستندات المخفية يراها المسؤولون فقط.';
+
+  @override
+  String get adminDocumentsEmpty => 'لا توجد مستندات في هذه المساحة بعد.';
+
+  @override
+  String get documentHiddenSwitch => 'إخفاء عن الأعضاء';
+
+  @override
+  String get documentHiddenExplain =>
+      'لا تُعرض المستندات المخفية ولا تُستخدم في إجابات الأعضاء، حتى من مُنح الوصول.';
+
+  @override
+  String get hideDocumentTitle => 'هل تريد إخفاء هذا المستند؟';
+
+  @override
+  String get hideDocumentBody =>
+      'يفقد الأعضاء الوصول فورًا، وستظهر المصادر في الإجابات السابقة التي تستشهد به على أنها غير متاحة لهم.';
+
+  @override
+  String get hideDocumentAction => 'إخفاء';
+
+  @override
+  String get documentAccessTitle => 'الأعضاء الذين لديهم وصول';
+
+  @override
+  String get documentAccessExplain =>
+      'يملك المسؤولون ومن رفع المستند الوصول دائمًا.';
+
+  @override
+  String get documentUploader => 'رفع المستند';
+
+  @override
+  String get documentNoMembers => 'لا يوجد أعضاء آخرون لمنحهم الوصول.';
+
+  @override
+  String get documentGone => 'لم يعد هذا المستند متاحًا.';
+
+  @override
+  String get removeDocAccessTitle => 'هل تريد إزالة الوصول إلى هذا المستند؟';
+
+  @override
+  String removeDocAccessBody(String email) {
+    return 'لن يراه $email بعد الآن، وستظهر المصادر في الإجابات السابقة التي تستشهد به على أنها غير متاحة.';
+  }
+
+  @override
+  String get removeDocAccessAction => 'إزالة الوصول';
+
+  @override
+  String get spaceTotalsTitle => 'الإجماليات';
+
+  @override
+  String get spaceUsageExplain =>
+      'جميع الأعضاء، من الاستخدام المسجل. لا تُحتسب الردود التي لا يوجد لها استخدام مُبلغ عنه. التكاليف تقديرية بأسعار القائمة.';
+
+  @override
+  String get usageNoRequests => 'لا يوجد استخدام مسجل في هذه الفترة.';
+
+  @override
+  String get myUsageAction => 'استخدامي';
 }

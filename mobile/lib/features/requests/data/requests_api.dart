@@ -128,6 +128,18 @@ class RequestsApi {
     return UserSpaceRequest.fromJson(response.data!);
   }
 
+  /// Tool identifiers this deployment supports (the space catalog).
+  Future<List<String>> tools(String spaceId) async {
+    final response = await _client.request<Map<String, dynamic>>(
+      '/spaces/${Uri.encodeComponent(spaceId)}/catalog',
+      includeSpace: false,
+    );
+    return [
+      for (final t in response.data!['tools'] as List? ?? const [])
+        '${(t as Map)['id']}',
+    ];
+  }
+
   /// Models the space offers in principle, and those the user may use now.
   Future<({List<String> all, List<String> allowed})> models() async {
     final all = await _client.request<List<dynamic>>('/chat/models/all');

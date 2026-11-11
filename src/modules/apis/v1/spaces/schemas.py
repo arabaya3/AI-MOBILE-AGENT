@@ -120,6 +120,8 @@ class MySpaceMembership(BaseModel):
     status: str
     can_upload_documents: bool = False
     overrides: SpacePolicy = Field(default_factory=SpacePolicy)
+    # What this member can use now (space policy plus approved additions).
+    effective_tools: List[str] = Field(default_factory=list)
 
 
 class SpaceRequestCreate(BaseModel):
@@ -164,6 +166,8 @@ class UsageTotals(BaseModel):
     total_tokens: int = 0
     requests: int = 0
     cost_usd: Optional[float] = None
+    # Requests whose cost is unknown; cost_usd excludes them.
+    requests_without_cost: int = 0
 
 
 class SpaceUsageSummary(BaseModel):
