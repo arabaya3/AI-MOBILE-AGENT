@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["<TEAMID>.com.teia.aiassistant", "<TEAMID>.com.teia.aiassistant.staging"],
+        "components": [
+          { "/": "/join-space", "?": { "token": "?*" }, "comment": "Space invitations" },
+          { "/": "/auth", "?": { "token": "?*" }, "comment": "Password reset" },
+          { "/": "/reset-password", "?": { "token": "?*" }, "comment": "Password reset" }
+        ]
+      }
+    ]
+  }
+}

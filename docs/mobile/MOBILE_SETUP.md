@@ -6,7 +6,7 @@ The Flutter project is in `mobile/`. It targets Android 8.0+ (API 26) and iOS 15
 
 | Tool | Version |
 |---|---|
-| Flutter | **3.41.6** stable (pinned in `.github/workflows/mobile.yml`) |
+| Flutter | **3.41.6** stable (pinned in `.github/workflows/mobile.yml`; `pubspec.yaml` requires `>=3.41.6 <3.42.0`) |
 | Dart | 3.11.4 (bundled) |
 | Java | 17 or newer for Gradle |
 | Android SDK | Platform 36 and build-tools; an emulator image for API 26 or newer |
@@ -22,7 +22,7 @@ Dependencies are locked in `mobile/pubspec.lock`. Use `flutter pub get --enforce
 | staging | `lib/main_staging.dart` | `com.teia.aiassistant.staging` | `config/staging.json` (**not tracked**) |
 | prod | `lib/main_prod.dart` | `com.teia.aiassistant` | `config/prod.json` (**not tracked**) |
 
-Each config file provides one value: `API_BASE_URL`. It never contains credentials.
+Each config file provides `API_BASE_URL` and, optionally, `APP_LINK_HOSTS` (comma-separated hosts whose https reset/invite links the app accepts). It never contains credentials. Check a staging/prod file with `python tool/check_release_config.py config/prod.json`.
 
 - **Staging and prod files:** create them from `config/*.example.json` using the owner-controlled HTTPS endpoint. No endpoint is committed, because none has been provided yet.
 - **Startup validation:**
@@ -46,7 +46,7 @@ flutter build apk --debug --flavor dev -t lib/main_dev.dart --dart-define-from-f
 
 - Run `flutter doctor --android-licenses` once.
 - If `flutter doctor` reports that `cmdline-tools` is missing, install "Android SDK Command-line Tools" from the Android Studio SDK Manager. Gradle builds still work without it.
-- Release builds need a signing configuration that is kept outside the repository (Phase 6).
+- Release builds: see [MOBILE_RELEASE_RUNBOOK.md](MOBILE_RELEASE_RUNBOOK.md). Signing comes only from a `key.properties` outside git (`TEIA_KEY_PROPERTIES`); without it release outputs are unsigned, never debug-signed. Staging/prod release builds stop early when `API_BASE_URL` is missing or not https.
 
 ## macOS / iOS
 
@@ -59,7 +59,7 @@ flutter run --flavor dev -t lib/main_dev.dart --dart-define-from-file=config/dev
 
 - The `dev`, `staging` and `prod` schemes map to `Debug-<flavor>`, `Release-<flavor>` and `Profile-<flavor>` configurations.
 - `tool/configure_ios_flavors.py` created these configurations. It is idempotent, so re-run it after regenerating the iOS project.
-- Signing and App Store identifiers are set up in Phase 6. The bundle IDs are provisional.
+- Archive and export (`flutter build ipa`), signing and Universal Links: [MOBILE_RELEASE_RUNBOOK.md](MOBILE_RELEASE_RUNBOOK.md) §4. The bundle IDs are provisional. The dev `teia-dev://` link scheme is Android-only; on iOS paste the emailed link.
 
 ## Quality gates
 

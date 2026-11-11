@@ -1,0 +1,6 @@
+# Android upload-key signing. Keep this file and the keystore OUTSIDE git (both are git-ignored if
+# placed in mobile/android/). Point TEIA_KEY_PROPERTIES at it, or copy it to mobile/android/key.properties.
+storeFile=<absolute path to the upload keystore (.jks)>
+storePassword=<from the owner's secret store>
+keyAlias=<alias>
+keyPassword=<from the owner's secret store>
