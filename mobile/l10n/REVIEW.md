@@ -32,4 +32,17 @@ These translations were written during Phase 0. The terms below are uncertain or
 | `usageCostNone`, `usageCostIncomplete` | …does not mean it was free / …not included | …هذا لا يعني أنه كان مجانيًا / …غير مشمول | Billing wording. Owner review required. |
 | `deleteConversationBody` | Its messages are deleted… Usage records are kept… | تُحذف رسائلها… وتبقى سجلات الاستخدام… | Data-retention wording. Owner review required. |
 | `requestTypeQuota` | Higher limits | رفع الحدود | Confirm the product term. |
-| numbers | Counts use `NumberFormat` (Western digits in `ar`) while dates use Arabic-Indic digits | | Choose one digit style for Arabic. |
+| numbers | Counts and dates both use Western digits in `ar` (verified: `intl` `ar` formats `12,345` and `11 نوفمبر 2026`) | | Confirm Western digits; month names stay Arabic. |
+
+## Phase 5–6 additions
+
+| Key | English | Arabic used | Question |
+|---|---|---|---|
+| *space* (all keys) | Space | مساحة العمل | Phase 5 strings used "المساحة" while earlier ones used "مساحة العمل"; both appeared on one screen. Unified on "مساحة العمل" in Phase 6. Confirm, or choose "المساحة" and change all 50 strings together. |
+| `usageTotalTokens`, `quota*Tokens` | tokens | الرموز | Technical term for model tokens. Alternative: "التوكنات". Confirm. |
+| `limitBlocked` | 0 (blocked) | 0 (محظور) | Confirm "محظور" vs "موقوف". |
+| `inviteStatusPending` | Waiting | بانتظار القبول | Confirm. |
+| `adminModelsToolsTitle`, `allowed*` | Models and tools | النماذج والأدوات | Confirm product terms. |
+| `revokeAccessBody`, `hideDocumentBody`, `removeDocAccessBody` | access-removal wording | | Access and privacy wording. Owner review required. |
+| `inviteEmailFailed` | …no invitation was created… | …لم تُنشأ أي دعوة… | Confirm. |
+| `openSourceLicenses` | Open-source licenses | تراخيص البرمجيات مفتوحة المصدر | Confirm. |

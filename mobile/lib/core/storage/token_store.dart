@@ -1,4 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 abstract interface class TokenStore {
   Future<String?> read();
@@ -28,6 +29,21 @@ class SecureTokenStore implements TokenStore {
 
   @override
   Future<void> delete() => _storage.delete(key: _key);
+}
+
+const _installMarkerKey = 'install.marker';
+
+/// The iOS Keychain survives uninstalling the app, while preferences do not. On the first start
+/// of a fresh install (no marker yet) a token left by an earlier install is deleted, so a
+/// reinstall never resumes the previous user's session. Existing installs that predate the marker
+/// are signed out once.
+Future<void> forgetTokenFromPreviousInstall(
+  SharedPreferences prefs,
+  TokenStore store,
+) async {
+  if (prefs.getBool(_installMarkerKey) ?? false) return;
+  await store.delete();
+  await prefs.setBool(_installMarkerKey, true);
 }
 
 class InMemoryTokenStore implements TokenStore {

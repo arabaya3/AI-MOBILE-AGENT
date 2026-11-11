@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Verified App Links for emailed reset and invitation links. Used only when the build is given
+         -PappLinkHost; the host must publish /.well-known/assetlinks.json for the signing key. -->
+    <application>
+        <activity android:name=".MainActivity">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${appLinkHost}" android:path="/join-space" />
+                <data android:scheme="https" android:host="${appLinkHost}" android:path="/auth" />
+                <data android:scheme="https" android:host="${appLinkHost}" android:path="/reset-password" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

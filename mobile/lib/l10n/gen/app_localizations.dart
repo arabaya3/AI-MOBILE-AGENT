@@ -3301,6 +3301,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'My usage'**
   String get myUsageAction;
+
+  /// No description provided for @openSourceLicenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Open-source licenses'**
+  String get openSourceLicenses;
 }
 
 class _AppLocalizationsDelegate

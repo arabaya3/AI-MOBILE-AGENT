@@ -836,5 +836,6 @@
   "spaceTotalsTitle": "Totals",
   "spaceUsageExplain": "All members, from recorded usage. Replies without reported usage are not included. Costs are estimates from list prices.",
   "usageNoRequests": "No recorded usage in this period.",
-  "myUsageAction": "My usage"
+  "myUsageAction": "My usage",
+  "openSourceLicenses": "Open-source licenses"
 }

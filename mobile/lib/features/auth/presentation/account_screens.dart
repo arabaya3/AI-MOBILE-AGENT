@@ -100,6 +100,15 @@ class AccountScreen extends ConsumerWidget {
               icon: const Icon(Icons.logout),
               label: Text(l10n.signOutAction),
             ),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              key: const ValueKey('open-licenses'),
+              onPressed: () => showLicensePage(
+                context: context,
+                applicationName: l10n.appTitle,
+              ),
+              child: Text(l10n.openSourceLicenses),
+            ),
             if (showDeveloper) ...[
               const SizedBox(height: AppSpacing.sm),
               TextButton(

@@ -9,6 +9,7 @@ import 'app/app.dart';
 import 'app/config_error_app.dart';
 import 'core/config/app_config.dart';
 import 'core/providers.dart';
+import 'core/storage/token_store.dart';
 import 'features/auth/application/auth_controller.dart';
 import 'features/links/link_listener.dart';
 
@@ -27,14 +28,21 @@ Future<void> bootstrap(AppEnvironment environment) async {
     return;
   }
 
+  final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     overrides: [
       appConfigProvider.overrideWithValue(config),
-      sharedPreferencesProvider.overrideWithValue(
-        await SharedPreferences.getInstance(),
-      ),
+      sharedPreferencesProvider.overrideWithValue(prefs),
     ],
   );
+  try {
+    await forgetTokenFromPreviousInstall(
+      prefs,
+      container.read(tokenStoreProvider),
+    );
+  } catch (_) {
+    // An unreadable keystore is handled by the normal session start, which signs the user out.
+  }
   runApp(
     UncontrolledProviderScope(container: container, child: const TeiaApp()),
   );
