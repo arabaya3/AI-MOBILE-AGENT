@@ -6,7 +6,7 @@
 | Baseline | `origin/dev` @ `a02aa7191485041981b1f166ee517195cf210482` |
 | Repository | `arabaya3/AI-MOBILE-AGENT` (no changes to any original TEIA repository) |
 | Decisions | D1–D11 resolved 2026-10-11 (§9) |
-| Current phase | Phase 1 complete (§6). Phase 0 merged in `c34115e`. |
+| Current phase | Phase 5 in review (§6): space administration and secure invitations. Phases 0–4 merged (latest `a34d70f`). |
 
 API evidence for every statement here is in [MOBILE_DISCOVERY.md](MOBILE_DISCOVERY.md).
 
@@ -599,13 +599,57 @@ Deferred from Phase 4:
 
 ### Phase 5 — Space administration
 - **Scope:** all D1 space-admin items, plus workspace system prompts as specified by D5.
-- **Backend:**
-  - Verify each route's authorization with tests.
-  - Add space-scoped system-prompt storage with a space-admin check.
-  - S7 fix.
-- **Acceptance:**
-  - A non-admin receives 403 from the backend for every admin route (tested).
-  - The UI hides the controls as well.
+
+**Phase 5 results (2026-11-11, branch `feature/mobile-space-admin`):**
+
+Baseline: `origin/dev` at `a34d70f` (Phase 4 merge, identical to the reviewed `a279d5b`); nothing newer.
+
+Permission rules (unchanged role model; the server re-checks every call):
+- **Space admin** (`space_members.role = admin`, `status = active`, or a global super admin) may: rename the space, list and edit members (role, access, upload right, limit overrides, granted models/tools), invite/resend/revoke, review requests, edit space models/tools and default limits, change document visibility and per-member document access, and read space usage.
+- **Members** may: read their own membership (now with `effective_tools`), read the space catalog, create and read their own requests.
+- **Outsiders** get 403 on every space route; cross-space ids give 403/404.
+- **Last admin:** a change that would leave a space without an active admin (demote or revoke) is refused with 409. The space row is locked first, so two admins demoting each other concurrently leave exactly one.
+- **Reviews:** a request is locked and must still be pending (409 otherwise), so concurrent approve/decline applies once with one audit record and one notification. Reviewers cannot review their own requests (403). Each type changes only its own field, read from its own key; legacy payload fields (for example `allowed_models` in a `quota_change`) are ignored. Model/tool approvals must name a supported identifier.
+- **Limits:** whole numbers 0–1,000,000,000 (booleans and strings rejected); token limits above 0 have the existing minimums; daily ≤ monthly is checked against the resulting values. A number sets a limit (0 blocks), an explicit `null` clears it (space: unlimited; member: inherit the space default), omitted fields are unchanged. Previously `null` was ignored, so limits could not be removed.
+- **Models and tools:** new identifiers must come from `GET /spaces/{id}/catalog` (ids only: chat models the deployment supports, tools registered at startup). Identifiers already stored stay accepted so legacy policies can still be saved.
+
+Secure invitations (closes S10 and S11):
+- Tokens: `secrets.token_urlsafe(32)`, delivered only by the configured email service, stored only as SHA-256 (`token_hash`). No API response, list, log line or analytics event contains the token.
+- If email delivery fails or is disabled the request fails with 503 and nothing is stored: there is no token-exposure fallback.
+- Expiring (7 days), revocable, single use. Accepting locks the invitation row, so concurrent acceptances join once.
+- One open invitation per space and address (partial unique index). Inviting again or "resend" rotates the token (the previous link stops working) and increments `send_count`; membership is never duplicated.
+- Binding: the signed-in account's current email must equal the invited address (403 otherwise). Changing the account email after the invitation breaks the binding; the admin re-invites the new address.
+- Existing active members cannot be invited (409). Revoked or pending members who accept return as ordinary members (earlier admin rights are not restored). Inactive spaces refuse invites and acceptance.
+- **Migration `20261111_0001_hashed_space_invites.sql`:** adds the hash and audit columns, renames `cancelled` to `revoked`, marks every pending plaintext invitation **expired** and clears all plaintext tokens. Old links stop working; admins resend from the Invitations screen (expired invitations can be resent).
+- **Web:** `/join-space` captures the token into memory before the app renders and removes it from the address bar; nothing is written to local/session storage or the URL afterwards. Sign-in and sign-up return to `/join-space` (in-app navigation keeps the token; a full reload drops it and the emailed link must be opened again). Acceptance is an explicit button. The admin dialog no longer displays tokens. The service worker no longer caches navigations or any URL with a query string and drops the old cache.
+- **Mobile:** unchanged contract for acceptance; tokens stay in memory; the dev-only `teia-dev://` scheme and the verified-host rules are unchanged. App Links / Universal Links remain unverified until an owner-controlled domain exists.
+
+Web live notifications (closes S26):
+- The stream is opened with `fetch` and the bearer token in the `Authorization` header (the API never accepts query tokens). It reconnects with 1–30 s backoff, reloads the list and unread count after every connect, de-duplicates by id, stops on 401/403, and is closed on logout or account change (state is cleared and late responses from the previous account are ignored).
+- The bell component existed but was never mounted, and it read a storage key that does not exist; it is now in the header.
+
+Mobile administration ("Manage space", admins only):
+- Entry on the home screen only for an active admin; the membership is re-checked before it opens. Routes under `/admin` redirect non-admins.
+- Screens: overview and rename; members (search, role, access, upload right, limit overrides, granted models/tools); invitations (send, resend, revoke); requests (pending/history, approve/decline with note); models and tools; space default limits; document visibility and per-member access; space usage (1/7/30/90 days, cost never shown as zero when unknown).
+- Values: "No limit", "0 (blocked)", explicit numbers and "Space default: …" are distinct; each limit saves on its own; setting a space limit to 0 asks for confirmation.
+- Confirmations for removing access, demotion (including self), removing granted models/tools, revoking invitations, hiding documents and removing document access.
+- Access loss: all admin data lives under an admin scope (`account/space`, admin role). A 403 from any admin call re-checks the membership; losing the role (or switching account or space) drops all admin state and closes the admin screens at once. Late results for a previous scope are discarded.
+- Duplicate submissions are blocked while a mutation runs; uncertain outcomes (network, timeout, 5xx other than 503) reload the affected list and say so.
+- Members can now request tool access, chosen from the catalog minus the tools they already have.
+- Hidden on purpose: creating and deactivating spaces, global settings and global system prompts (web only).
+
+System prompts (D5, S9): **not implemented.** The backend has only per-user prompts (`GET/PUT /system-prompts`, no space scope). No workspace prompt editor is shown; personal instructions stay deferred on mobile. Found while checking: `GET /system-prompts` returns the global prompt texts to any signed-in user (S29, open).
+
+Verified:
+- **Backend:** **159** pytest tests (134 before), including invitations (hash-only storage and no token in API or logs, binding, expiry, revocation, resend, replay, concurrent acceptance and creation, email failure, inactive space, revoked member, email change), admin boundaries (member, outsider, admin of another space), last admin (sequential and concurrent), limits (unlimited/0/values, clearing, invalid values), overrides (inherit vs explicit), catalog validation, concurrent review exactly once, self-review, legacy payloads, tool requests, space usage cost and effective tools.
+- **Web:** typecheck and production build; **9** Vitest tests (SSE parser, header-only token, backoff and reload on reconnect, 401 stop, abort on close, de-duplication, token capture and URL scrubbing without storage).
+- **Mobile:** **222** Flutter tests, analyze clean, Android dev APK built. Admin flows: no entry or route for members, re-check on entry, role loss while a screen is open, 403 re-check, late result after a space switch, distinct limit values, clear-to-default, confirmed zero limit, demotion and last-admin message, cancelled and confirmed access removal, single invitation on double tap, uncertain and email-failure messages, revoke confirmation, approve with note, already-reviewed, own request, models saved from the catalog, document hide and grant, member tool request, and layout in en/ar × light/dark at 2× text on a 320 dp phone.
+- **Migration:** `20261111_0001` applied twice to a legacy-shaped table (pending → expired, cancelled → revoked, every plaintext token cleared, second run a no-op) and twice to a current schema.
+- **End to end** (local Postgres, Mailpit with STARTTLS, moto S3, stub providers):
+  - API script, 23/23: invitation without token in responses, token only in Mailpit, rotation, wrong account 403, superseded token 404, accept, replay 404, revoked 404, member 403 on admin routes, self-review 403, concurrent review once, effective permission and one notification, decline with note, document grant/revoke and member 403, space limit 0 blocks and member override lifts it, invalid limit and unsupported model 422, last admin 409.
+  - Web (Chromium): emailed link → token removed from the URL, nothing in storage or caches → sign-up → back on `/join-space` → accept → joined; notification stream opened with no token in the URL, live policy notification shown.
+  - Android emulator: admin invites from the app, email arrives; recipient signs in, opens the dev link, accepts, has no admin entry; recipient requests uploads (tool access offered from the catalog); admin approves with a note and declines a tool request; recipient sees both notifications and "uploads allowed"; admin grants then removes document access (member's list changes both ways); admin sets a 0 conversation limit (confirmed) and adds a model; recipient's new conversation is refused by the limit; admin's role is removed by another admin while a member screen is open, and the next action returns to home without administration; Arabic, dark, 2× text.
+  - Screenshots: `docs/mobile/screenshots/phase5/`.
 
 ### Phase 6 — Verification and release preparation
 - **Scope:** full integration suite on Android (emulator and a device) and iOS (macOS), plus accessibility, RTL and performance passes, icons and splash, signing outside the repository, store metadata, privacy forms, and production HTTPS configuration.
@@ -631,19 +675,22 @@ Deferred from Phase 4:
 | S4 | Persist citations | 3 | **Done (Phase 3)**; re-authorized on every read |
 | S5 | Message IDs in `meta` and `done` | 2 | **Done (Phase 2)** |
 | S6 | Provider failure as an `error` event, not stored | 2 | **Done (Phase 2)** |
-| S7 | Super-admin usage route order (web feature) | 5 | Planned |
+| S7 | Super-admin usage route order (web feature) | 5 | Open (web super-admin feature, not touched) |
 | S8 | Per-user check on `/documents/{id}/chunks` | 3 | **Done (Phase 3)** |
-| S9 | Workspace system prompts, space-admin only (D5) | 5 | Planned |
-| S10 | Hash space invite tokens and stop returning them to the inviter | 5 | **Open — release blocker** (found in Phase 1) |
-| S11 | Web `/join-space` route so emailed invite links work on the web | 4 | **Open — release blocker** (found in Phase 1) |
+| S9 | Workspace system prompts, space-admin only (D5) | 5 | **Not implemented**: backend has per-user prompts only; no space-scoped storage |
+| S10 | Hash space invite tokens and stop returning them to the inviter | 5 | **Done (Phase 5)**: hashed, email-only, expiring, revocable, single use; plaintext invitations expired by migration |
+| S11 | Web `/join-space` route so emailed invite links work on the web | 5 | **Done (Phase 5)**: token kept in memory through sign-in/up and removed from the URL |
 | S12 | Validate join requests (space exists and active, not already a member, idempotent) and add `GET /spaces/requests/mine` | 1 | **Done (Phase 1)**; concurrency fixed in Phase 2 |
 | S13 | Typed `code` on every stream `error` event; generic `internal` error | 2 | **Done (Phase 2)** |
 | S14 | `pool_pre_ping` so a client disconnect does not break the next request | 2 | **Done (Phase 2)** |
 | S15 | Local chat provider stub, refused outside development and test | 2 | **Done (Phase 2)** |
 | S16 | Durable document states, upload receipts for reconciliation, authorized single retry | 3 | **Done (Phase 3)** |
 | S25 | Strict space-request payloads and pending-request de-duplication | 4 | **Done (Phase 4)** |
-| S26 | Web notification stream sends the token as a query parameter the API ignores, so the web live stream never connects | 4 | Open (web; mobile uses the header) |
+| S26 | Web notification stream sends the token as a query parameter the API ignores, so the web live stream never connects | 5 | **Done (Phase 5)**: header-authenticated fetch stream, reconnect, de-duplication, logout; bell mounted |
 | S27 | Invoice PDF printed unknown cost as `$0.0000` | 4 | **Done (Phase 4)** |
+| S29 | `GET /system-prompts` returns the global system prompt texts to any signed-in user | 5 | Open (found in Phase 5; web feature) |
+| S30 | Last active admin could be demoted or revoked; concurrent reviews could apply twice; self-review allowed; limits could not be cleared; approvals applied legacy payload fields | 5 | **Done (Phase 5)** |
+| S31 | Space usage summed unknown costs as $0; invitation and request emails did not escape space names and notes | 5 | **Done (Phase 5)** |
 | S28 | Deleting conversations reset conversation limits (limits counted existing conversations) | 4 | **Done (Phase 4 review)**: start ledger, transaction lock, branch limited |
 | S24 | Identical-bytes deduplication granted the uploader access to the existing document (pre-existing) | 3 | **Done (Phase 3 review)**: access re-checked, generic 409, no grant |
 | S17 | Content validation by bytes, filename sanitizing, isolated and bounded extraction | 3 | **Done (Phase 3)** |
@@ -670,10 +717,12 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 - Configured SMTP for password-reset email in each environment. Without it, reset requests are accepted silently and nothing is sent, by design.
 - Rotation of the provider keys that were committed to the upstream repository history.
 - **Provider charges after a disconnect (S21 remainder):** the attempt is recorded as cancelled with unknown usage and the provider stream is closed, but whether the provider stops generating or billing on close cannot be verified locally; confirm with the provider before release. Costs remain estimates from list prices.
-- **Migrations `20261102_0001_generation_attempts_and_request_keys.sql` and `20261103_0001_conversation_creations.sql`** must be applied by the owner per environment (never run remotely here).
+- **Migration order (owner, per environment, never automatic):** `20261011_0001_chat_shares`, `20261012_0001_unique_pending_join_request`, `20261013_0001_document_processing_state`, `20261102_0001_generation_attempts_and_request_keys`, `20261103_0001_conversation_creations`, `20261111_0001_hashed_space_invites`. All are idempotent; each was run only locally.
+- **Invitation cutover:** after `20261111_0001`, every invitation sent before it stops working and shows as expired; admins resend the ones still needed. SMTP must be configured, or inviting fails with 503 by design.
 - **Migrations to apply per environment (owner, never automatic):** `20261012_0001_unique_pending_join_request.sql` and `20261013_0001_document_processing_state.sql`. The second backfills existing documents (completed with chunks → `ready`, otherwise `failed` with a code), assuming completed web uploads were indexed, as `upload-and-vectorize` always did.
 - **Extraction limits:** memory and CPU limits apply on Linux only. The tokenizer (`tiktoken`) downloads its public encoding file on first use unless the image pre-caches it.
-- **Unresolved release items found in Phase 1:** S10 (invitation tokens stored in plaintext and returned to the inviter) and S11 (web `/join-space` route missing, so emailed invite links fail on the web). Both must be fixed before release.
+- **Phase 1 release items S10 and S11 are closed in Phase 5** (pending owner review and the invitation cutover above).
+- **App Links / Universal Links** are not verified: they need the owner-controlled HTTPS host (see setup). Until then invitation links open the web page; on mobile the link can be pasted.
 - The join-request migration `20261012_0001_unique_pending_join_request.sql` must be applied by the owner in each environment; it was run only locally.
 
 **Risks:**
@@ -723,13 +772,21 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 | Share links (create / revoke) | ✔ (create; fixed in S) | ✔ (Phase 2) | Revocation UI on mobile; web gets the API |
 | Document upload / list / open / chunks | ✔ | ✔ upload, list, status, retry, open (Phase 3); chunks view later | 25 MiB, states, upload IDs |
 | Document delete | ✘ (admin hide) | ✘ | No backend endpoint; hide stays web-only |
-| In-app notifications | Broken stream (S26) | ✔ (Phase 4) | Live over header-authenticated SSE |
+| In-app notifications | ✔ (Phase 5, S26 fixed) | ✔ (Phase 4) | Live over header-authenticated SSE on both |
 | Background push | ✘ | ✘ (deferred, D4) | |
-| Requests (space) | ✔ | ✔ own requests (Phase 4) | Review stays Phase 5 |
+| Requests (space) | ✔ | ✔ own requests (Phase 4), tool access (Phase 5), review for admins (Phase 5) | Self-review refused |
 | Usage and invoice PDF | ✔ | ✔ (Phase 4) | Unknown usage and cost explicit |
 | Personal instructions | ✔ (per-user prompts) | ✘ deferred (D5) | Scope unresolved |
-| **Space admin**: members, roles, upload rights, document permissions, models/tools, quotas, requests review, invites, usage, dashboard | ✔ | ✔ | D1 |
-| Workspace system prompts | ✘ (per-user only) | ✔ (after S9) | D5 |
+| **Space admin**: members, roles, access, upload rights, overrides | ✔ | ✔ (Phase 5) | Last active admin protected |
+| Space admin: invitations (send, list, resend, revoke) | ✔ send only; tokens no longer shown | ✔ (Phase 5) | Tokens only by email |
+| Space admin: request review | ✔ | ✔ (Phase 5) | Exactly once |
+| Space admin: models and tools, default limits | ✔ | ✔ (Phase 5) | From the catalog |
+| Space admin: document visibility and access | ✔ | ✔ (Phase 5) | |
+| Space admin: usage | ✔ (+ dashboard charts) | ✔ totals and per model (Phase 5) | Dashboard charts web only |
+| Rename space | ✔ | ✔ (Phase 5) | |
+| Deactivate space | ✔ | ✘ **Web only** | Irreversible from the app; inactive spaces disappear from lists |
+| Invitation acceptance by link | ✔ `/join-space` (Phase 5) | ✔ dev link / paste | Verified links need the owner domain |
+| Workspace system prompts | ✘ (per-user only) | ✘ **Missing capability** | No space-scoped storage or enforcement in the backend (S9) |
 | **Super admin**: all spaces, global usage, global admin dashboard, global user requests, user list | ✔ | ✘ **Web only in v1** | D1 |
 | Global system prompts | ✔ (as per-user today) | ✘ **Web only** | D5 |
 | Create space (global admin) | ✔ | ✘ **Web only in v1** | Global operation |

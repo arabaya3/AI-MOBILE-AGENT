@@ -127,9 +127,28 @@ Add to the backend:
 - `QDRANT_URL=http://teia-e2e-qdrant:6333`, `QDRANT_VECTOR_SIZE=256`, `QDRANT_COLLECTION=teia_e2e_docs`, `ENABLE_RERANKING=false`.
 - `AWS_S3_ENDPOINT_URL=http://teia-e2e-s3:5000`, `AWS_S3_BUCKET=teia-e2e`, dummy `AWS_*` keys.
 
-Apply `migrations/sql/20261013_0001_document_processing_state.sql` , `20261102_0001_generation_attempts_and_request_keys.sql` and `20261103_0001_conversation_creations.sql` to an existing local database (the backend's startup `create_all` does not add columns to existing tables). The backend tests use moto's server and Qdrant's in-memory mode (`QDRANT_URL=:memory:`) automatically.
+Apply, in order, `migrations/sql/20261013_0001_document_processing_state.sql`, `20261102_0001_generation_attempts_and_request_keys.sql`, `20261103_0001_conversation_creations.sql` and `20261111_0001_hashed_space_invites.sql` to an existing local database (the backend's startup `create_all` does not add columns to existing tables). The backend tests use moto's server and Qdrant's in-memory mode (`QDRANT_URL=:memory:`) automatically.
 
 To pick files in the emulator, push synthetic files with `adb push <file> /sdcard/Download/` and choose them from **Downloads** in the system picker.
+
+## Invitations locally
+
+Invitations are emailed only; with `EMAIL_ENABLED=false` inviting fails with 503 by design. Point the backend at Mailpit (`SMTP_HOST`, port 1025, `SMTP_USE_TLS=true`, any `SMTP_USER`/`SMTP_PASSWORD`), invite from **Manage space → Invitations**, and take the link from the Mailpit UI on `:8025`. On the emulator open it with the dev scheme:
+
+```bash
+adb shell am start -a android.intent.action.VIEW -d "teia-dev://join-space?token=<token from the email>" com.teia.aiassistant.dev
+```
+
+On the web, open the emailed `/join-space?token=…` link (`FRONTEND_URL` must point at the web app).
+
+## Web checks
+
+```bash
+cd Front-End
+npm install --no-package-lock   # leaves the local package-lock.json untouched
+npm run build                   # typecheck and bundle
+npm test                        # Vitest unit tests
+```
 
 ## Reset and invitation links
 

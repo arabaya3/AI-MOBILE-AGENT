@@ -173,7 +173,7 @@ const NotificationBell = () => {
 
   return (
     <>
-      <IconButton color="inherit" onClick={handleOpen}>
+      <IconButton color="inherit" onClick={handleOpen} aria-label="Notifications" size="small">
         <Badge badgeContent={unreadCount} color="error">
           <NotificationsIcon />
         </Badge>
