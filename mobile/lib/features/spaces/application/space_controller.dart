@@ -132,6 +132,46 @@ class SpaceController extends Notifier<SpaceState> {
     await _activate(space, spaces, generation, SpaceNotice.none);
   }
 
+  /// Re-reads the membership of the selected space in place (no loading state), e.g. after a
+  /// 403 suggests the role changed. Losing access falls back to the space list.
+  Future<void> revalidate() async {
+    final current = state;
+    if (current is! SpaceSelected) return;
+    final generation = _generation;
+    try {
+      final membership = await _api.membership(current.space.id);
+      if (generation != _generation || state != current) return;
+      if (!membership.isActive) {
+        await refresh(notice: SpaceNotice.accessLost);
+        return;
+      }
+      state = SpaceSelected(current.space, membership, current.spaces);
+    } on ApiException catch (e) {
+      if (generation != _generation) return;
+      if (e is ForbiddenException || e is NotFoundException) {
+        await refresh(notice: SpaceNotice.accessLost);
+      }
+    }
+  }
+
+  /// Shows a new name for the selected space without reloading it.
+  void applyRename(String spaceId, String name) {
+    final current = state;
+    if (current is! SpaceSelected) return;
+    Space renamed(Space s) => s.id == spaceId
+        ? Space(
+            id: s.id,
+            name: name,
+            isActive: s.isActive,
+            allowedModels: s.allowedModels,
+          )
+        : s;
+    _spaces = [for (final s in _spaces) renamed(s)];
+    state = SpaceSelected(renamed(current.space), current.membership, [
+      for (final s in current.spaces) renamed(s),
+    ]);
+  }
+
   /// Leaves the current space without choosing another one.
   void clearSelection() {
     final current = state;

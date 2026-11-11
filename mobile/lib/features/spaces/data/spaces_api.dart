@@ -36,6 +36,7 @@ class SpaceMembership {
     required this.role,
     required this.status,
     required this.canUploadDocuments,
+    this.effectiveTools = const [],
   });
 
   factory SpaceMembership.fromJson(Map<String, dynamic> json) =>
@@ -44,12 +45,18 @@ class SpaceMembership {
         role: json['role'] == 'admin' ? SpaceRole.admin : SpaceRole.member,
         status: '${json['status']}',
         canUploadDocuments: json['can_upload_documents'] as bool? ?? false,
+        effectiveTools: [
+          for (final t in json['effective_tools'] as List? ?? const []) '$t',
+        ],
       );
 
   final String spaceId;
   final SpaceRole role;
   final String status;
   final bool canUploadDocuments;
+
+  /// Tools this member can use now (space policy plus approved additions).
+  final List<String> effectiveTools;
 
   bool get isActive => status == 'active';
 }

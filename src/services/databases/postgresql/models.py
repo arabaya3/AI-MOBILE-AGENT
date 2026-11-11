@@ -313,18 +313,27 @@ class SpaceMember(Base):
 
 
 class SpaceInvite(Base):
-    """Email-based invite into a space."""
+    """Email-based invite into a space. Only a SHA-256 hash of the emailed token is stored."""
 
     __tablename__ = "space_invites"
-    __table_args__ = (UniqueConstraint("token", name="uq_space_invite_token"),)
+    __table_args__ = (
+        UniqueConstraint("token", name="uq_space_invite_token"),
+        UniqueConstraint("token_hash", name="uq_space_invite_token_hash"),
+        Index("uq_space_invite_open_email", "space_id", text("lower(email)"), unique=True, postgresql_where=text("status = 'pending'")),
+    )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
     space_id = Column(String, ForeignKey("spaces.id", ondelete="CASCADE"), nullable=False, index=True)
     email = Column(String, nullable=False, index=True)
     invited_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    token = Column(String, nullable=False)
-    status = Column(String, default="pending", nullable=False)  # pending | accepted | cancelled | expired
+    token = Column(String, nullable=True)  # legacy plaintext; cleared by migration 20261111_0001, never written
+    token_hash = Column(String(64), nullable=True)
+    status = Column(String, default="pending", nullable=False)  # pending | accepted | revoked | expired
     expires_at = Column(DateTime, nullable=True)
+    send_count = Column(Integer, default=1, nullable=False)
+    last_sent_at = Column(DateTime, nullable=True)
+    accepted_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    responded_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

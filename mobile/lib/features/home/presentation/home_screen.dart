@@ -130,17 +130,19 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (isSpaceAdmin) ...[
-                const SizedBox(height: AppSpacing.md),
-                Section(
-                  title: l10n.sectionUpcoming,
-                  children: [
-                    UnavailableDestination(
-                      icon: Icons.admin_panel_settings_outlined,
-                      label: l10n.upcomingSpaceAdmin,
-                      statusLabel: l10n.notAvailableYet,
-                    ),
-                  ],
+              if (isSpaceAdmin && space.membership.isActive) ...[
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton.icon(
+                  key: const ValueKey('open-admin'),
+                  onPressed: () async {
+                    // The role is re-checked on the way in; a stale admin flag never opens it.
+                    await ref
+                        .read(spaceControllerProvider.notifier)
+                        .revalidate();
+                    if (context.mounted) await context.push('/admin');
+                  },
+                  icon: const Icon(Icons.admin_panel_settings_outlined),
+                  label: Text(l10n.manageSpaceTitle),
                 ),
               ],
             ],

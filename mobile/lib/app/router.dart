@@ -3,6 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/providers.dart';
+import '../features/admin/application/admin_access.dart';
+import '../features/admin/presentation/admin_documents_screen.dart';
+import '../features/admin/presentation/admin_home_screen.dart';
+import '../features/admin/presentation/admin_requests_screen.dart';
+import '../features/admin/presentation/invites_screen.dart';
+import '../features/admin/presentation/members_screens.dart';
+import '../features/admin/presentation/policy_screens.dart';
+import '../features/admin/presentation/space_usage_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/account_screens.dart';
 import '../features/auth/presentation/login_screen.dart';
@@ -19,6 +27,7 @@ import '../features/foundation_preview/presentation/foundation_preview_screen.da
 import '../features/home/presentation/home_screen.dart';
 import '../features/links/pending_link.dart';
 import '../features/spaces/application/space_controller.dart';
+import '../features/spaces/data/spaces_api.dart';
 import '../features/spaces/presentation/space_screens.dart';
 
 const _publicRoutes = {
@@ -28,6 +37,9 @@ const _publicRoutes = {
   '/reset-password',
 };
 const _transientRoutes = {'/splash', '/session-problem'};
+
+bool isAdminRoute(String location) =>
+    location == '/admin' || location.startsWith('/admin/');
 
 /// Where the user may be, given auth, space and pending-link state. Null keeps the location.
 String? appRedirect({
@@ -68,9 +80,18 @@ String? appRedirect({
           location == '/documents' ||
           location.startsWith('/documents/') ||
           location == '/usage' ||
-          location == '/requests';
+          location == '/requests' ||
+          isAdminRoute(location);
       if ((needsSpace && !selected) || (location == '/spaces' && selected)) {
         return landing;
+      }
+      // Administration exists only while the selected membership is an active admin; losing the
+      // role (seen on the next membership check) closes these screens.
+      if (isAdminRoute(location) &&
+          !(space is SpaceSelected &&
+              space.membership.isActive &&
+              space.membership.role == SpaceRole.admin)) {
+        return '/home';
       }
       return null;
   }
@@ -84,15 +105,19 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(pendingLinkProvider, (_, _) => bump());
   final devTools = ref.read(appConfigProvider).isDev && !kReleaseMode;
 
-  final router = GoRouter(
+  late final GoRouter router;
+  router = GoRouter(
     initialLocation: '/splash',
     refreshListenable: refresh,
-    redirect: (context, state) => appRedirect(
-      auth: ref.read(authControllerProvider),
-      space: ref.read(spaceControllerProvider),
-      link: ref.read(pendingLinkProvider),
-      location: state.matchedLocation,
-    ),
+    redirect: (context, state) {
+      final target = appRedirect(
+        auth: ref.read(authControllerProvider),
+        space: ref.read(spaceControllerProvider),
+        link: ref.read(pendingLinkProvider),
+        location: state.matchedLocation,
+      );
+      return target;
+    },
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
       GoRoute(
@@ -121,6 +146,35 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/usage', builder: (_, _) => const UsageScreen()),
       GoRoute(path: '/requests', builder: (_, _) => const RequestsScreen()),
+      GoRoute(
+        path: '/admin',
+        builder: (_, _) => const AdminHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'members',
+            builder: (_, _) => const MembersScreen(),
+            routes: [
+              GoRoute(
+                path: ':userId',
+                builder: (_, state) =>
+                    MemberDetailScreen(userId: state.pathParameters['userId']!),
+              ),
+            ],
+          ),
+          GoRoute(path: 'invites', builder: (_, _) => const InvitesScreen()),
+          GoRoute(
+            path: 'requests',
+            builder: (_, _) => const AdminRequestsScreen(),
+          ),
+          GoRoute(path: 'models', builder: (_, _) => const ModelsToolsScreen()),
+          GoRoute(path: 'limits', builder: (_, _) => const LimitsScreen()),
+          GoRoute(
+            path: 'documents',
+            builder: (_, _) => const AdminDocumentsScreen(),
+          ),
+          GoRoute(path: 'usage', builder: (_, _) => const SpaceUsageScreen()),
+        ],
+      ),
       GoRoute(
         path: '/documents',
         builder: (_, _) => const DocumentsScreen(),
@@ -163,6 +217,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
     ],
   );
+  // Refresh redirects only re-check the base location, so pages pushed on top of it (all admin
+  // screens) are closed explicitly when admin access ends.
+  ref.listen(adminScopeProvider, (previous, next) {
+    if (previous != null &&
+        next == null &&
+        isAdminRoute(router.state.matchedLocation)) {
+      router.go(
+        ref.read(spaceControllerProvider) is SpaceSelected
+            ? '/home'
+            : '/spaces',
+      );
+    }
+  });
   ref.onDispose(() {
     router.dispose();
     refresh.dispose();

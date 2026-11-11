@@ -47,9 +47,16 @@ export interface InviteMemberRequest {
   email: string;
 }
 
-export interface InviteMemberResponse {
-  invite_token: string;
-  status: string;
+/** The invitation token is delivered only by email and never returned by the API. */
+export interface InviteSummary {
+  id: string;
+  email: string;
+  status: "pending" | "accepted" | "revoked" | "expired";
+  expires_at?: string | null;
+  created_at: string;
+  last_sent_at?: string | null;
+  send_count: number;
+  invited_by_email?: string | null;
 }
 
 export interface AcceptInviteRequest {
@@ -139,7 +146,7 @@ export const acceptInvite = (payload: AcceptInviteRequest) =>
   apiClient.post<AcceptInviteResponse>("/spaces/invites/accept", payload);
 
 export const inviteMember = (spaceId: string, payload: InviteMemberRequest) =>
-  apiClient.post<InviteMemberResponse>(`/spaces/${spaceId}/invites`, payload);
+  apiClient.post<InviteSummary>(`/spaces/${spaceId}/invites`, payload);
 
 export const listMembers = (spaceId: string) => apiClient.get<SpaceMemberSummary[]>(`/spaces/${spaceId}/members`);
 

@@ -626,5 +626,215 @@
   "replyLanguageTitle": "Reply language",
   "replyLanguageExplain": "The language the assistant answers in. Automatic follows your question.",
   "replyLanguageAuto": "Automatic",
-  "upcomingNotifications": "Notifications"
+  "upcomingNotifications": "Notifications",
+  "manageSpaceTitle": "Manage space",
+  "adminOverviewTitle": "Space",
+  "renameSpaceAction": "Rename space",
+  "spaceNameLabel": "Space name",
+  "spaceNameInvalid": "Use 2 to 80 characters.",
+  "adminMembersTitle": "Members",
+  "adminInvitesTitle": "Invitations",
+  "adminRequestsTitle": "Requests to review",
+  "adminModelsToolsTitle": "Models and tools",
+  "adminLimitsTitle": "Usage limits",
+  "adminDocumentsTitle": "Document access",
+  "adminUsageTitle": "Space usage",
+  "adminWebOnlyNote": "Creating or deactivating spaces, platform-wide settings and global system prompts are managed on the web.",
+  "adminSaved": "Saved.",
+  "adminAccessLost": "You no longer manage this space.",
+  "adminLastAdmin": "A space must keep at least one active admin. Make someone else an admin first.",
+  "adminSpaceInactive": "This space is not active.",
+  "adminUnsupportedChoice": "One of the choices is not supported by this service.",
+  "adminInvalidValue": "That value is not allowed. Check the numbers and try again.",
+  "adminUncertain": "We couldn't confirm the change. The screen was refreshed; check it before trying again.",
+  "memberSearchLabel": "Search by email",
+  "membersEmptyTitle": "No members",
+  "membersEmptyBody": "Invite people to add them to this space.",
+  "membersNoMatch": "No member matches this search.",
+  "memberStatusRevoked": "Access removed",
+  "memberDetailTitle": "Member",
+  "memberGoneTitle": "Member not found",
+  "memberGoneBody": "This person is no longer listed in this space.",
+  "memberIsYou": "This is you.",
+  "memberAccessTitle": "Role and access",
+  "memberAdminRole": "Space admin",
+  "memberAdminRoleExplain": "Admins manage members, invitations, requests, policy and documents.",
+  "memberCanUpload": "Can upload documents",
+  "memberAdminsCanUpload": "Admins can always upload.",
+  "makeAdminTitle": "Make this member an admin?",
+  "makeAdminBody": "They will be able to manage everything in this space, including other admins.",
+  "makeAdminAction": "Make admin",
+  "removeAdminTitle": "Remove admin role?",
+  "removeAdminBody": "They stay a member but can no longer manage this space.",
+  "removeOwnAdminTitle": "Remove your own admin role?",
+  "removeOwnAdminBody": "You will leave these screens at once and can't undo this yourself. Another admin would have to restore it.",
+  "removeAdminAction": "Remove admin role",
+  "revokeAccessTitle": "Remove access to this space?",
+  "revokeOwnAccessTitle": "Remove your own access?",
+  "revokeAccessBody": "They can no longer open the space, its conversations or its documents. Their records are kept, and access can be restored later.",
+  "revokeAccessAction": "Remove access",
+  "restoreAccessTitle": "Restore access?",
+  "restoreAccessBody": "They will be able to use this space again with their previous settings.",
+  "restoreAccessAction": "Restore access",
+  "memberLimitsTitle": "Limits for this member",
+  "memberLimitsExplain": "Unset limits follow the space default. A limit set here applies only to this member.",
+  "memberExtraModelsTitle": "Additional models",
+  "memberExtraToolsTitle": "Additional tools",
+  "memberAdditionsExplain": "Granted to this member on top of the space policy, usually by an approved request.",
+  "memberNoAdditions": "None",
+  "removeGrantTitle": "Remove this access?",
+  "removeGrantBody": "The member keeps whatever the space policy allows.",
+  "removeGrantAction": "Remove",
+  "limitUnlimited": "No limit",
+  "limitBlocked": "0 (blocked)",
+  "limitInherited": "Space default: {value}",
+  "@limitInherited": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "limitInheritedShort": "Follows the space default",
+  "limitExplicitShort": "Set for this member",
+  "limitUseDefault": "Use the space default",
+  "limitSetValue": "Set a limit",
+  "limitZeroBlocks": "0 blocks this completely.",
+  "limitInvalid": "Enter a whole number from 0 to 1,000,000,000.",
+  "quotaDailyToolRequests": "Tool uses per 24 hours",
+  "quotaMonthlyToolRequests": "Tool uses per 30 days",
+  "spaceDefaultsTitle": "Space defaults",
+  "spaceDefaultsExplain": "Apply to every member without their own limit. Windows count back from now.",
+  "memberOverridesHint": "To give one member a different limit, open them in Members.",
+  "blockLimitTitle": "Block this for everyone?",
+  "blockLimitBody": "A limit of 0 stops every member who has no own limit.",
+  "blockLimitAction": "Set to 0",
+  "allowedModelsTitle": "Allowed models",
+  "allowedModelsExplain": "Members can choose these. If none is selected, the service default applies.",
+  "allowedToolsTitle": "Allowed tools",
+  "allowedToolsExplain": "The assistant may use these in this space. If none is selected, the service default applies.",
+  "catalogEmpty": "Nothing is available.",
+  "catalogNoLongerSupported": "No longer offered by this service",
+  "saveChangesAction": "Save changes",
+  "discardChangesTitle": "Discard changes?",
+  "discardChangesBody": "Your unsaved choices will be lost.",
+  "discardAction": "Discard",
+  "invitesExplain": "Invitations are sent by email and expire after 7 days. Links are never shown here.",
+  "invitesEmptyTitle": "No invitations",
+  "invitesEmptyBody": "Invite someone by email.",
+  "inviteMemberAction": "Invite",
+  "inviteMemberTitle": "Invite by email",
+  "inviteExplain": "They join as a member after signing in with this address.",
+  "sendInviteAction": "Send invitation",
+  "inviteSent": "Invitation sent to {email}.",
+  "@inviteSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteResent": "A new link was sent to {email}. Earlier links no longer work.",
+  "@inviteResent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteRevoked": "Invitation revoked.",
+  "inviteAlreadyMember": "This person is already a member.",
+  "inviteEmailFailed": "The invitation email could not be sent, so no invitation was created. Try again later.",
+  "inviteNewerOpen": "A newer invitation to this address is already open.",
+  "inviteStatusPending": "Waiting",
+  "inviteStatusAccepted": "Accepted",
+  "inviteStatusRevoked": "Revoked",
+  "inviteStatusExpired": "Expired",
+  "inviteExpires": "Expires {date}",
+  "@inviteExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteSentTimes": "{count, plural, other{Sent {count} times}}",
+  "@inviteSentTimes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "resendInviteAction": "Send a new link",
+  "revokeInviteAction": "Revoke",
+  "revokeInviteTitle": "Revoke this invitation?",
+  "revokeInviteBody": "The link sent to {email} will stop working.",
+  "@revokeInviteBody": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "requestsPendingTab": "Pending",
+  "requestsHistoryTab": "History",
+  "noPendingRequestsTitle": "Nothing to review",
+  "noPendingRequestsBody": "New requests from members appear here.",
+  "noReviewedRequestsTitle": "No reviewed requests",
+  "noReviewedRequestsBody": "Approved and declined requests appear here.",
+  "requestSummaryModel": "Model: {model}",
+  "@requestSummaryModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "requestSummaryTool": "Tool: {tool}",
+  "@requestSummaryTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "requestSummaryUpload": "Permission to upload documents",
+  "requestSummaryJoin": "Wants to join this space",
+  "requestReasonLabel": "Reason",
+  "reviewNoteLabel": "Note to the requester (optional)",
+  "approveAction": "Approve",
+  "declineAction": "Decline",
+  "requestApprovedDone": "Approved. The member was notified.",
+  "requestDeclinedDone": "Declined. The member was notified.",
+  "reviewAlreadyDone": "This request was already reviewed. The list was refreshed.",
+  "reviewOwnRequest": "Your own requests are reviewed by another admin.",
+  "requestChooseTool": "Choose a tool.",
+  "toolLabel": "Tool",
+  "adminDocumentsExplain": "Members see documents they uploaded or were given. Hidden documents are visible to admins only.",
+  "adminDocumentsEmpty": "No documents in this space yet.",
+  "documentHiddenSwitch": "Hide from members",
+  "documentHiddenExplain": "Hidden documents are not shown or used for answers for members, even those given access.",
+  "hideDocumentTitle": "Hide this document?",
+  "hideDocumentBody": "Members lose access at once, and earlier answers that cite it will show the source as unavailable to them.",
+  "hideDocumentAction": "Hide",
+  "documentAccessTitle": "Members with access",
+  "documentAccessExplain": "Admins and the uploader always have access.",
+  "documentUploader": "Uploaded it",
+  "documentNoMembers": "No other members to give access to.",
+  "documentGone": "This document is no longer available.",
+  "removeDocAccessTitle": "Remove access to this document?",
+  "removeDocAccessBody": "{email} will no longer see it, and earlier answers that cite it will show the source as unavailable.",
+  "@removeDocAccessBody": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "removeDocAccessAction": "Remove access",
+  "spaceTotalsTitle": "Totals",
+  "spaceUsageExplain": "All members, from recorded usage. Replies without reported usage are not included. Costs are estimates from list prices.",
+  "usageNoRequests": "No recorded usage in this period.",
+  "myUsageAction": "My usage"
 }

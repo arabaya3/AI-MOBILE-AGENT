@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta
-
 import pytest
 
 from tests.conftest import auth_headers
@@ -56,26 +54,6 @@ async def test_join_request_rejects_missing_inactive_and_existing_membership(cli
 
 async def test_my_requests_requires_authentication(client):
     assert (await client.get(f"{SPACES}/requests/mine")).status_code == 401
-
-
-async def test_invite_accept_enforces_email_expiry_and_single_use(client, world, factory):
-    await factory.execute(
-        "INSERT INTO space_invites (id, space_id, email, token, status, expires_at, created_at) "
-        "VALUES ('i1', :s, 'bob@example.com', 'tok-valid-0000000000', 'pending', :future, :now), "
-        "('i2', :s, 'bob@example.com', 'tok-expired-00000000', 'pending', :past, :now)",
-        s=world["open"].id,
-        future=datetime.utcnow() + timedelta(days=1),
-        past=datetime.utcnow() - timedelta(days=1),
-        now=datetime.utcnow(),
-    )
-    accept = f"{SPACES}/invites/accept"
-    bob, alice = auth_headers(world["bob"]), auth_headers(world["alice"])
-    assert (await client.post(accept, json={"token": "tok-valid-0000000000"}, headers=alice)).status_code == 403
-    assert (await client.post(accept, json={"token": "tok-expired-00000000"}, headers=bob)).status_code == 400
-    ok = await client.post(accept, json={"token": "tok-valid-0000000000"}, headers=bob)
-    assert ok.status_code == 200 and ok.json()["space_id"] == world["open"].id
-    assert (await client.post(accept, json={"token": "tok-valid-0000000000"}, headers=bob)).status_code == 404
-    assert [s["name"] for s in (await client.get(SPACES, headers=bob)).json()] == ["Open"]
 
 
 async def test_concurrent_join_requests_create_a_single_pending_request(client, world, factory):

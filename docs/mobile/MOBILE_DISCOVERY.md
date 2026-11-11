@@ -419,3 +419,35 @@ Verified against `chat/handlers.py` and changed in a backward-compatible way:
 - `usage_state`: `reported | unknown`.
 - `error_code` for failures (`client_disconnected`, `provider_error`, `internal`, …).
 - Usage rows link back through `usage_event_id`. A started attempt older than 15 minutes is reported as "lost".
+
+## 12. Phase 5 administration contracts (2026-11-11)
+
+### 12.1 Behavior found before the changes
+
+- **Invitations:** random tokens, but stored in plaintext, returned to the inviter by the API and shown in the web admin dialog (S10). No list, resend or revoke. Accepting did not lock the row, did not check that the space was active, and re-activated revoked members with their old role. The web had no `/join-space` route (S11). Email bodies did not escape space names or notes.
+- **Members:** any admin could demote or revoke the last admin, including concurrently.
+- **Policy and overrides:** `null` values were ignored, so limits could not be removed and overrides could not return to the space default; negative or non-integer values were partly accepted; models and tools were free text.
+- **Requests:** review did not check that a request was still pending (concurrent or repeated reviews re-applied and re-notified), allowed self-review, and approvals applied fields from any payload (`allowed_models` inside `quota_change`, lists inside access requests).
+- **Space usage:** unknown costs were summed as `0.0`.
+- **Notifications (web):** the stream read a non-existent storage key and put the token in a query parameter the API ignores; the bell was never mounted (S26).
+- **System prompts:** per-user only; no space scope; `GET` returns global prompt texts to any user (S29).
+- **Service worker (web):** cached every successful GET, including navigations with query strings.
+
+### 12.2 Contracts after Phase 5
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /spaces/{id}/invites` | Email an invitation (or a fresh link for the open one); returns an invitation summary without any token; 409 for members, 503 when email cannot be sent |
+| `GET /spaces/{id}/invites` | Admin list: email, status (`pending`/`accepted`/`revoked`/`expired`), expiry, sends |
+| `POST /spaces/{id}/invites/{iid}/resend` · `/revoke` | Rotate the token / invalidate it |
+| `POST /spaces/invites/accept` | Unchanged body `{token}`; 404 unknown/used/revoked, 400 expired, 403 other address |
+| `GET /spaces/{id}/catalog` | `{models:[{id}], tools:[{id}]}` for members and admins |
+| `GET /spaces/{id}/me` | Adds `effective_tools` |
+| `PATCH /spaces/{id}/policy`, `PATCH /spaces/{id}/members/{uid}` | Explicit `null` clears; strict integers; catalog-checked lists; last-admin 409 |
+| `POST /spaces/{id}/requests/{rid}/review` | 409 if already reviewed, 403 for own request, 422 for unsupported model/tool |
+| `GET /spaces/{id}/requests` | Adds `user_email` |
+| `GET /spaces/{id}/usage` | `cost_usd` is null when unknown; `requests_without_cost` |
+| `GET/PUT /system-prompts/global` | Global prompts used by generation; super admins only |
+| `GET/PUT /system-prompts/me` | The caller's own overrides only; `applied_to_generation: false` (not used by replies) |
+| `GET /spaces/_superadmin/usage` · `/_superadmin/spaces` | Now reachable (were shadowed by `/{space_id}/usage`); super admins only |
+

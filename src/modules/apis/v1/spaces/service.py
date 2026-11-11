@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import secrets
+import asyncio
 from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,63 +32,36 @@ from src.core.settings.logging import logger
 class SpacesService:
     INVITE_TTL_HOURS = 24 * 7
 
-    @staticmethod
-    def _validate_quota_fields(fields: dict) -> None:
-        """Validate token/request quotas.
+    MAX_LIMIT = 1_000_000_000
+    LIMIT_PAIRS = (
+        ("daily_token_limit", "monthly_token_limit"),
+        ("daily_request_limit", "monthly_request_limit"),
+        ("daily_tool_request_limit", "monthly_tool_request_limit"),
+    )
 
-        Rules:
-        - Limits must be non-negative when provided.
-        - Daily <= Monthly when both provided.
-        """
+    @classmethod
+    def _validate_quota_fields(cls, fields: dict, current: object | None = None) -> None:
+        """Limits are whole numbers 0..1e9 (0 blocks use, None clears). Token limits above 0 have a
+        useful minimum. Daily must not exceed monthly once the change is applied."""
 
-        def _validate_pair(daily_key: str, monthly_key: str) -> None:
-            daily = fields.get(daily_key)
-            monthly = fields.get(monthly_key)
+        def invalid(detail: str) -> HTTPException:
+            return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail)
 
-            # Define minimum meaningful values for token limits
-            min_daily_tokens = 1000 if "token" in daily_key else 0
-            min_monthly_tokens = 10000 if "token" in monthly_key else 0
-
-            if daily is not None:
-                try:
-                    daily_int = int(daily)
-                except Exception as exc:  # noqa: BLE001
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid {daily_key}") from exc
-                
-                if "token" in daily_key and daily_int > 0 and daily_int < min_daily_tokens:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST, 
-                        detail=f"{daily_key} must be at least {min_daily_tokens:,} tokens for meaningful usage"
-                    )
-                if daily_int < 0:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{daily_key} must be >= 0")
-                fields[daily_key] = daily_int
-
-            if monthly is not None:
-                try:
-                    monthly_int = int(monthly)
-                except Exception as exc:  # noqa: BLE001
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid {monthly_key}") from exc
-                
-                if "token" in monthly_key and monthly_int > 0 and monthly_int < min_monthly_tokens:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST, 
-                        detail=f"{monthly_key} must be at least {min_monthly_tokens:,} tokens for meaningful usage"
-                    )
-                if monthly_int < 0:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{monthly_key} must be >= 0")
-                fields[monthly_key] = monthly_int
-
-            if daily is not None and monthly is not None:
-                if int(fields[daily_key]) > int(fields[monthly_key]):
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"{daily_key} must be <= {monthly_key}",
-                    )
-
-        _validate_pair("daily_token_limit", "monthly_token_limit")
-        _validate_pair("daily_request_limit", "monthly_request_limit")
-        _validate_pair("daily_tool_request_limit", "monthly_tool_request_limit")
+        for daily_key, monthly_key in cls.LIMIT_PAIRS:
+            for key, minimum in ((daily_key, 1000), (monthly_key, 10000)):
+                if key not in fields or fields[key] is None:
+                    continue
+                value = fields[key]
+                if isinstance(value, bool) or not isinstance(value, int):
+                    raise invalid(f"Invalid {key}")
+                if value < 0 or value > cls.MAX_LIMIT:
+                    raise invalid(f"{key} must be between 0 and {cls.MAX_LIMIT:,}")
+                if "token" in key and 0 < value < minimum:
+                    raise invalid(f"{key} must be 0 or at least {minimum:,} tokens")
+            daily = fields[daily_key] if daily_key in fields else getattr(current, daily_key, None)
+            monthly = fields[monthly_key] if monthly_key in fields else getattr(current, monthly_key, None)
+            if daily is not None and monthly is not None and daily > monthly:
+                raise invalid(f"{daily_key} must be <= {monthly_key}")
 
     async def _ensure_user(self, db: AsyncSession, user_id: str) -> User:
         user = await db.get(User, user_id)
@@ -118,7 +91,8 @@ class SpacesService:
 
     async def require_space_admin(self, db: AsyncSession, *, space_id: str, user: User) -> SpaceMember:
         if user.role == "super_admin":
-            # global super admin can administer any space
+            # global super admin can administer any existing space
+            await self._ensure_space(db, space_id)
             member = await self.get_member(db, space_id=space_id, user_id=user.id)
             if member is None:
                 member = SpaceMember(space_id=space_id, user_id=user.id, role="admin", status="active")
@@ -290,16 +264,13 @@ class SpacesService:
         from src.services.notifications.service import live_payload, notification_service
         from src.services.notifications.broadcaster import broadcaster
         
-        self._validate_quota_fields(fields)
+        self._validate_quota_fields(fields, current=space)
         for key, value in fields.items():
-            if value is None:
-                continue
-            if key == "allowed_models":
-                space.allowed_models = list(value)
-            elif key == "allowed_tools":
-                space.allowed_tools = list(value)
+            if key in ("allowed_models", "allowed_tools"):
+                if value is not None:
+                    setattr(space, key, list(value))
             else:
-                setattr(space, key, value)
+                setattr(space, key, value)  # None = unlimited
         await db.flush()
         
         # Notify all active members about policy update
@@ -341,60 +312,19 @@ class SpacesService:
         )
         return space
 
-    async def invite_member(self, db: AsyncSession, *, space: Space, inviter: User, email: str) -> SpaceInvite:
-        from src.services.email.service import email_service
-        
-        token = secrets.token_urlsafe(32)
-        invite = SpaceInvite(
-            space_id=space.id,
-            email=email.lower().strip(),
-            invited_by_user_id=inviter.id,
-            token=token,
-            status="pending",
-            expires_at=datetime.utcnow() + timedelta(hours=self.INVITE_TTL_HOURS),
+    async def _keep_an_admin(self, db: AsyncSession, *, space_id: str, leaving_user_id: str) -> None:
+        """A space keeps at least one active admin. The space row lock serializes concurrent demotions."""
+        await db.execute(select(Space.id).where(Space.id == space_id).with_for_update())
+        others = await db.execute(
+            select(func.count(SpaceMember.id)).where(
+                SpaceMember.space_id == space_id,
+                SpaceMember.role == "admin",
+                SpaceMember.status == "active",
+                SpaceMember.user_id != leaving_user_id,
+            )
         )
-        db.add(invite)
-        await db.flush()
-        
-        # Send invitation email
-        email_service.send_space_invitation_email(
-            to_email=invite.email,
-            space_name=space.name,
-            inviter_name=inviter.email,
-            invite_token=token,
-        )
-        
-        logger.info(
-            "Invited member",
-            extra={"space_id": space.id, "inviter_id": inviter.id, "email": invite.email},
-        )
-        return invite
-
-    async def accept_invite(self, db: AsyncSession, *, token: str, user: User) -> SpaceMember:
-        stmt = select(SpaceInvite).where(SpaceInvite.token == token)
-        invite = (await db.execute(stmt)).scalars().first()
-        if invite is None or invite.status != "pending":
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
-        if invite.expires_at is not None and invite.expires_at < datetime.utcnow():
-            invite.status = "expired"
-            await db.flush()
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite expired")
-        if invite.email.lower() != user.email.lower():
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invite email mismatch")
-
-        member = await self.get_member(db, space_id=invite.space_id, user_id=user.id)
-        if member is None:
-            member = SpaceMember(space_id=invite.space_id, user_id=user.id, role="member", status="active")
-            db.add(member)
-        else:
-            member.status = "active"
-        invite.status = "accepted"
-        await db.flush()
-        logger.info(
-            "Accepted invite",
-            extra={"space_id": invite.space_id, "user_id": user.id, "member_id": member.id},
-        )
-        return member
+        if int(others.scalar() or 0) == 0:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A space must keep at least one active admin")
 
     async def list_members(self, db: AsyncSession, *, space_id: str) -> List[SpaceMember]:
         stmt = select(SpaceMember).where(SpaceMember.space_id == space_id).order_by(SpaceMember.created_at.asc())
@@ -412,35 +342,29 @@ class SpacesService:
         can_upload_documents: bool | None,
         overrides: dict | None,
     ) -> SpaceMember:
+        new_role = member.role
+        new_status = member.status
         if role is not None:
-            role = role.strip().lower()
-            if role not in {"admin", "member"}:
+            new_role = role.strip().lower()
+            if new_role not in {"admin", "member"}:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid member role")
-            member.role = role
         if status_value is not None:
-            status_value = status_value.strip().lower()
-            if status_value not in {"active", "revoked"}:
+            new_status = status_value.strip().lower()
+            if new_status not in {"active", "revoked"}:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid member status")
-            member.status = status_value
+        if member.role == "admin" and member.status == "active" and (new_role != "admin" or new_status != "active"):
+            await self._keep_an_admin(db, space_id=member.space_id, leaving_user_id=member.user_id)
+        member.role = new_role
+        member.status = new_status
         if can_upload_documents is not None:
             member.can_upload_documents = bool(can_upload_documents)
         if overrides:
-            self._validate_quota_fields(overrides)
-            # Map UpdatePolicyRequest-style payload.
-            if "allowed_models" in overrides and overrides["allowed_models"] is not None:
-                member.allowed_models = list(overrides["allowed_models"])
-            if "allowed_tools" in overrides and overrides["allowed_tools"] is not None:
-                member.allowed_tools = list(overrides["allowed_tools"])
-            for k in (
-                "daily_token_limit",
-                "monthly_token_limit",
-                "daily_request_limit",
-                "monthly_request_limit",
-                "daily_tool_request_limit",
-                "monthly_tool_request_limit",
-            ):
-                if k in overrides and overrides[k] is not None:
-                    setattr(member, k, overrides[k])
+            self._validate_quota_fields(overrides, current=member)
+            for key, value in overrides.items():
+                if key in ("allowed_models", "allowed_tools"):
+                    setattr(member, key, list(value) if value is not None else None)
+                else:
+                    setattr(member, key, value)  # None = inherit the space default
         await db.flush()
         logger.info(
             "Updated member",
@@ -587,7 +511,8 @@ class SpacesService:
         )
         
         # Send email notification
-        email_service.send_request_status_email(
+        await asyncio.to_thread(
+            email_service.send_request_status_email,
             to_email=user.email,
             space_name=space.name,
             request_type=req.type,
@@ -627,88 +552,22 @@ class SpacesService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request user is not an active member")
 
         payload = req.payload or {}
-
-        if type_value == "model_access":
-            requested = []
-            if isinstance(payload.get("allowed_models"), list):
-                requested = [str(x).strip() for x in payload.get("allowed_models") if str(x).strip()]
-            elif payload.get("model"):
-                requested = [str(payload.get("model")).strip()]
-            requested = [m for m in requested if m]
-            if requested:
-                existing = list(member.allowed_models or []) if member.allowed_models is not None else []
-                merged = sorted(set(existing).union(requested))
-                member.allowed_models = merged
-                logger.info(
-                    "Granted model access",
-                    extra={
-                        "space_id": req.space_id,
-                        "request_id": req.id,
-                        "user_id": req.user_id,
-                        "models": merged,
-                    },
-                )
-            return
-
-        if type_value == "tool_access":
-            requested = []
-            if isinstance(payload.get("allowed_tools"), list):
-                requested = [str(x).strip() for x in payload.get("allowed_tools") if str(x).strip()]
-            elif payload.get("tool"):
-                requested = [str(payload.get("tool")).strip()]
-            requested = [t for t in requested if t]
-            if requested:
-                existing = list(member.allowed_tools or []) if member.allowed_tools is not None else []
-                merged = sorted(set(existing).union(requested))
-                member.allowed_tools = merged
-                logger.info(
-                    "Granted tool access",
-                    extra={
-                        "space_id": req.space_id,
-                        "request_id": req.id,
-                        "user_id": req.user_id,
-                        "tools": merged,
-                    },
-                )
-            return
-
-        if type_value == "upload_access":
-            # Allow upload permission for the requesting member
-            allow_upload = payload.get("can_upload_documents", True)
-            member.can_upload_documents = bool(allow_upload)
-            logger.info(
-                "Updated upload permission",
-                extra={
-                    "space_id": req.space_id,
-                    "request_id": req.id,
-                    "user_id": req.user_id,
-                    "can_upload_documents": member.can_upload_documents,
-                },
-            )
-            return
-
-        if type_value == "quota_change":
-            self._validate_quota_fields(payload)
-            for key in ("daily_token_limit", "monthly_token_limit", "daily_request_limit", "monthly_request_limit"):
-                if key in payload and payload[key] is not None:
-                    try:
-                        setattr(member, key, int(payload[key]))
-                    except Exception:
-                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid {key}")
-            if "allowed_models" in payload and payload["allowed_models"] is not None:
-                if not isinstance(payload["allowed_models"], list):
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="allowed_models must be a list")
-                member.allowed_models = [str(x).strip() for x in payload["allowed_models"] if str(x).strip()]
-            logger.info(
-                "Updated member quotas",
-                extra={
-                    "space_id": req.space_id,
-                    "request_id": req.id,
-                    "user_id": req.user_id,
-                    "payload": payload,
-                },
-            )
-            return
+        # Each type changes exactly one thing, read from its own field; anything else in a payload
+        # (including legacy rows written before payloads were validated) is ignored.
+        if type_value in ("model_access", "tool_access"):
+            field, key = ("allowed_models", "model") if type_value == "model_access" else ("allowed_tools", "tool")
+            item = str(payload.get(key) or "").strip()
+            if not item:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request names nothing to grant")
+            setattr(member, field, sorted(set(getattr(member, field) or []) | {item}))
+        elif type_value == "upload_access":
+            member.can_upload_documents = True
+        elif type_value == "quota_change":
+            limits = {k: payload[k] for k in ("daily_token_limit", "monthly_token_limit", "daily_request_limit", "monthly_request_limit") if payload.get(k) is not None}
+            self._validate_quota_fields(limits, current=member)
+            for key, value in limits.items():
+                setattr(member, key, value)
+        logger.info("Applied approved request", extra={"space_id": req.space_id, "request_id": req.id, "type": type_value})
 
     async def usage_summary(self, db: AsyncSession, *, space_id: str, days: int = 30):
         days_i = max(1, min(int(days or 30), 365))
@@ -722,7 +581,9 @@ class SpacesService:
                 func.coalesce(func.sum(LLMUsageEvent.output_tokens), 0),
                 func.coalesce(func.sum(LLMUsageEvent.total_tokens), 0),
                 func.coalesce(func.sum(LLMUsageEvent.request_count), 0),
-                func.coalesce(func.sum(LLMUsageEvent.cost_usd), 0.0),
+                # No coalesce: a model whose events have no price must not read as free.
+                func.sum(LLMUsageEvent.cost_usd),
+                func.coalesce(func.sum(case((LLMUsageEvent.cost_usd.is_(None), LLMUsageEvent.request_count), else_=0)), 0),
             )
             .where(
                 LLMUsageEvent.space_id == space_id,

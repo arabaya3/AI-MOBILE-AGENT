@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from threading import Lock
-from typing import Dict
+from typing import Dict, Tuple
 
 from src.core.settings.config import settings
 from src.core.settings.logging import logger
@@ -57,7 +59,10 @@ DEFAULT_PROMPTS: Dict[str, str] = {
 
 _prompt_lock = Lock()
 _current_prompts: Dict[str, str] = dict(DEFAULT_PROMPTS)
-_current_mtime: float | None = None
+# Identity of the file the cache was loaded from: (mtime_ns, size), or None when it did not exist.
+# Comparing whole signatures (not "newer than") also catches a file another worker created after
+# this one started, and changes within the filesystem's timestamp granularity that alter the size.
+_current_signature: Tuple[int, int] | None = None
 
 
 def _prompts_path() -> Path:
@@ -66,8 +71,24 @@ def _prompts_path() -> Path:
     return path
 
 
-def _load_from_disk() -> Dict[str, str]:
-    path = _prompts_path()
+def _signature(path: Path) -> Tuple[int, int] | None:
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    return (stat.st_mtime_ns, stat.st_size)
+
+
+def _merge(base: Dict[str, str], data: object) -> Dict[str, str]:
+    merged = dict(base)
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key in merged and isinstance(value, str) and value.strip():
+                merged[key] = value
+    return merged
+
+
+def _load_from_disk(path: Path) -> Dict[str, str]:
     if not path.exists():
         return dict(DEFAULT_PROMPTS)
     try:
@@ -75,54 +96,52 @@ def _load_from_disk() -> Dict[str, str]:
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to read system prompts; using defaults", extra={"error": str(exc), "path": str(path)})
         return dict(DEFAULT_PROMPTS)
-    if not isinstance(data, dict):
-        return dict(DEFAULT_PROMPTS)
-    merged = dict(DEFAULT_PROMPTS)
-    for key, value in data.items():
-        if key in merged and isinstance(value, str) and value.strip():
-            merged[key] = value
-    return merged
+    return _merge(DEFAULT_PROMPTS, data)
 
 
 def load_system_prompts() -> Dict[str, str]:
-    global _current_prompts, _current_mtime
+    global _current_prompts, _current_signature
     with _prompt_lock:
         path = _prompts_path()
-        _current_prompts = _load_from_disk()
-        if path.exists():
-            _current_mtime = path.stat().st_mtime
+        # Signature first: a write landing in between makes the next read reload again.
+        signature = _signature(path)
+        _current_prompts = _load_from_disk(path)
+        _current_signature = signature
         return dict(_current_prompts)
 
 
 def get_system_prompts() -> Dict[str, str]:
-    global _current_mtime
-    path = _prompts_path()
-    if not _current_prompts:
+    """Current prompts; reloads whenever the file appeared, changed or disappeared since the last load."""
+    if _signature(_prompts_path()) != _current_signature:
         return load_system_prompts()
-    if path.exists():
-        try:
-            mtime = path.stat().st_mtime
-        except Exception:  # noqa: BLE001
-            mtime = None
-        if mtime is not None and _current_mtime is not None and mtime > _current_mtime:
-            return load_system_prompts()
     return dict(_current_prompts)
 
 
 def save_system_prompts(updated: Dict[str, str]) -> Dict[str, str]:
-    global _current_prompts, _current_mtime
+    """Persists atomically (temp file + rename), then updates memory. A failed write raises and leaves
+    both the file and the in-memory prompts unchanged."""
+    global _current_prompts, _current_signature
     with _prompt_lock:
-        base = _current_prompts or DEFAULT_PROMPTS
-        merged = dict(base)
-        for key, value in (updated or {}).items():
-            if key in merged and isinstance(value, str) and value.strip():
-                merged[key] = value
-        _current_prompts = merged
         path = _prompts_path()
+        # Start from what is on disk now, so a concurrent writer's keys are not silently reverted.
+        base = _load_from_disk(path) if _signature(path) != _current_signature else _current_prompts
+        merged = _merge(base, updated or {})
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
-        if path.exists():
-            _current_mtime = path.stat().st_mtime
+        fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(merged, handle, ensure_ascii=False, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+        _current_prompts = merged
+        _current_signature = _signature(path)
         return dict(_current_prompts)
 
 

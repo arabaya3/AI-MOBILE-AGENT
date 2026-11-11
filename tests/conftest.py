@@ -63,6 +63,7 @@ from src.modules.apis.v1.spaces.router import router as spaces_router  # noqa: E
 from src.modules.apis.v1.chat.router import router as chat_router  # noqa: E402
 from src.modules.apis.v1.documents.router import router as documents_router  # noqa: E402
 from src.modules.apis.v1.notifications.router import router as notifications_router  # noqa: E402
+from src.modules.apis.v1.system_prompts.router import router as system_prompts_router  # noqa: E402
 from src.core.security.upload_limit import UploadSizeLimitMiddleware  # noqa: E402
 from src.services.databases.postgresql.database import get_db  # noqa: E402
 from src.services.databases.postgresql.models import (  # noqa: E402
@@ -147,6 +148,7 @@ async def client(session_factory, email_sink):
     app.add_middleware(UploadSizeLimitMiddleware)
     app.include_router(documents_router, prefix="/api/v1")
     app.include_router(notifications_router, prefix="/api/v1")
+    app.include_router(system_prompts_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(sharing_router, prefix="/api/v1")
     app.include_router(spaces_router, prefix="/api/v1")

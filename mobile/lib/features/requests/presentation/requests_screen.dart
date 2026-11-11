@@ -227,7 +227,7 @@ class _AccountRequestTile extends StatelessWidget {
   );
 }
 
-enum _Kind { model, upload, quota, other }
+enum _Kind { model, tool, upload, quota, other }
 
 class NewRequestSheet extends ConsumerStatefulWidget {
   const NewRequestSheet({super.key, required this.space});
@@ -242,8 +242,14 @@ class _NewRequestSheetState extends ConsumerState<NewRequestSheet> {
   late final Future<({List<String> all, List<String> allowed})> _models = ref
       .read(requestsApiProvider)
       .models();
+  // A missing catalog only hides tool requests; the rest of the form still works.
+  late final Future<List<String>> _tools = ref
+      .read(requestsApiProvider)
+      .tools(widget.space.space.id)
+      .catchError((Object _) => const <String>[]);
   _Kind _kind = _Kind.other;
   String? _model;
+  String? _tool;
   final _reason = TextEditingController();
   final _quota = {
     'daily_token_limit': TextEditingController(),
@@ -274,6 +280,9 @@ class _NewRequestSheetState extends ConsumerState<NewRequestSheet> {
       case _Kind.model:
         if (_model == null) return _fail(l10n.requestChooseModel);
         return {'model': _model, ...withReason};
+      case _Kind.tool:
+        if (_tool == null) return _fail(l10n.requestChooseTool);
+        return {'tool': _tool, ...withReason};
       case _Kind.upload:
         return withReason;
       case _Kind.quota:
@@ -307,6 +316,7 @@ class _NewRequestSheetState extends ConsumerState<NewRequestSheet> {
     if (payload == null) return;
     final type = switch (_kind) {
       _Kind.model => 'model_access',
+      _Kind.tool => 'tool_access',
       _Kind.upload => 'upload_access',
       _Kind.quota => 'quota_change',
       _Kind.other => 'other',
@@ -378,43 +388,50 @@ class _NewRequestSheetState extends ConsumerState<NewRequestSheet> {
               BidiText(widget.space.space.name),
               const SizedBox(height: AppSpacing.md),
               FutureBuilder(
-                future: _models,
+                future: Future.wait<Object>([_models, _tools]),
                 builder: (context, snapshot) {
-                  final models = snapshot.data;
+                  final models =
+                      snapshot.data?[0]
+                          as ({List<String> all, List<String> allowed})?;
                   final requestable = models == null
                       ? const <String>[]
                       : models.all
                             .where((m) => !models.allowed.contains(m))
                             .toList();
+                  final have = widget.space.membership.effectiveTools.toSet();
+                  final requestableTools = <String>[
+                    for (final t
+                        in snapshot.data?[1] as List<String>? ??
+                            const <String>[])
+                      if (!have.contains(t)) t,
+                  ];
+                  final kinds = [
+                    if (requestable.isNotEmpty)
+                      (_Kind.model, l10n.requestTypeModel),
+                    if (requestableTools.isNotEmpty)
+                      (_Kind.tool, l10n.requestTypeTool),
+                    if (!_canUpload) (_Kind.upload, l10n.requestTypeUpload),
+                    (_Kind.quota, l10n.requestTypeQuota),
+                    (_Kind.other, l10n.requestTypeOther),
+                  ];
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SegmentedButton<_Kind>(
-                        segments: [
-                          if (requestable.isNotEmpty)
-                            ButtonSegment(
-                              value: _Kind.model,
-                              label: Text(l10n.requestTypeModel),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          for (final (kind, label) in kinds)
+                            ChoiceChip(
+                              key: ValueKey('request-kind-${kind.name}'),
+                              label: Text(label),
+                              selected: _kind == kind,
+                              onSelected: (_) => setState(() {
+                                _kind = kind;
+                                _error = null;
+                              }),
                             ),
-                          if (!_canUpload)
-                            ButtonSegment(
-                              value: _Kind.upload,
-                              label: Text(l10n.requestTypeUpload),
-                            ),
-                          ButtonSegment(
-                            value: _Kind.quota,
-                            label: Text(l10n.requestTypeQuota),
-                          ),
-                          ButtonSegment(
-                            value: _Kind.other,
-                            label: Text(l10n.requestTypeOther),
-                          ),
                         ],
-                        selected: {_kind},
-                        onSelectionChanged: (v) => setState(() {
-                          _kind = v.first;
-                          _error = null;
-                        }),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       if (_kind == _Kind.model)
@@ -435,6 +452,26 @@ class _NewRequestSheetState extends ConsumerState<NewRequestSheet> {
                               ),
                           ],
                           onChanged: (v) => setState(() => _model = v),
+                        ),
+                      if (_kind == _Kind.tool)
+                        DropdownButtonFormField<String>(
+                          key: const ValueKey('request-tool'),
+                          initialValue: _tool,
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            labelText: l10n.toolLabel,
+                          ),
+                          items: [
+                            for (final t in requestableTools)
+                              DropdownMenuItem(
+                                value: t,
+                                child: Directionality(
+                                  textDirection: TextDirection.ltr,
+                                  child: Text(t),
+                                ),
+                              ),
+                          ],
+                          onChanged: (v) => setState(() => _tool = v),
                         ),
                       if (_kind == _Kind.upload)
                         Text(l10n.requestUploadExplain),

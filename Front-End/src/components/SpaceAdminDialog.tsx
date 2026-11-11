@@ -56,6 +56,7 @@ import {
 } from "../api/spaces";
 import { listAllChatModels } from "../api/chat";
 import { getSystemPrompts, updateSystemPrompts } from "../api/systemPrompts";
+import { useAuth } from "../context/AuthContext";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { AdminAnalyticsDashboard } from "./AdminAnalyticsDashboard";
 import { DashboardView } from "./DashboardView";
@@ -180,7 +181,7 @@ export const SpaceAdminDialog = ({
   const [requests, setRequests] = useState<SpaceRequestSummary[]>([]);
 
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
 
   const [editOverridesOpen, setEditOverridesOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<SpaceMemberSummary | null>(null);
@@ -218,6 +219,7 @@ export const SpaceAdminDialog = ({
   const [systemPromptsSaved, setSystemPromptsSaved] = useState(false);
 
   const isSpaceAdmin = (myMembership?.role ?? "").toLowerCase() === "admin";
+  const isSuperAdmin = useAuth().user?.role === "super_admin";
   const hasSpace = Boolean(space);
 
   // ── Spaces-tab local state ──
@@ -444,7 +446,7 @@ export const SpaceAdminDialog = ({
     const nextTab = initialTab && allowedTabs.includes(initialTab) ? initialTab : "requests";
     setTab(nextTab);
     setInviteEmail("");
-    setInviteToken(null);
+    setInvitedEmail(null);
     setMyMembership(null);
     setPolicyModels(policyToList(space.policy));
     setPolicyTools((space.policy.allowed_tools ?? []).filter(Boolean));
@@ -469,32 +471,41 @@ export const SpaceAdminDialog = ({
       })
       .catch(() => setAvailableModelsError("Unable to load models list."));
 
-    setSystemPromptsLoading(true);
-    setSystemPromptsError(null);
-    setSystemPromptsSaved(false);
-    getSystemPrompts()
-      .then(({ data }) => {
-        setSystemPrompts(data);
-        setDraftPrompts(data);
-      })
-      .catch(() => setSystemPromptsError("Unable to load system prompts."))
-      .finally(() => setSystemPromptsLoading(false));
+    if (isSuperAdmin) {
+      setSystemPromptsLoading(true);
+      setSystemPromptsError(null);
+      setSystemPromptsSaved(false);
+      getSystemPrompts()
+        .then(({ data }) => {
+          setSystemPrompts(data);
+          setDraftPrompts(data);
+        })
+        .catch(() => setSystemPromptsError("Unable to load system prompts."))
+        .finally(() => setSystemPromptsLoading(false));
+    }
     
     // Also refresh to get latest data
     refreshAll();
-  }, [open, space?.id, initialTab, isSpaceAdmin]);
+  }, [open, space?.id, initialTab, isSpaceAdmin, isSuperAdmin]);
 
   const handleInvite = async () => {
     if (!space) return;
-    setInviteToken(null);
+    setInvitedEmail(null);
     setError(null);
     try {
       const { data } = await inviteMember(space.id, { email: inviteEmail.trim() });
-      setInviteToken(data.invite_token);
+      setInvitedEmail(data.email);
       setInviteEmail("");
       await refreshAll();
-    } catch {
-      setError("Failed to invite member.");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(
+        status === 409
+          ? "This person is already a member of the space."
+          : status === 503
+            ? "The invitation email could not be sent. Try again later."
+            : "Failed to invite member.",
+      );
     }
   };
 
@@ -889,8 +900,8 @@ export const SpaceAdminDialog = ({
                           Invite
                         </Button>
                       </Stack>
-                      {inviteToken ? (
-                        <Alert severity="success">Invite token: {inviteToken}</Alert>
+                      {invitedEmail ? (
+                        <Alert severity="success">Invitation emailed to {invitedEmail}. The link expires in 7 days.</Alert>
                       ) : null}
                     </Stack>
                   </CardContent>
@@ -1589,13 +1600,14 @@ export const SpaceAdminDialog = ({
 
             {tab === "settings" && (
               <Stack spacing={2}>
+                {isSuperAdmin && (
                 <Card variant="outlined">
                   <CardContent>
                     <Stack spacing={1.5}>
                       <Stack spacing={0.25}>
-                        <Typography fontWeight={700}>System prompts</Typography>
+                        <Typography fontWeight={700}>Global system prompts</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Customize assistant behavior. Changes apply to your personal experience.
+                          Platform-wide: changes apply to every user in every space. Super admins only.
                         </Typography>
                       </Stack>
 
@@ -1666,6 +1678,7 @@ export const SpaceAdminDialog = ({
                     </Stack>
                   </CardContent>
                 </Card>
+                )}
 
                 {/* ── Danger Zone ─────────────────────────────────── */}
                 {onDeleteSpace && isSpaceAdmin && (

@@ -36,6 +36,8 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
+import NotificationBell from "./NotificationBell";
+
 interface AppHeaderProps {
   email?: string;
   role?: string;
@@ -249,6 +251,8 @@ export const AppHeader = ({
                 </IconButton>
               </Tooltip>
             )}
+
+            <NotificationBell />
 
             {onToggleTheme && (
               <Tooltip title={theme.palette.mode === "dark" ? "Light mode" : "Dark mode"}>
