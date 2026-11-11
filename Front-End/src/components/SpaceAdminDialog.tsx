@@ -56,6 +56,7 @@ import {
 } from "../api/spaces";
 import { listAllChatModels } from "../api/chat";
 import { getSystemPrompts, updateSystemPrompts } from "../api/systemPrompts";
+import { useAuth } from "../context/AuthContext";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { AdminAnalyticsDashboard } from "./AdminAnalyticsDashboard";
 import { DashboardView } from "./DashboardView";
@@ -218,6 +219,7 @@ export const SpaceAdminDialog = ({
   const [systemPromptsSaved, setSystemPromptsSaved] = useState(false);
 
   const isSpaceAdmin = (myMembership?.role ?? "").toLowerCase() === "admin";
+  const isSuperAdmin = useAuth().user?.role === "super_admin";
   const hasSpace = Boolean(space);
 
   // ── Spaces-tab local state ──
@@ -469,20 +471,22 @@ export const SpaceAdminDialog = ({
       })
       .catch(() => setAvailableModelsError("Unable to load models list."));
 
-    setSystemPromptsLoading(true);
-    setSystemPromptsError(null);
-    setSystemPromptsSaved(false);
-    getSystemPrompts()
-      .then(({ data }) => {
-        setSystemPrompts(data);
-        setDraftPrompts(data);
-      })
-      .catch(() => setSystemPromptsError("Unable to load system prompts."))
-      .finally(() => setSystemPromptsLoading(false));
+    if (isSuperAdmin) {
+      setSystemPromptsLoading(true);
+      setSystemPromptsError(null);
+      setSystemPromptsSaved(false);
+      getSystemPrompts()
+        .then(({ data }) => {
+          setSystemPrompts(data);
+          setDraftPrompts(data);
+        })
+        .catch(() => setSystemPromptsError("Unable to load system prompts."))
+        .finally(() => setSystemPromptsLoading(false));
+    }
     
     // Also refresh to get latest data
     refreshAll();
-  }, [open, space?.id, initialTab, isSpaceAdmin]);
+  }, [open, space?.id, initialTab, isSpaceAdmin, isSuperAdmin]);
 
   const handleInvite = async () => {
     if (!space) return;
@@ -1596,13 +1600,14 @@ export const SpaceAdminDialog = ({
 
             {tab === "settings" && (
               <Stack spacing={2}>
+                {isSuperAdmin && (
                 <Card variant="outlined">
                   <CardContent>
                     <Stack spacing={1.5}>
                       <Stack spacing={0.25}>
-                        <Typography fontWeight={700}>System prompts</Typography>
+                        <Typography fontWeight={700}>Global system prompts</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Customize assistant behavior. Changes apply to your personal experience.
+                          Platform-wide: changes apply to every user in every space. Super admins only.
                         </Typography>
                       </Stack>
 
@@ -1673,6 +1678,7 @@ export const SpaceAdminDialog = ({
                     </Stack>
                   </CardContent>
                 </Card>
+                )}
 
                 {/* ── Danger Zone ─────────────────────────────────── */}
                 {onDeleteSpace && isSpaceAdmin && (

@@ -447,4 +447,7 @@ Verified against `chat/handlers.py` and changed in a backward-compatible way:
 | `POST /spaces/{id}/requests/{rid}/review` | 409 if already reviewed, 403 for own request, 422 for unsupported model/tool |
 | `GET /spaces/{id}/requests` | Adds `user_email` |
 | `GET /spaces/{id}/usage` | `cost_usd` is null when unknown; `requests_without_cost` |
+| `GET/PUT /system-prompts/global` | Global prompts used by generation; super admins only |
+| `GET/PUT /system-prompts/me` | The caller's own overrides only; `applied_to_generation: false` (not used by replies) |
+| `GET /spaces/_superadmin/usage` · `/_superadmin/spaces` | Now reachable (were shadowed by `/{space_id}/usage`); super admins only |
 

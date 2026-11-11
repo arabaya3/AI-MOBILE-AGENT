@@ -638,11 +638,15 @@ Mobile administration ("Manage space", admins only):
 - Members can now request tool access, chosen from the catalog minus the tools they already have.
 - Hidden on purpose: creating and deactivating spaces, global settings and global system prompts (web only).
 
-System prompts (D5, S9): **not implemented.** The backend has only per-user prompts (`GET/PUT /system-prompts`, no space scope). No workspace prompt editor is shown; personal instructions stay deferred on mobile. Found while checking: `GET /system-prompts` returns the global prompt texts to any signed-in user (S29, open).
+System prompts (D5, S9, S29):
+- **Global** prompts (`configs/system_prompts.json`, or `SYSTEM_PROMPTS_PATH`) are the only prompts generation uses. `GET/PUT /system-prompts/global` require a super admin (401 anonymous, 403 members and space admins). The web editor is shown only to super admins and labelled platform-wide.
+- **Personal overrides:** `GET/PUT /system-prompts/me` read and write only the caller's own overrides (an empty string removes one) and never return or change global prompts. **They are stored but not applied to replies** (`applied_to_generation: false`), so no app presents them as working; personal instructions stay deferred.
+- The former combined `GET/PUT /system-prompts` (global text to any user, personal writes presented as settings) is removed.
+- **Workspace prompts: not implemented** (no space-scoped storage or enforcement exists).
 
 Verified:
-- **Backend:** **159** pytest tests (134 before), including invitations (hash-only storage and no token in API or logs, binding, expiry, revocation, resend, replay, concurrent acceptance and creation, email failure, inactive space, revoked member, email change), admin boundaries (member, outsider, admin of another space), last admin (sequential and concurrent), limits (unlimited/0/values, clearing, invalid values), overrides (inherit vs explicit), catalog validation, concurrent review exactly once, self-review, legacy payloads, tool requests, space usage cost and effective tools.
-- **Web:** typecheck and production build; **9** Vitest tests (SSE parser, header-only token, backoff and reload on reconnect, 401 stop, abort on close, de-duplication, token capture and URL scrubbing without storage).
+- **Backend:** **167** pytest tests (134 before; 8 added in review for S29/S7: anonymous, member, space admin and super admin on global prompts, owner-only personal overrides, cross-user isolation, chat unchanged, generation reading the global prompt through the real adapter, super-admin routes reachable and restricted, route order, missing space 404), including invitations (hash-only storage and no token in API or logs, binding, expiry, revocation, resend, replay, concurrent acceptance and creation, email failure, inactive space, revoked member, email change), admin boundaries (member, outsider, admin of another space), last admin (sequential and concurrent), limits (unlimited/0/values, clearing, invalid values), overrides (inherit vs explicit), catalog validation, concurrent review exactly once, self-review, legacy payloads, tool requests, space usage cost and effective tools.
+- **Web:** typecheck and production build; **10** Vitest tests (global prompt calls use `/system-prompts/global`; SSE parser, header-only token, backoff and reload on reconnect, 401 stop, abort on close, de-duplication, token capture and URL scrubbing without storage).
 - **Mobile:** **222** Flutter tests, analyze clean, Android dev APK built. Admin flows: no entry or route for members, re-check on entry, role loss while a screen is open, 403 re-check, late result after a space switch, distinct limit values, clear-to-default, confirmed zero limit, demotion and last-admin message, cancelled and confirmed access removal, single invitation on double tap, uncertain and email-failure messages, revoke confirmation, approve with note, already-reviewed, own request, models saved from the catalog, document hide and grant, member tool request, and layout in en/ar × light/dark at 2× text on a 320 dp phone.
 - **Migration:** `20261111_0001` applied twice to a legacy-shaped table (pending → expired, cancelled → revoked, every plaintext token cleared, second run a no-op) and twice to a current schema.
 - **End to end** (local Postgres, Mailpit with STARTTLS, moto S3, stub providers):
@@ -675,7 +679,7 @@ Verified:
 | S4 | Persist citations | 3 | **Done (Phase 3)**; re-authorized on every read |
 | S5 | Message IDs in `meta` and `done` | 2 | **Done (Phase 2)** |
 | S6 | Provider failure as an `error` event, not stored | 2 | **Done (Phase 2)** |
-| S7 | Super-admin usage route order (web feature) | 5 | Open (web super-admin feature, not touched) |
+| S7 | Super-admin usage route order (web feature) | 5 | **Done (Phase 5 review)**: fixed `/_superadmin/*` and `/admin/dashboard` declared before `/{space_id}/...`; a super admin on a missing space gets 404 instead of a 500 |
 | S8 | Per-user check on `/documents/{id}/chunks` | 3 | **Done (Phase 3)** |
 | S9 | Workspace system prompts, space-admin only (D5) | 5 | **Not implemented**: backend has per-user prompts only; no space-scoped storage |
 | S10 | Hash space invite tokens and stop returning them to the inviter | 5 | **Done (Phase 5)**: hashed, email-only, expiring, revocable, single use; plaintext invitations expired by migration |
@@ -688,7 +692,7 @@ Verified:
 | S25 | Strict space-request payloads and pending-request de-duplication | 4 | **Done (Phase 4)** |
 | S26 | Web notification stream sends the token as a query parameter the API ignores, so the web live stream never connects | 5 | **Done (Phase 5)**: header-authenticated fetch stream, reconnect, de-duplication, logout; bell mounted |
 | S27 | Invoice PDF printed unknown cost as `$0.0000` | 4 | **Done (Phase 4)** |
-| S29 | `GET /system-prompts` returns the global system prompt texts to any signed-in user | 5 | Open (found in Phase 5; web feature) |
+| S29 | `GET /system-prompts` returned the global system prompt texts to any signed-in user | 5 | **Done (Phase 5 review)**: `/system-prompts/global` (GET/PUT) super admins only; `/system-prompts/me` own overrides only; combined route removed |
 | S30 | Last active admin could be demoted or revoked; concurrent reviews could apply twice; self-review allowed; limits could not be cleared; approvals applied legacy payload fields | 5 | **Done (Phase 5)** |
 | S31 | Space usage summed unknown costs as $0; invitation and request emails did not escape space names and notes | 5 | **Done (Phase 5)** |
 | S28 | Deleting conversations reset conversation limits (limits counted existing conversations) | 4 | **Done (Phase 4 review)**: start ledger, transaction lock, branch limited |
@@ -776,7 +780,7 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 | Background push | ✘ | ✘ (deferred, D4) | |
 | Requests (space) | ✔ | ✔ own requests (Phase 4), tool access (Phase 5), review for admins (Phase 5) | Self-review refused |
 | Usage and invoice PDF | ✔ | ✔ (Phase 4) | Unknown usage and cost explicit |
-| Personal instructions | ✔ (per-user prompts) | ✘ deferred (D5) | Scope unresolved |
+| Personal instructions | ✘ (stored via `/system-prompts/me`, not applied to replies) | ✘ deferred (D5) | Not used by generation |
 | **Space admin**: members, roles, access, upload rights, overrides | ✔ | ✔ (Phase 5) | Last active admin protected |
 | Space admin: invitations (send, list, resend, revoke) | ✔ send only; tokens no longer shown | ✔ (Phase 5) | Tokens only by email |
 | Space admin: request review | ✔ | ✔ (Phase 5) | Exactly once |
@@ -788,5 +792,5 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 | Invitation acceptance by link | ✔ `/join-space` (Phase 5) | ✔ dev link / paste | Verified links need the owner domain |
 | Workspace system prompts | ✘ (per-user only) | ✘ **Missing capability** | No space-scoped storage or enforcement in the backend (S9) |
 | **Super admin**: all spaces, global usage, global admin dashboard, global user requests, user list | ✔ | ✘ **Web only in v1** | D1 |
-| Global system prompts | ✔ (as per-user today) | ✘ **Web only** | D5 |
+| Global system prompts | ✔ super admins only (Phase 5 review) | ✘ **Web only** | D5, S29 |
 | Create space (global admin) | ✔ | ✘ **Web only in v1** | Global operation |

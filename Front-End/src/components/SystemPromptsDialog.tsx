@@ -42,7 +42,7 @@ export const SystemPromptsDialog = ({ open, onClose }: SystemPromptsDialogProps)
     setLoading(true);
     setError(null);
     try {
-      const { data } = await apiClient.get<SystemPrompts>("/system-prompts");
+      const { data } = await apiClient.get<SystemPrompts>("/system-prompts/global");
       setPrompts(data);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to load system prompts.");
@@ -57,7 +57,7 @@ export const SystemPromptsDialog = ({ open, onClose }: SystemPromptsDialogProps)
     setError(null);
     setSuccess(null);
     try {
-      await apiClient.put<SystemPrompts>("/system-prompts", prompts);
+      await apiClient.put<SystemPrompts>("/system-prompts/global", prompts);
       setSuccess("Prompts updated successfully.");
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to update system prompts.");

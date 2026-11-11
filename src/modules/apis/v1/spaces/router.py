@@ -60,6 +60,38 @@ from .schemas import (
 
 router = APIRouter(prefix="/spaces", tags=["spaces"])
 
+# Fixed paths are declared before the "/{space_id}/..." routes, which would otherwise capture them
+# (S7: "/_superadmin/usage" was resolved as the usage of a space with id "_superadmin").
+
+@router.get("/_superadmin/spaces", response_model=list[SpaceSummary])
+async def superadmin_spaces(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[SpaceSummary]:
+    return await handle_superadmin_list_spaces(current_user, db)
+
+
+@router.get("/_superadmin/usage", response_model=list[SuperAdminUsageRow])
+async def superadmin_usage(
+    days: int = 30,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[SuperAdminUsageRow]:
+    from .service import spaces_service
+    if current_user.role != "super_admin":
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin required")
+    return await spaces_service.superadmin_usage_rollup(db, days=days)
+
+@router.get("/admin/dashboard", response_model=DashboardStats)
+async def get_dashboard_stats_endpoint(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> DashboardStats:
+    return await handle_dashboard_stats(user, db)
+
+
 
 @router.get("", response_model=list[SpaceSummary])
 async def list_my_spaces(
@@ -251,34 +283,6 @@ async def space_usage(
 ) -> SpaceUsageSummary:
     return await handle_space_usage(space_id, current_user, db, days=days)
 
-
-@router.get("/_superadmin/spaces", response_model=list[SpaceSummary])
-async def superadmin_spaces(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> list[SpaceSummary]:
-    return await handle_superadmin_list_spaces(current_user, db)
-
-
-@router.get("/_superadmin/usage", response_model=list[SuperAdminUsageRow])
-async def superadmin_usage(
-    days: int = 30,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> list[SuperAdminUsageRow]:
-    from .service import spaces_service
-    if current_user.role != "super_admin":
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin required")
-    return await spaces_service.superadmin_usage_rollup(db, days=days)
-
-@router.get("/admin/dashboard", response_model=DashboardStats)
-async def get_dashboard_stats_endpoint(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-) -> DashboardStats:
-    return await handle_dashboard_stats(user, db)
 
 @router.get("/{space_id}/dashboard", response_model=DashboardStats)
 async def get_space_dashboard_stats_endpoint(

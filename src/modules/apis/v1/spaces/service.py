@@ -91,7 +91,8 @@ class SpacesService:
 
     async def require_space_admin(self, db: AsyncSession, *, space_id: str, user: User) -> SpaceMember:
         if user.role == "super_admin":
-            # global super admin can administer any space
+            # global super admin can administer any existing space
+            await self._ensure_space(db, space_id)
             member = await self.get_member(db, space_id=space_id, user_id=user.id)
             if member is None:
                 member = SpaceMember(space_id=space_id, user_id=user.id, role="admin", status="active")
