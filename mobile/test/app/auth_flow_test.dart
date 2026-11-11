@@ -95,6 +95,11 @@ void main() {
 
     await tester.tap(find.byTooltip('Account'));
     await settleApp(tester);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Sign out'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Sign out').last);
     await settleApp(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Sign out').last);

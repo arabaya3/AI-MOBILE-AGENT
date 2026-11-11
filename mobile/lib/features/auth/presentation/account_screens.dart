@@ -87,6 +87,8 @@ class AccountScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             const AppearanceSettings(),
             const SizedBox(height: AppSpacing.md),
+            const _ReplyLanguage(),
+            const SizedBox(height: AppSpacing.md),
             OutlinedButton.icon(
               onPressed: () => context.push('/account/password'),
               icon: const Icon(Icons.password),
@@ -313,4 +315,57 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const Scaffold(body: SafeArea(child: LoadingView()));
+}
+
+/// The language chat replies are written in (stored on the account; independent of the app language).
+class _ReplyLanguage extends ConsumerStatefulWidget {
+  const _ReplyLanguage();
+
+  @override
+  ConsumerState<_ReplyLanguage> createState() => _ReplyLanguageState();
+}
+
+class _ReplyLanguageState extends ConsumerState<_ReplyLanguage> {
+  bool _saving = false;
+
+  Future<void> _save(String? value) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    try {
+      await ref.read(authControllerProvider.notifier).savePreferences({
+        'preferred_language': value,
+      });
+    } on ApiException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(describeApiException(l10n, e))),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final current = ref.watch(currentUserProvider)?.preferredLanguage;
+    return Section(
+      title: l10n.replyLanguageTitle,
+      subtitle: l10n.replyLanguageExplain,
+      children: [
+        SegmentedButton<String>(
+          key: const ValueKey('reply-language'),
+          segments: [
+            ButtonSegment(value: 'auto', label: Text(l10n.replyLanguageAuto)),
+            const ButtonSegment(value: 'en', label: Text('English')),
+            const ButtonSegment(value: 'ar', label: Text('العربية')),
+          ],
+          selected: {current == 'en' || current == 'ar' ? current! : 'auto'},
+          onSelectionChanged: _saving
+              ? null
+              : (v) => _save(v.first == 'auto' ? null : v.first),
+        ),
+      ],
+    );
+  }
 }

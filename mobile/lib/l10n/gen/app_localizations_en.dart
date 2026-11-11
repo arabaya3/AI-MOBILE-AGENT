@@ -131,9 +131,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get upcomingDocuments => 'Documents';
 
   @override
-  String get upcomingNotifications => 'Notifications';
-
-  @override
   String get upcomingSpaceAdmin => 'Space administration';
 
   @override
@@ -981,4 +978,362 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get docErrorDuplicate =>
       'This file can\'t be added to this space. If you need it, ask a space admin for access.';
+
+  @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String notificationsUnread(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unread notifications',
+      one: '1 unread notification',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get markAllReadAction => 'Mark all read';
+
+  @override
+  String get notificationsReconnecting =>
+      'Live updates are paused; reconnecting. The list refreshes once connected.';
+
+  @override
+  String get notificationsEmptyTitle => 'No notifications';
+
+  @override
+  String get notificationsEmptyBody =>
+      'Updates about your requests and spaces appear here.';
+
+  @override
+  String get notificationTargetUnavailable =>
+      'This is no longer available to you.';
+
+  @override
+  String get notifApprovedTitle => 'Request approved';
+
+  @override
+  String notifApprovedBody(String type, String space) {
+    return 'Your $type request in $space was approved.';
+  }
+
+  @override
+  String get notifDeclinedTitle => 'Request declined';
+
+  @override
+  String notifDeclinedBody(String type, String space) {
+    return 'Your $type request in $space was declined.';
+  }
+
+  @override
+  String notifDeclinedBodyNote(String type, String space, String note) {
+    return 'Your $type request in $space was declined. Note: $note';
+  }
+
+  @override
+  String get notifPolicyTitle => 'Space settings changed';
+
+  @override
+  String notifPolicyBody(String space) {
+    return 'The models or limits in $space were updated.';
+  }
+
+  @override
+  String get notifInviteTitle => 'Invitation';
+
+  @override
+  String notifInviteBody(String space) {
+    return 'You were invited to join $space.';
+  }
+
+  @override
+  String get notifQuotaTitle => 'Usage limit approaching';
+
+  @override
+  String notifQuotaBody(String space) {
+    return 'You are close to a usage limit in $space.';
+  }
+
+  @override
+  String get requestTypeJoin => 'Join';
+
+  @override
+  String get requestTypeModel => 'Model access';
+
+  @override
+  String get requestTypeTool => 'Tool access';
+
+  @override
+  String get requestTypeQuota => 'Higher limits';
+
+  @override
+  String get requestTypeUpload => 'Document uploads';
+
+  @override
+  String get requestTypeOther => 'Other';
+
+  @override
+  String get usageTitle => 'Usage';
+
+  @override
+  String get periodDay => '24 hours';
+
+  @override
+  String periodDays(int days) {
+    return '$days days';
+  }
+
+  @override
+  String usageWindow(String start, String end) {
+    return 'From $start to $end, your local time. Windows roll back from now.';
+  }
+
+  @override
+  String get usageSummaryTitle => 'Summary';
+
+  @override
+  String get usageRequests => 'Replies requested';
+
+  @override
+  String usageUnknownRequests(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count replies have no reported usage (for example stopped or interrupted).',
+      one:
+          '1 reply has no reported usage (for example stopped or interrupted).',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get usageInputTokens => 'Input tokens';
+
+  @override
+  String get usageOutputTokens => 'Output tokens';
+
+  @override
+  String get usageTotalTokens => 'Total tokens';
+
+  @override
+  String get usageCostTitle => 'Estimated cost';
+
+  @override
+  String get usageCostBasis =>
+      'Estimated from list prices in US dollars; not a provider invoice.';
+
+  @override
+  String get usageCostUnavailable => 'Unavailable';
+
+  @override
+  String usageCostIncomplete(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count replies have no usage or price data and are not included.',
+      one: '1 reply has no usage or price data and is not included.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get usageCostNone =>
+      'No reply in this period has usage and price data, so no cost can be shown. This does not mean it was free.';
+
+  @override
+  String get usageLimitsTitle => 'Limits';
+
+  @override
+  String get usageLimitsExplain =>
+      'Limits count back from now. Conversation limits count conversations started.';
+
+  @override
+  String get usageByModel => 'By model';
+
+  @override
+  String usageModelLine(String requests, String tokens) {
+    return '$requests replies · $tokens tokens';
+  }
+
+  @override
+  String get usageTools => 'Tools';
+
+  @override
+  String usageToolCalls(String count) {
+    return '$count calls';
+  }
+
+  @override
+  String get limitTokens => 'Tokens';
+
+  @override
+  String get limitConversations => 'Conversations';
+
+  @override
+  String get limitToolRequests => 'Tool calls';
+
+  @override
+  String get limitLast24h => 'last 24 hours';
+
+  @override
+  String get limitLast30d => 'last 30 days';
+
+  @override
+  String limitNone(String used) {
+    return '$used used · no limit';
+  }
+
+  @override
+  String limitValue(String used, String limit, String remaining) {
+    return '$used of $limit used · $remaining left';
+  }
+
+  @override
+  String limitReserved(String tokens) {
+    return 'Includes $tokens counted for replies whose usage was never reported.';
+  }
+
+  @override
+  String get invoiceAction => 'Share invoice (PDF)';
+
+  @override
+  String get invoiceExplain =>
+      'The PDF is created by the server for the selected period and kept in this app\'s private storage until you sign out or switch space.';
+
+  @override
+  String get invoiceShareSubject => 'TEIA usage invoice';
+
+  @override
+  String get shareUnavailable => 'Sharing isn\'t available on this device.';
+
+  @override
+  String get requestsTitle => 'Requests';
+
+  @override
+  String get requestsExplain =>
+      'Requests you sent to space administrators. Approvals update your access automatically.';
+
+  @override
+  String get requestsEmptyTitle => 'No requests';
+
+  @override
+  String get requestsEmptyBody =>
+      'Ask for model access, higher limits or upload rights.';
+
+  @override
+  String get accountRequestsTitle => 'Account requests';
+
+  @override
+  String get requestPending => 'Pending';
+
+  @override
+  String get requestApproved => 'Approved';
+
+  @override
+  String get requestDeclined => 'Declined';
+
+  @override
+  String requestSentOn(String date) {
+    return 'Sent $date';
+  }
+
+  @override
+  String get reviewerNote => 'Reviewer\'s note';
+
+  @override
+  String get newRequestAction => 'New request';
+
+  @override
+  String get newRequestTitle => 'New request';
+
+  @override
+  String get requestUploadExplain => 'Ask to upload documents in this space.';
+
+  @override
+  String get requestReason => 'What do you need?';
+
+  @override
+  String get requestReasonOptional => 'Reason (optional)';
+
+  @override
+  String get requestChooseModel => 'Choose a model.';
+
+  @override
+  String get requestQuotaInvalid =>
+      'Enter at least one whole number above zero.';
+
+  @override
+  String get requestReasonRequired => 'Describe what you need.';
+
+  @override
+  String get requestSent => 'Request sent.';
+
+  @override
+  String get requestAlreadyPending => 'You already have this request pending.';
+
+  @override
+  String get requestUncertain =>
+      'We couldn\'t confirm the request. The list was refreshed; check it before sending again.';
+
+  @override
+  String get sendRequestAction => 'Send request';
+
+  @override
+  String get quotaDailyTokens => 'Tokens per 24 hours';
+
+  @override
+  String get quotaMonthlyTokens => 'Tokens per 30 days';
+
+  @override
+  String get quotaDailyConversations => 'Conversations per 24 hours';
+
+  @override
+  String get quotaMonthlyConversations => 'Conversations per 30 days';
+
+  @override
+  String get renameAction => 'Rename';
+
+  @override
+  String get renameTitle => 'Rename conversation';
+
+  @override
+  String get conversationNameLabel => 'Name';
+
+  @override
+  String get saveAction => 'Save';
+
+  @override
+  String get exportFileAction => 'Share as file';
+
+  @override
+  String get deleteConversationAction => 'Delete';
+
+  @override
+  String get deleteConversationTitle => 'Delete this conversation?';
+
+  @override
+  String get deleteConversationBody =>
+      'Its messages are deleted and its share links stop working. Usage records are kept. Copies you already shared or exported can\'t be recalled.';
+
+  @override
+  String get deleteAction => 'Delete';
+
+  @override
+  String get conversationDeleted => 'Conversation deleted.';
+
+  @override
+  String get replyLanguageTitle => 'Reply language';
+
+  @override
+  String get replyLanguageExplain =>
+      'The language the assistant answers in. Automatic follows your question.';
+
+  @override
+  String get replyLanguageAuto => 'Automatic';
+
+  @override
+  String get upcomingNotifications => 'Notifications';
 }

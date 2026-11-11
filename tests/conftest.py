@@ -62,6 +62,7 @@ from src.modules.apis.v1.sharing.router import router as sharing_router  # noqa:
 from src.modules.apis.v1.spaces.router import router as spaces_router  # noqa: E402
 from src.modules.apis.v1.chat.router import router as chat_router  # noqa: E402
 from src.modules.apis.v1.documents.router import router as documents_router  # noqa: E402
+from src.modules.apis.v1.notifications.router import router as notifications_router  # noqa: E402
 from src.core.security.upload_limit import UploadSizeLimitMiddleware  # noqa: E402
 from src.services.databases.postgresql.database import get_db  # noqa: E402
 from src.services.databases.postgresql.models import (  # noqa: E402
@@ -121,6 +122,16 @@ def session_factory(engine):
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
+@pytest.fixture(autouse=True)
+def detached_sessions(request, monkeypatch):
+    """Writes that must outlive a cancelled request open their own session; use the test database."""
+    if "session_factory" not in request.fixturenames:
+        return
+    from src.services.databases.postgresql import database
+
+    monkeypatch.setattr(database, "AsyncSessionLocal", request.getfixturevalue("session_factory"))
+
+
 @pytest.fixture
 def email_sink(monkeypatch):
     EmailSink.messages = []
@@ -135,6 +146,7 @@ async def client(session_factory, email_sink):
     app = FastAPI()
     app.add_middleware(UploadSizeLimitMiddleware)
     app.include_router(documents_router, prefix="/api/v1")
+    app.include_router(notifications_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(sharing_router, prefix="/api/v1")
     app.include_router(spaces_router, prefix="/api/v1")

@@ -10,6 +10,7 @@ import 'package:teia_ai/core/config/app_config.dart';
 import 'package:teia_ai/core/preferences/app_preferences.dart';
 import 'package:teia_ai/core/providers.dart';
 import 'package:teia_ai/core/storage/token_store.dart';
+import 'package:teia_ai/features/notifications/application/notifications_controller.dart';
 import 'package:teia_ai/core/theme/app_theme.dart';
 import 'package:teia_ai/features/auth/application/auth_controller.dart';
 import 'package:teia_ai/features/documents/application/document_files.dart';
@@ -125,6 +126,7 @@ Future<ProviderContainer> pumpTeiaApp(
       tokenStoreProvider.overrideWithValue(store ?? InMemoryTokenStore()),
       dioProvider.overrideWithValue(backend.dio),
       testCacheRoot(),
+      notificationsLiveEnabledProvider.overrideWithValue(false),
       ...overrides,
     ],
   );

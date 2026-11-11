@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.apis.dependencies import get_current_space_id, get_current_user
@@ -23,8 +23,13 @@ from src.modules.apis.v1.chat.handlers import (
     handle_usage_invoice,
     handle_usage_invoice_pdf,
     handle_list_model_pricing,
+    handle_delete_session,
+    handle_rename_session,
+    handle_usage_overview,
 )
+from src.modules.apis.v1.chat.usage import UsageOverview
 from src.modules.apis.v1.chat.schemas import (
+    RenameSessionRequest,
     MessageReactionRequest,
     MessageReactionResponse,
     BranchSessionRequest,
@@ -210,6 +215,46 @@ async def list_usage(
     space_id: str = Depends(get_current_space_id),
 ) -> List[UsageEvent]:
     return await handle_list_usage_events(current_user, db, space_id=space_id, limit=limit, session_id=session_id)
+
+
+@router.get(
+    "/usage/overview",
+    response_model=UsageOverview,
+    summary="Usage for a rolling window with explicit cost coverage and limits",
+)
+async def usage_overview(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    space_id: str = Depends(get_current_space_id),
+) -> UsageOverview:
+    return await handle_usage_overview(current_user, db, space_id=space_id, days=days)
+
+
+@router.patch("/sessions/{session_id}", response_model=ChatSessionSummary, summary="Rename a conversation")
+async def rename_session(
+    session_id: str,
+    payload: RenameSessionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    space_id: str = Depends(get_current_space_id),
+) -> ChatSessionSummary:
+    return await handle_rename_session(session_id, payload.title, current_user, db, space_id=space_id)
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a conversation (messages and share links; usage records are kept)",
+)
+async def delete_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    space_id: str = Depends(get_current_space_id),
+) -> Response:
+    await handle_delete_session(session_id, current_user, db, space_id=space_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(

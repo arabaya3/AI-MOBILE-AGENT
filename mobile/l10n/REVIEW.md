@@ -29,3 +29,7 @@ These translations were written during Phase 0. The terms below are uncertain or
 | `localCopyExplain` | Opening downloads a copy… | يؤدي الفتح إلى تنزيل نسخة… | Privacy wording. Owner review required. |
 | `sourceUnavailableBody` | You no longer have access to this source… | لم تعد لديك صلاحية الوصول إلى هذا المصدر… | Privacy wording. Owner review required. |
 | `scopeSelectedDocuments`, `documentsNotReadyHidden` | plural forms | صيغ الجمع (مفرد، مثنى، قليل، كثير) | Check the Arabic plural forms. |
+| `usageCostNone`, `usageCostIncomplete` | …does not mean it was free / …not included | …هذا لا يعني أنه كان مجانيًا / …غير مشمول | Billing wording. Owner review required. |
+| `deleteConversationBody` | Its messages are deleted… Usage records are kept… | تُحذف رسائلها… وتبقى سجلات الاستخدام… | Data-retention wording. Owner review required. |
+| `requestTypeQuota` | Higher limits | رفع الحدود | Confirm the product term. |
+| numbers | Counts use `NumberFormat` (Western digits in `ar`) while dates use Arabic-Indic digits | | Choose one digit style for Arabic. |

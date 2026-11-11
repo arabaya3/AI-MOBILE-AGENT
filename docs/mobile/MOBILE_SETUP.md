@@ -109,6 +109,7 @@ Put a directive in the prompt to pick a scenario:
 | `[[long]]` | 200 quick chunks (scrolling) |
 | `[[fail-before]]` / `[[fail-after]]` | Provider failure before or after some text |
 | `[[raise]]` | Unexpected server exception (generic `internal` error) |
+| `[[no-usage]]` | Completes without reporting usage (tests unknown-usage accounting) |
 
 The backend test suite sets the same variables in `tests/conftest.py`.
 
@@ -126,7 +127,7 @@ Add to the backend:
 - `QDRANT_URL=http://teia-e2e-qdrant:6333`, `QDRANT_VECTOR_SIZE=256`, `QDRANT_COLLECTION=teia_e2e_docs`, `ENABLE_RERANKING=false`.
 - `AWS_S3_ENDPOINT_URL=http://teia-e2e-s3:5000`, `AWS_S3_BUCKET=teia-e2e`, dummy `AWS_*` keys.
 
-Apply `migrations/sql/20261013_0001_document_processing_state.sql` to an existing local database (the backend's startup `create_all` does not add columns to existing tables). The backend tests use moto's server and Qdrant's in-memory mode (`QDRANT_URL=:memory:`) automatically.
+Apply `migrations/sql/20261013_0001_document_processing_state.sql` , `20261102_0001_generation_attempts_and_request_keys.sql` and `20261103_0001_conversation_creations.sql` to an existing local database (the backend's startup `create_all` does not add columns to existing tables). The backend tests use moto's server and Qdrant's in-memory mode (`QDRANT_URL=:memory:`) automatically.
 
 To pick files in the emulator, push synthetic files with `adb push <file> /sdcard/Download/` and choose them from **Downloads** in the system picker.
 

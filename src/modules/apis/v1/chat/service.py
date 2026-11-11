@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import Select, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.services.databases.postgresql.models import ChatMessage, ChatSession, LLMUsageEvent
+from src.services.databases.postgresql.models import ChatMessage, ChatSession, LLMUsageEvent, ConversationCreation
 from src.services.llm_providers.provider import get_chat_provider
 
 
@@ -44,6 +44,8 @@ class ChatService:
             return session
         session = ChatSession(user_id=user_id, space_id=space_id)
         db.add(session)
+        await db.flush()
+        db.add(ConversationCreation(space_id=space_id, user_id=user_id, session_id=session.id, kind="new"))
         await db.flush()
         return session
 
@@ -118,6 +120,7 @@ class ChatService:
         )
         db.add(new_session)
         await db.flush()
+        db.add(ConversationCreation(space_id=session.space_id, user_id=user_id, session_id=new_session.id, kind="branch"))
 
         for msg in history[: cutoff_index + 1]:
             db.add(

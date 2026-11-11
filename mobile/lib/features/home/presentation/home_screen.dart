@@ -8,6 +8,7 @@ import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/section.dart';
 import '../../../l10n/gen/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../notifications/presentation/notifications_screen.dart';
 import '../../spaces/application/space_controller.dart';
 import '../../spaces/data/spaces_api.dart';
 
@@ -29,6 +30,7 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.appTitle),
         actions: [
+          const NotificationBell(),
           IconButton(
             tooltip: l10n.accountTitle,
             icon: const Icon(Icons.account_circle_outlined),
@@ -106,23 +108,41 @@ class HomeScreen extends ConsumerWidget {
                 icon: const Icon(Icons.description_outlined),
                 label: Text(l10n.openDocuments),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Section(
-                title: l10n.sectionUpcoming,
+              const SizedBox(height: AppSpacing.sm),
+              Row(
                 children: [
-                  UnavailableDestination(
-                    icon: Icons.notifications_none,
-                    label: l10n.upcomingNotifications,
-                    statusLabel: l10n.notAvailableYet,
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('open-usage'),
+                      onPressed: () => context.push('/usage'),
+                      icon: const Icon(Icons.insights_outlined),
+                      label: Text(l10n.usageTitle),
+                    ),
                   ),
-                  if (isSpaceAdmin)
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('open-requests'),
+                      onPressed: () => context.push('/requests'),
+                      icon: const Icon(Icons.outbox_outlined),
+                      label: Text(l10n.requestsTitle),
+                    ),
+                  ),
+                ],
+              ),
+              if (isSpaceAdmin) ...[
+                const SizedBox(height: AppSpacing.md),
+                Section(
+                  title: l10n.sectionUpcoming,
+                  children: [
                     UnavailableDestination(
                       icon: Icons.admin_panel_settings_outlined,
                       label: l10n.upcomingSpaceAdmin,
                       statusLabel: l10n.notAvailableYet,
                     ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

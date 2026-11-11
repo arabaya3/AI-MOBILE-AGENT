@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -151,3 +151,12 @@ class ChangePasswordResponse(BaseModel):
     """Response after changing password."""
 
     message: str
+
+
+class UpdatePreferencesRequest(BaseModel):
+    """Only the caller's own preferences; identity, role and status cannot be changed here."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    preferred_language: Optional[Literal["en", "ar"]] = None
+    industry: Optional[str] = Field(default=None, max_length=120)

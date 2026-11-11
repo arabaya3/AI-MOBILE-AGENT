@@ -10,6 +10,9 @@ import '../features/auth/presentation/password_recovery_screens.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/chat/presentation/chat_list_screen.dart';
 import '../features/documents/presentation/document_details_screen.dart';
+import '../features/notifications/presentation/notifications_screen.dart';
+import '../features/requests/presentation/requests_screen.dart';
+import '../features/usage/presentation/usage_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/chat/presentation/conversation_screen.dart';
 import '../features/foundation_preview/presentation/foundation_preview_screen.dart';
@@ -63,7 +66,9 @@ String? appRedirect({
           location == '/chat' ||
           location.startsWith('/chat/') ||
           location == '/documents' ||
-          location.startsWith('/documents/');
+          location.startsWith('/documents/') ||
+          location == '/usage' ||
+          location == '/requests';
       if ((needsSpace && !selected) || (location == '/spaces' && selected)) {
         return landing;
       }
@@ -110,6 +115,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/spaces', builder: (_, _) => const SpacePickerScreen()),
       GoRoute(path: '/invite', builder: (_, _) => const AcceptInviteScreen()),
       GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, _) => const NotificationsScreen(),
+      ),
+      GoRoute(path: '/usage', builder: (_, _) => const UsageScreen()),
+      GoRoute(path: '/requests', builder: (_, _) => const RequestsScreen()),
       GoRoute(
         path: '/documents',
         builder: (_, _) => const DocumentsScreen(),

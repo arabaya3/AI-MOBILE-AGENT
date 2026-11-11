@@ -26,6 +26,7 @@ from .schemas import (
     ChangePasswordResponse,
     SignUpRequest,
     CurrentUserResponse,
+    UpdatePreferencesRequest,
     TokenResponse,
     UserListResponse,
     UserResponse,
@@ -116,6 +117,23 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
 async def me(current_user: User = Depends(get_current_user)) -> CurrentUserResponse:
     """Return the authenticated user's account, loaded fresh from the database."""
 
+    return CurrentUserResponse.model_validate(current_user)
+
+
+@router.patch("/me", response_model=CurrentUserResponse)
+async def update_preferences(
+    payload: UpdatePreferencesRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CurrentUserResponse:
+    """Update the caller's reply language and industry. Fields not sent stay unchanged; null clears them."""
+
+    for field in payload.model_fields_set:
+        value = getattr(payload, field)
+        if isinstance(value, str):
+            value = value.strip() or None
+        setattr(current_user, field, value)
+    await db.flush()
     return CurrentUserResponse.model_validate(current_user)
 
 

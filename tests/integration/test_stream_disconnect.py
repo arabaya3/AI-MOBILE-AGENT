@@ -1,8 +1,9 @@
 """A client disconnecting mid-stream, against a real uvicorn server and the app's pooled database engine.
 
-Documented behavior: the user message stays, the partial reply is rolled back, and no usage row is
-written for the turn. No usage row does NOT mean zero cost: a real provider keeps generating after the
-disconnect, and that spend is currently unrecorded (open release blocker).
+Documented behavior: the user message stays, the partial reply is rolled back, the generation attempt
+(committed before the provider call) is finalized as `cancelled` with `usage_state = unknown`, no
+zero-token usage row is written, and the provider stream is closed. Whether the provider stops billing
+when its stream is closed cannot be observed locally and is not claimed.
 """
 
 import asyncio
@@ -16,7 +17,8 @@ from sqlalchemy import func, select
 
 from src.modules.apis.v1.chat.router import router as chat_router
 from src.services.databases.postgresql import database
-from src.services.databases.postgresql.models import ChatMessage, ChatSession, LLMUsageEvent
+from src.services.databases.postgresql.models import ChatMessage, ChatSession, GenerationAttempt, LLMUsageEvent
+from src.services.llm_providers.stub import StubChatProvider
 
 from tests.conftest import auth_headers
 
@@ -50,6 +52,7 @@ async def test_disconnect_mid_stream_keeps_the_server_healthy(live_server, facto
     team = await factory.space("Team")
     await factory.member(team, alice)
     headers = auth_headers(alice, team)
+    closed_before = StubChatProvider.closed_early
 
     async with httpx.AsyncClient(base_url=live_server, timeout=15) as client:
         for _ in range(2):
@@ -74,3 +77,8 @@ async def test_disconnect_mid_stream_keeps_the_server_healthy(live_server, facto
                 select(func.count()).select_from(LLMUsageEvent).where(LLMUsageEvent.session_id == session.id)
             )
             assert usage_rows == 0
+            attempts = (await db.execute(select(GenerationAttempt).where(GenerationAttempt.session_id == session.id))).scalars().all()
+            assert [(a.outcome, a.usage_state, a.error_code, a.total_tokens) for a in attempts] == [
+                ("cancelled", "unknown", "client_disconnected", None)
+            ]
+    assert StubChatProvider.closed_early - closed_before == 2

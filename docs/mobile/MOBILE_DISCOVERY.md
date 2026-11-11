@@ -381,3 +381,41 @@ Verified against `chat/handlers.py` and changed in a backward-compatible way:
   - Non-streaming: 403 and 409.
 - **History:** each message has `citations`, either `null` or a list of `{available, document_id, filename, chunk_index, page, excerpt}`. Unavailable entries carry only `available: false`. A source revoked after an answer was read cannot retroactively remove the answer text the reader already saw; only the excerpt and access are withdrawn.
 - **Shared conversations and exports:** contain no citations.
+
+---
+
+## 11. Phase 4 contracts (2026-11-02)
+
+### 11.1 Behavior found before the changes
+
+- **Notifications:**
+  - Per user (not per space), with English text and a web path (`/spaces/{id}`) and no structured details.
+  - The stream accepts only a bearer header; the `token` query parameter the web sends is ignored, so the web live stream never connects (S26).
+  - The list serialized `notification_metadata` while the web expected `metadata`.
+- **Usage:**
+  - Windows are rolling (last 24 h, last 30 days, UTC); "request" limits count conversations, but by counting existing conversations, so deleting them would reset the limit (fixed with a start ledger, S28). Branches were not limited.
+  - Costs come from a local price table (`tracer.estimate_cost`), not provider invoices.
+  - Totals added only events with a cost, so partial coverage looked complete. The PDF printed unknown cost as `$0.0000`.
+  - Turns without provider usage were stored as zero tokens.
+- **Disconnect:** the attempt left no record and the provider thread kept reading the stream; a stalled provider blocked it indefinitely.
+- **Requests:**
+  - Space requests accepted any payload. Approving `quota_change` applied any `allowed_models` it contained.
+  - Duplicates were possible except for joins.
+  - Global `/requests` returned raw exception text.
+- **Conversations and account:** no rename or delete; no way to change account preferences after signup.
+
+### 11.2 Contracts after Phase 4
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /chat/usage/overview?days=` | Usage for a rolling window with cost coverage and limits (`limit`/`remaining` null = no limit) |
+| `PATCH /chat/sessions/{id}` · `DELETE /chat/sessions/{id}` | Rename (1–120 chars) · delete (messages and share links; usage/attempts kept) |
+| `POST /spaces/{id}/requests` | Strict payloads per type; same pending request returned for a resubmission |
+| `PATCH /auth/me` | `preferred_language` (`en`/`ar`/null), `industry` only |
+| `GET /notifications/` and stream | `metadata` with `space_name`, `request_type`, `request_id`, `note` |
+
+**Generation attempts:**
+- `outcome`: `started → completed | failed | cancelled`.
+- `usage_state`: `reported | unknown`.
+- `error_code` for failures (`client_disconnected`, `provider_error`, `internal`, …).
+- Usage rows link back through `usage_event_id`. A started attempt older than 15 minutes is reported as "lost".
