@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictInt
 
 
 class SpacePolicy(BaseModel):
@@ -50,16 +50,24 @@ class CreateSpaceResponse(BaseModel):
 
 
 class InviteMemberRequest(BaseModel):
+    email: EmailStr
+
+
+class InviteSummary(BaseModel):
+    """Never carries the token: it is delivered only by email."""
+
+    id: str
     email: str
-
-
-class InviteMemberResponse(BaseModel):
-    invite_token: str
-    status: str = "pending"
+    status: str  # pending | accepted | revoked | expired
+    expires_at: Optional[datetime] = None
+    created_at: datetime
+    last_sent_at: Optional[datetime] = None
+    send_count: int = 1
+    invited_by_email: Optional[str] = None
 
 
 class AcceptInviteRequest(BaseModel):
-    token: str
+    token: str = Field(..., min_length=1, max_length=256)
 
 
 class AcceptInviteResponse(BaseModel):
@@ -72,15 +80,28 @@ class UpdateSpaceRequest(BaseModel):
     is_active: Optional[bool] = None
 
 
+LIMIT_FIELDS = (
+    "daily_token_limit",
+    "monthly_token_limit",
+    "daily_request_limit",
+    "monthly_request_limit",
+    "daily_tool_request_limit",
+    "monthly_tool_request_limit",
+)
+
+
 class UpdatePolicyRequest(BaseModel):
-    allowed_models: Optional[List[str]] = None
-    allowed_tools: Optional[List[str]] = None
-    daily_token_limit: Optional[int] = None
-    monthly_token_limit: Optional[int] = None
-    daily_request_limit: Optional[int] = None
-    monthly_request_limit: Optional[int] = None
-    daily_tool_request_limit: Optional[int] = None
-    monthly_tool_request_limit: Optional[int] = None
+    """Limits: a number sets it (0 blocks use); an explicit null clears it (space: unlimited, member: inherit).
+    Omitted fields are unchanged."""
+
+    allowed_models: Optional[List[str]] = Field(default=None, max_length=200)
+    allowed_tools: Optional[List[str]] = Field(default=None, max_length=200)
+    daily_token_limit: Optional[StrictInt] = None
+    monthly_token_limit: Optional[StrictInt] = None
+    daily_request_limit: Optional[StrictInt] = None
+    monthly_request_limit: Optional[StrictInt] = None
+    daily_tool_request_limit: Optional[StrictInt] = None
+    monthly_tool_request_limit: Optional[StrictInt] = None
 
 
 class UpdateMemberRequest(BaseModel):
@@ -112,6 +133,7 @@ class SpaceRequestSummary(BaseModel):
     id: str
     space_id: str
     user_id: str
+    user_email: Optional[str] = None
     type: str
     payload: Dict[str, Any] = Field(default_factory=dict)
     status: str
@@ -122,7 +144,18 @@ class SpaceRequestSummary(BaseModel):
 
 class ReviewSpaceRequest(BaseModel):
     decision: str = Field(..., description="approved|declined")
-    note: Optional[str] = None
+    note: Optional[str] = Field(default=None, max_length=500)
+
+
+class CatalogItem(BaseModel):
+    id: str
+
+
+class SpaceCatalog(BaseModel):
+    """Identifiers an admin may allow and a member may request; no provider or tool configuration."""
+
+    models: List[CatalogItem]
+    tools: List[CatalogItem]
 
 
 class UsageTotals(BaseModel):

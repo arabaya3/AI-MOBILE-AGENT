@@ -6,6 +6,10 @@ import { AuthProvider } from "./context/AuthContext";
 import { SpaceProvider } from "./context/SpaceContext";
 import "./index.css";
 import "./i18n";
+import { captureInviteFromLocation } from "./invite/pendingInvite";
+
+// Before anything renders or loads, so the token never stays in the address bar.
+captureInviteFromLocation();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

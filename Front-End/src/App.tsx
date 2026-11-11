@@ -6,6 +6,8 @@ import "./i18n";
 import { useAuth } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import ChatPage from "./pages/ChatPage";
+import JoinSpacePage from "./pages/JoinSpacePage";
+import { hasPendingInvite, JOIN_PATH } from "./invite/pendingInvite";
 import { buildThemeConfig } from "./styles/ThemeConfig";
 import {
   getIndustryPalette,
@@ -361,7 +363,11 @@ function App() {
               )
             }
           />
-          <Route path="/auth" element={isAuthenticated ? <Navigate to="/" replace /> : <AuthPage />} />
+          <Route
+            path="/auth"
+            element={isAuthenticated ? <Navigate to={hasPendingInvite() ? JOIN_PATH : "/"} replace /> : <AuthPage />}
+          />
+          <Route path={JOIN_PATH} element={<JoinSpacePage />} />
           <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/auth"} replace />} />
         </Routes>
       </BrowserRouter>

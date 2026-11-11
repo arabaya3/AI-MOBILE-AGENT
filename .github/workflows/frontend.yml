@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   typecheck-build:
-    # Type-check and bundle only; nothing is published or deployed.
+    # Type-check, bundle and unit-test only; nothing is published or deployed.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -35,3 +35,4 @@ jobs:
       # resolve from package.json until the lock file is regenerated and committed by the owner.
       - run: npm install --no-package-lock --no-audit --no-fund
       - run: npm run build
+      - run: npm test

@@ -180,7 +180,7 @@ export const SpaceAdminDialog = ({
   const [requests, setRequests] = useState<SpaceRequestSummary[]>([]);
 
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
 
   const [editOverridesOpen, setEditOverridesOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<SpaceMemberSummary | null>(null);
@@ -444,7 +444,7 @@ export const SpaceAdminDialog = ({
     const nextTab = initialTab && allowedTabs.includes(initialTab) ? initialTab : "requests";
     setTab(nextTab);
     setInviteEmail("");
-    setInviteToken(null);
+    setInvitedEmail(null);
     setMyMembership(null);
     setPolicyModels(policyToList(space.policy));
     setPolicyTools((space.policy.allowed_tools ?? []).filter(Boolean));
@@ -486,15 +486,22 @@ export const SpaceAdminDialog = ({
 
   const handleInvite = async () => {
     if (!space) return;
-    setInviteToken(null);
+    setInvitedEmail(null);
     setError(null);
     try {
       const { data } = await inviteMember(space.id, { email: inviteEmail.trim() });
-      setInviteToken(data.invite_token);
+      setInvitedEmail(data.email);
       setInviteEmail("");
       await refreshAll();
-    } catch {
-      setError("Failed to invite member.");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(
+        status === 409
+          ? "This person is already a member of the space."
+          : status === 503
+            ? "The invitation email could not be sent. Try again later."
+            : "Failed to invite member.",
+      );
     }
   };
 
@@ -889,8 +896,8 @@ export const SpaceAdminDialog = ({
                           Invite
                         </Button>
                       </Stack>
-                      {inviteToken ? (
-                        <Alert severity="success">Invite token: {inviteToken}</Alert>
+                      {invitedEmail ? (
+                        <Alert severity="success">Invitation emailed to {invitedEmail}. The link expires in 7 days.</Alert>
                       ) : null}
                     </Stack>
                   </CardContent>

@@ -15,6 +15,10 @@ from .handlers import (
     handle_create_space,
     handle_delete_space,
     handle_invite_member,
+    handle_list_invites,
+    handle_resend_invite,
+    handle_revoke_invite,
+    handle_catalog,
     handle_list_members,
     handle_list_my_spaces,
     handle_list_available_spaces,
@@ -36,7 +40,8 @@ from .schemas import (
     CreateSpaceRequest,
     CreateSpaceResponse,
     InviteMemberRequest,
-    InviteMemberResponse,
+    InviteSummary,
+    SpaceCatalog,
     ReviewSpaceRequest,
     SpaceMemberSummary,
     SpacePolicy,
@@ -109,14 +114,53 @@ async def delete_space(
     return await handle_delete_space(space_id, current_user, db)
 
 
-@router.post("/{space_id}/invites", response_model=InviteMemberResponse)
+@router.post("/{space_id}/invites", response_model=InviteSummary)
 async def invite_member(
     space_id: str,
     payload: InviteMemberRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> InviteMemberResponse:
+) -> InviteSummary:
+    """Emails a new invitation, or a fresh link for the open one. The token is never returned."""
     return await handle_invite_member(space_id, payload, current_user, db)
+
+
+@router.get("/{space_id}/invites", response_model=list[InviteSummary])
+async def list_invites(
+    space_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[InviteSummary]:
+    return await handle_list_invites(space_id, current_user, db)
+
+
+@router.post("/{space_id}/invites/{invite_id}/resend", response_model=InviteSummary)
+async def resend_invite(
+    space_id: str,
+    invite_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> InviteSummary:
+    return await handle_resend_invite(space_id, invite_id, current_user, db)
+
+
+@router.post("/{space_id}/invites/{invite_id}/revoke", response_model=InviteSummary)
+async def revoke_invite(
+    space_id: str,
+    invite_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> InviteSummary:
+    return await handle_revoke_invite(space_id, invite_id, current_user, db)
+
+
+@router.get("/{space_id}/catalog", response_model=SpaceCatalog)
+async def space_catalog(
+    space_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> SpaceCatalog:
+    return await handle_catalog(space_id, current_user, db)
 
 
 @router.post("/invites/accept", response_model=AcceptInviteResponse)

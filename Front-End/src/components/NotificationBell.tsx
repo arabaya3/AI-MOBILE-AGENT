@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   IconButton,
   Badge,
@@ -24,9 +24,10 @@ import {
   getUnreadCount,
   markNotificationRead,
   markAllNotificationsRead,
-  connectNotificationStream,
   type Notification,
 } from "../api/notifications";
+import { mergeNotification, openNotificationStream } from "../api/notificationStream";
+import { useAuth } from "../context/AuthContext";
 
 const NotificationBell = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -34,10 +35,17 @@ const NotificationBell = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { token, logout } = useAuth();
+  const logoutRef = useRef(logout);
+  logoutRef.current = logout;
+  const seen = useRef(new Set<string>());
 
   const fetchNotifications = useCallback(async () => {
     try {
+      const account = localStorage.getItem("teia_access_token");
       const { data } = await getNotifications({ limit: 20 });
+      if (localStorage.getItem("teia_access_token") !== account) return; // signed out or switched meanwhile
+      seen.current = new Set(data.map((n) => n.id));
       setNotifications(data);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
@@ -46,7 +54,9 @@ const NotificationBell = () => {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
+      const account = localStorage.getItem("teia_access_token");
       const { data } = await getUnreadCount();
+      if (localStorage.getItem("teia_access_token") !== account) return;
       setUnreadCount(data.count);
     } catch (error) {
       console.error("Failed to fetch unread count:", error);
@@ -54,40 +64,38 @@ const NotificationBell = () => {
   }, []);
 
   useEffect(() => {
-    fetchUnreadCount();
-    fetchNotifications();
+    // Account change or logout: drop the previous account's notifications at once.
+    setNotifications([]);
+    setUnreadCount(0);
+    seen.current = new Set();
+    if (!token) return;
 
-    // Connect to real-time notification stream
-    const eventSource = connectNotificationStream(
-      (notification) => {
-        // Add new notification to the list
-        setNotifications((prev) => [notification, ...prev]);
-        setUnreadCount((prev) => prev + 1);
-        
-        // Optional: Show browser notification
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification(notification.title, {
-            body: notification.message,
-            icon: "/icon.png",
-          });
+    const stream = openNotificationStream({
+      onConnected: () => {
+        fetchUnreadCount();
+        fetchNotifications();
+      },
+      onNotification: (payload) => {
+        const notification = payload as Notification;
+        if (!notification?.id) return;
+        const isNew = !seen.current.has(notification.id);
+        seen.current.add(notification.id);
+        setNotifications((prev) => mergeNotification(prev, notification));
+        if (isNew && !notification.read) setUnreadCount((prev) => prev + 1);
+        if (isNew && "Notification" in window && Notification.permission === "granted") {
+          new Notification(notification.title, { body: notification.message });
         }
       },
-      (error) => {
-        console.error("Notification stream error:", error);
-      }
-    );
+      onUnauthorized: () => logoutRef.current(),
+    });
 
     // Request notification permission
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
 
-    return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-    };
-  }, [fetchNotifications, fetchUnreadCount]);
+    return () => stream.close();
+  }, [token, fetchNotifications, fetchUnreadCount]);
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

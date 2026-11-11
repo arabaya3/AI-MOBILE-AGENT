@@ -15,7 +15,9 @@ from .schemas import (
     CreateSpaceRequest,
     CreateSpaceResponse,
     InviteMemberRequest,
-    InviteMemberResponse,
+    InviteSummary,
+    SpaceCatalog,
+    CatalogItem,
     ReviewSpaceRequest,
     SpaceMemberSummary,
     MySpaceMembership,
@@ -30,6 +32,7 @@ from .schemas import (
     UsageTotals,
     DashboardStats,
 )
+from . import catalog, invitations
 from .service import spaces_service
 
 
@@ -145,16 +148,65 @@ async def handle_delete_space(space_id: str, user: User, db: AsyncSession) -> Sp
     )
 
 
-async def handle_invite_member(space_id: str, payload: InviteMemberRequest, user: User, db: AsyncSession) -> InviteMemberResponse:
+async def _invite_summaries(db: AsyncSession, invites) -> list[InviteSummary]:
+    from sqlalchemy import select
+
+    inviter_ids = {i.invited_by_user_id for i in invites if i.invited_by_user_id}
+    emails = {}
+    if inviter_ids:
+        emails = dict((await db.execute(select(User.id, User.email).where(User.id.in_(inviter_ids)))).all())
+    return [
+        InviteSummary(
+            id=i.id,
+            email=i.email,
+            status=invitations.effective_status(i),
+            expires_at=i.expires_at,
+            created_at=i.created_at,
+            last_sent_at=i.last_sent_at,
+            send_count=i.send_count or 1,
+            invited_by_email=emails.get(i.invited_by_user_id),
+        )
+        for i in invites
+    ]
+
+
+async def handle_invite_member(space_id: str, payload: InviteMemberRequest, user: User, db: AsyncSession) -> InviteSummary:
     await spaces_service.require_space_admin(db, space_id=space_id, user=user)
     space = await spaces_service._ensure_space(db, space_id)
-    invite = await spaces_service.invite_member(db, space=space, inviter=user, email=payload.email)
-    return InviteMemberResponse(invite_token=invite.token, status=invite.status)
+    invite = await invitations.create_or_resend(db, space=space, inviter=user, email=str(payload.email))
+    return (await _invite_summaries(db, [invite]))[0]
+
+
+async def handle_list_invites(space_id: str, user: User, db: AsyncSession) -> list[InviteSummary]:
+    await spaces_service.require_space_admin(db, space_id=space_id, user=user)
+    return await _invite_summaries(db, await invitations.list_for_space(db, space_id=space_id))
+
+
+async def handle_resend_invite(space_id: str, invite_id: str, user: User, db: AsyncSession) -> InviteSummary:
+    await spaces_service.require_space_admin(db, space_id=space_id, user=user)
+    space = await spaces_service._ensure_space(db, space_id)
+    invite = await invitations.resend(db, space=space, inviter=user, invite_id=invite_id)
+    return (await _invite_summaries(db, [invite]))[0]
+
+
+async def handle_revoke_invite(space_id: str, invite_id: str, user: User, db: AsyncSession) -> InviteSummary:
+    await spaces_service.require_space_admin(db, space_id=space_id, user=user)
+    invite = await invitations.revoke(db, space_id=space_id, invite_id=invite_id)
+    return (await _invite_summaries(db, [invite]))[0]
 
 
 async def handle_accept_invite(payload: AcceptInviteRequest, user: User, db: AsyncSession) -> AcceptInviteResponse:
-    member = await spaces_service.accept_invite(db, token=payload.token, user=user)
+    member = await invitations.accept(db, token=payload.token, user=user)
     return AcceptInviteResponse(space_id=member.space_id, status=member.status)
+
+
+async def handle_catalog(space_id: str, user: User, db: AsyncSession) -> SpaceCatalog:
+    if user.role != "super_admin":
+        await spaces_service.require_active_member(db, space_id=space_id, user=user)
+    return SpaceCatalog(
+        models=[CatalogItem(id=m) for m in await catalog.model_ids()],
+        tools=[CatalogItem(id=t) for t in catalog.tool_ids()],
+    )
 
 
 async def handle_list_members(space_id: str, user: User, db: AsyncSession) -> list[SpaceMemberSummary]:
@@ -190,6 +242,7 @@ async def handle_update_policy(space_id: str, payload: UpdatePolicyRequest, user
     await spaces_service.require_space_admin(db, space_id=space_id, user=user)
     space = await spaces_service._ensure_space(db, space_id)
     fields = payload.model_dump(exclude_unset=True)
+    await _check_lists(fields, already_models=space.allowed_models, already_tools=space.allowed_tools)
     space = await spaces_service.update_policy(db, space=space, **fields)
     return SpaceSummary(
         id=space.id,
@@ -211,6 +264,7 @@ async def handle_update_member(space_id: str, target_user_id: str, payload: Upda
     overrides = None
     if payload.overrides is not None:
         overrides = payload.overrides.model_dump(exclude_unset=True)
+        await _check_lists(overrides, already_models=member.allowed_models, already_tools=member.allowed_tools)
 
     member = await spaces_service.update_member(
         db,
@@ -269,6 +323,22 @@ async def handle_create_request(space_id: str, payload: SpaceRequestCreate, user
         db, space_id=space_id, user=user, type_value=type_value, payload=clean, dedupe_key=dedupe_key
     )
     return SpaceRequestSummary.model_validate(req)
+
+
+async def _check_lists(fields: dict, *, already_models, already_tools) -> None:
+    if fields.get("allowed_models") is not None:
+        fields["allowed_models"] = catalog.reject_unknown("models", fields["allowed_models"], await catalog.model_ids(), already_models)
+    if fields.get("allowed_tools") is not None:
+        fields["allowed_tools"] = catalog.reject_unknown("tools", fields["allowed_tools"], catalog.tool_ids(), already_tools)
+
+
+async def _check_approvable(req: SpaceRequest) -> None:
+    """Access approvals must name something this deployment actually supports."""
+    payload = req.payload or {}
+    if req.type == "model_access":
+        catalog.reject_unknown("models", [payload.get("model") or ""], await catalog.model_ids())
+    elif req.type == "tool_access":
+        catalog.reject_unknown("tools", [payload.get("tool") or ""], catalog.tool_ids())
 
 
 _TOOL_NAME = re.compile(r"^[a-z0-9_]{1,64}$")
@@ -334,14 +404,27 @@ async def handle_list_my_requests(user: User, db: AsyncSession) -> list[SpaceReq
 async def handle_list_requests(space_id: str, user: User, db: AsyncSession, *, status_value: str | None = None) -> list[SpaceRequestSummary]:
     await spaces_service.require_space_admin(db, space_id=space_id, user=user)
     rows = await spaces_service.list_requests(db, space_id=space_id, status_filter=status_value)
-    return [SpaceRequestSummary.model_validate(r) for r in rows]
+    from sqlalchemy import select
+
+    ids = {r.user_id for r in rows}
+    emails = dict((await db.execute(select(User.id, User.email).where(User.id.in_(ids)))).all()) if ids else {}
+    return [SpaceRequestSummary.model_validate(r).model_copy(update={"user_email": emails.get(r.user_id)}) for r in rows]
 
 
 async def handle_review_request(space_id: str, request_id: str, payload: ReviewSpaceRequest, user: User, db: AsyncSession) -> SpaceRequestSummary:
     await spaces_service.require_space_admin(db, space_id=space_id, user=user)
-    req = await db.get(SpaceRequest, request_id)
+    from sqlalchemy import select
+
+    # Locked so concurrent reviews of one request run one after another; only the first applies.
+    req = (await db.execute(select(SpaceRequest).where(SpaceRequest.id == request_id).with_for_update())).scalars().first()
     if req is None or req.space_id != space_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    if req.status != "pending":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This request was already reviewed")
+    if req.user_id == user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot review your own request")
+    if payload.decision.strip().lower() == "approved":
+        await _check_approvable(req)
     req = await spaces_service.review_request(db, req=req, reviewer=user, decision=payload.decision, note=payload.note)
     return SpaceRequestSummary.model_validate(req)
 

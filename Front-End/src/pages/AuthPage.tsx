@@ -35,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import { hasPendingInvite, JOIN_PATH } from "../invite/pendingInvite";
 
 const INDUSTRY_OPTIONS = [
   "Fintech",
@@ -109,7 +110,7 @@ export const AuthPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/", { replace: true });
+      navigate(hasPendingInvite() ? JOIN_PATH : "/", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -155,7 +156,7 @@ export const AuthPage = () => {
       setSubmitting(true);
       await login(loginForm);
       setFeedback({ type: "success", message: "Authenticated. Redirecting to workspace..." });
-      navigate("/", { replace: true });
+      navigate(hasPendingInvite() ? JOIN_PATH : "/", { replace: true });
     } catch (error) {
       setFeedback({ type: "error", message: "Unable to login. Check your credentials." });
     } finally {
@@ -191,7 +192,7 @@ export const AuthPage = () => {
         preferred_language: signupForm.preferred_language || undefined,
       });
       setFeedback({ type: "success", message: "Account created. Redirecting..." });
-      navigate("/", { replace: true });
+      navigate(hasPendingInvite() ? JOIN_PATH : "/", { replace: true });
     } catch (error) {
       setFeedback({ type: "error", message: "Registration failed. Try a different email." });
     } finally {

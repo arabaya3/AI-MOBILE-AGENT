@@ -1,6 +1,7 @@
 """Email service for sending notifications and transactional emails."""
 
 import hashlib
+import html
 import logging
 import smtplib
 from datetime import datetime, timedelta
@@ -154,6 +155,8 @@ class EmailService:
         invite_token: str
     ) -> bool:
         """Send space invitation email."""
+        space_name = html.escape(space_name)
+        inviter_name = html.escape(inviter_name) if inviter_name else None
         invite_link = f"{settings.FRONTEND_URL}/join-space?token={invite_token}"
         
         subject = f"You've been invited to join {space_name}"
@@ -220,6 +223,9 @@ class EmailService:
         reviewer_note: Optional[str] = None
     ) -> bool:
         """Send notification about request status change."""
+        space_name = html.escape(space_name)
+        request_type = html.escape(request_type)
+        reviewer_note = html.escape(reviewer_note) if reviewer_note else None
         status_text = "approved" if status == "approved" else "declined"
         subject = f"Your request has been {status_text}"
         
