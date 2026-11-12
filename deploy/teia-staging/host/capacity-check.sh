@@ -15,7 +15,7 @@
 #   ABORT_MAX_SWAP_USED=1024       total swap in use (swap is a safety margin, not working memory)
 #   ABORT_MAX_SWAPIN_PER_S=500     pages swapped in per second over the sample (sustained thrashing)
 # Abort criteria (any one): MemAvailable below floor; swap use above limit; swap-in rate above limit;
-# a new kernel OOM kill; any non-TEIA container that was running is stopped, restarted (restart count
+# a new kernel OOM kill; any non-TEIA container that was running is stopped, restarted (restart count or start time
 # grew), OOM-killed, or turned unhealthy compared with the baseline. Pre-existing problems recorded in the
 # baseline (for example an already unhealthy MedicalHub portal) are reported but are not TEIA's abort.
 set -Eeuo pipefail
@@ -33,7 +33,7 @@ mem() { awk -v k="$1:" '$1 == k { print int($2 / 1024) }' /proc/meminfo; }
 vmstat() { awk -v k="$1" '$1 == k { print $2 }' /proc/vmstat; }
 others() {  # name|status|health|restarts|oomkilled for every non-TEIA container
   docker ps -a --format '{{.Names}}' | grep -v '^teia-staging-' | grep -v '^teia-restore-' | sort | while read -r n; do
-    docker inspect -f "$n|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.RestartCount}}|{{.State.OOMKilled}}" "$n"
+    docker inspect -f "$n|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.RestartCount}}|{{.State.OOMKilled}}|{{.State.StartedAt}}" "$n"
   done
 }
 
@@ -55,19 +55,22 @@ baseline() {
 
 check() {
   [ -f "$BASELINE" ] || die "no baseline; run '$0 baseline' before starting TEIA"
-  local problems=() notes=() avail swap_used in1 in2 rate line n st he rc oom b_st b_he b_rc
+  local problems=() notes=() avail swap_used in1 in2 rate line n st he rc oom started b_st b_he b_rc b_started
   avail=$(mem MemAvailable); swap_used=$(( $(mem SwapTotal) - $(mem SwapFree) ))
   in1=$(vmstat pswpin); sleep 10; in2=$(vmstat pswpin); rate=$(( (in2 - in1) / 10 ))
   [ "$avail" -ge "$ABORT_MIN_AVAILABLE" ] || problems+=("MemAvailable ${avail} MiB < ${ABORT_MIN_AVAILABLE}")
   [ "$swap_used" -le "$ABORT_MAX_SWAP_USED" ] || problems+=("swap used ${swap_used} MiB > ${ABORT_MAX_SWAP_USED}")
   [ "$rate" -le "$ABORT_MAX_SWAPIN_PER_S" ] || problems+=("swap-in ${rate} pages/s > ${ABORT_MAX_SWAPIN_PER_S}")
   [ "$(vmstat oom_kill)" -le "$(sed -n 's/^oom_kill=//p' "$BASELINE")" ] || problems+=("kernel OOM kills since baseline: $(( $(vmstat oom_kill) - $(sed -n 's/^oom_kill=//p' "$BASELINE") ))")
-  while IFS='|' read -r n st he rc oom; do
+  while IFS="|" read -r n st he rc oom started; do
     line=$(grep "^c=$n|" "$BASELINE" || true)
     if [ -z "$line" ]; then notes+=("$n: new container since baseline"); continue; fi
-    IFS='|' read -r _ b_st b_he b_rc _ <<< "${line#c=}"
+    IFS="|" read -r _ b_st b_he b_rc _ b_started <<< "${line#c=}"
     [ "$b_st" = running ] && [ "$st" != running ] && problems+=("$n stopped ($st)")
-    [ "$rc" -gt "$b_rc" ] && problems+=("$n restarted ($b_rc -> $rc)")
+    if [ "$rc" -gt "$b_rc" ] || [ "$started" != "$b_started" ]; then
+      # A container already failing at baseline (unhealthy or restarting) is not an abort caused by TEIA.
+      case "$b_st/$b_he" in */unhealthy|restarting/*) notes+=("$n restarted again (was already failing at baseline)");; *) problems+=("$n restarted since baseline");; esac
+    fi
     [ "$oom" = true ] && problems+=("$n OOM-killed")
     if [ "$he" = unhealthy ]; then
       [ "$b_he" = unhealthy ] && notes+=("$n unhealthy already at baseline") || problems+=("$n became unhealthy")

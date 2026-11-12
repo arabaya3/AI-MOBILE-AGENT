@@ -15,7 +15,7 @@ cd "$(dirname "$0")"
 ENV_FILE=${TEIA_ENV_FILE:-teia-staging.env}
 COMPOSE=(docker compose --env-file "$ENV_FILE" -f docker-compose.yml ${TEIA_COMPOSE_OVERRIDE:+-f "$TEIA_COMPOSE_OVERRIDE"})
 PREBUILT=0; [ "${1:-}" = --images-prebuilt ] && PREBUILT=1
-MIGRATIONS_DIR=../../migrations/sql
+MIGRATIONS_DIR=${TEIA_MIGRATIONS_DIR:-../../migrations/sql}
 STEP=start
 
 on_error() {
@@ -52,7 +52,7 @@ step validate
 ./validate.sh
 
 step checkout
-git diff --quiet HEAD -- ../.. ':(exclude)Front-End/package-lock.json' || { echo "working tree differs from the reviewed commit" >&2; false; }
+git diff --quiet HEAD -- ':(top)' ':(top,exclude)Front-End/package-lock.json' || { echo "working tree differs from the reviewed commit" >&2; false; }
 TAG=$(git rev-parse --short HEAD)
 export TEIA_STAGING_TAG=$TAG
 echo "   commit $TAG"
@@ -86,7 +86,7 @@ step api
 wait_healthy api
 
 psql_file() {
-  "${COMPOSE[@]}" exec -T db sh -c 'psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$1"
+  "${COMPOSE[@]}" exec -T db sh -c 'PGOPTIONS=--client-min-messages=warning psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$1"
 }
 shopt -s nullglob
 files=("$MIGRATIONS_DIR"/*.sql)
@@ -104,6 +104,7 @@ step smoke
 "${COMPOSE[@]}" exec -T api python -c "import urllib.request,json; print('   api /health', json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)).get('status'))"
 "${COMPOSE[@]}" exec -T web wget -q -O /dev/null http://127.0.0.1/ && echo "   web index served"
 "${COMPOSE[@]}" ps --format '   {{.Service}}: {{.State}} {{.Health}}'
+# shellcheck disable=SC2046  # container ids, one word each
 docker stats --no-stream --format '   {{.Name}} {{.MemUsage}}' $("${COMPOSE[@]}" ps -q)
 
 step marker

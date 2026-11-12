@@ -21,6 +21,7 @@ P=$WORK; command -v cygpath >/dev/null && P=$(cygpath -m "$WORK")
 
 docker network create "$NET" >/dev/null
 for s in api web; do
+  # shellcheck disable=SC2046
   docker run -d --name "$NET-$s" --network "$NET" caddy:2.8-alpine caddy respond --listen :$([ $s = api ] && echo 8000 || echo 80) --body "$s" >/dev/null
 done
 sed 's/^\tauto_https off$/\tauto_https off\n\tdebug/' "$WORK/Caddyfile" > "$WORK/Caddyfile.debug"

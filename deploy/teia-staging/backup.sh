@@ -104,7 +104,8 @@ STOPPED+=(objects qdrant)
 "${COMPOSE[@]}" stop -t 60 qdrant objects >/dev/null
 
 volume_tar() {  # <volume> <file>
-  docker run --rm -v "$1":/data:ro -v "$PWD/$OUT":/out alpine:3.20 tar -C /data -czf "/out/$2" .
+  local out=$PWD/$OUT; command -v cygpath >/dev/null && out=$(cygpath -m "$out")   # Git Bash (local rehearsal)
+  MSYS_NO_PATHCONV=1 docker run --rm -v "$1":/data:ro -v "$out":/out alpine:3.20 tar -C /data -czf "/out/$2" .
 }
 log "volumes: documents, vectors, prompts"
 volume_tar teia-staging-objects objects.tar.gz
@@ -131,5 +132,7 @@ log "set: $OUT ($(du -sh "$OUT" | cut -f1))"
 if [ "$LOCAL_ONLY" = 0 ]; then
   log "copy off-host"
   rsync -a --partial "$OUT" "$TEIA_BACKUP_DEST/"
-  ls -1d backups/*/ | grep -v '\.failed/$' | sort | head -n -7 | xargs -r rm -rf
+  # Keep the 7 newest complete local sets (UTC-stamp names: glob order is age order; *.failed are kept).
+  sets=(backups/2*Z/)
+  for ((i = 0; i < ${#sets[@]} - 7; i++)); do rm -rf -- "${sets[$i]}"; done
 fi

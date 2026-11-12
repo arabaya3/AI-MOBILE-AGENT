@@ -31,7 +31,7 @@ assert_isolated_config() {
   local cfg
   cfg=$("${RC[@]}" config) || die "restore compose config does not render"
   printf '%s\n' "$cfg" | grep -qx 'name: teia-restore' || die "project name is not teia-restore"
-  printf '%s\n' "$cfg" | grep -q 'teia-staging-' && die "restore config references teia-staging-* resources"
+  printf '%s\n' "$cfg" | grep -qE '^\s+(name|source|external_name): teia-staging-' && die "restore config references a teia-staging-* volume or network"
   printf '%s\n' "$cfg" | grep -qE '^\s+(ports|published):' && die "restore config publishes ports"
   printf '%s\n' "$cfg" | grep -qE '^\s+external: true' && die "restore config uses an external network or volume"
   local v
@@ -76,11 +76,11 @@ log "set $SET verified; restoring into teia-restore (isolated)"
 SETP=$(cd "$SET" && pwd); command -v cygpath >/dev/null && SETP=$(cygpath -m "$SETP")
 for pair in objects:objects qdrant:qdrant prompts:prompts; do
   v=teia-restore-${pair%%:*}; assert_restore_target "$v"
-  docker volume create --label teia.restore=1 "$v" >/dev/null
+  docker volume create --label teia.restore=1 --label com.docker.compose.project=teia-restore --label "com.docker.compose.volume=${pair%%:*}" "$v" >/dev/null
   MSYS_NO_PATHCONV=1 docker run --rm -v "$v":/data -v "$SETP":/in:ro alpine:3.20 tar -C /data -xzf "/in/${pair#*:}.tar.gz"
 done
 assert_restore_target teia-restore-pgdata
-docker volume create --label teia.restore=1 teia-restore-pgdata >/dev/null
+docker volume create --label teia.restore=1 --label com.docker.compose.project=teia-restore --label com.docker.compose.volume=pgdata teia-restore-pgdata >/dev/null
 
 log "database"
 "${RC[@]}" up -d db

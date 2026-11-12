@@ -5,7 +5,10 @@
 #     teia-staging-internal  internal (no internet): api, db, qdrant, objects
 #     teia-staging-egress    outbound only for the api (AI provider, SMTP)
 #     teia-staging-edge      api + web, joined by the existing Caddy (see caddy/README.md)
-#   No service publishes a host port. Memory limits are initial targets, not verified capacity.
+#   No service publishes a host port. Memory limits are tested targets, not verified server capacity.
+#   memswap_limit == mem_limit on purpose: TEIA containers get NO swap, so a service over its limit is
+#   OOM-killed inside its own cgroup instead of pushing other apps into swap. Host swap (host/swap.sh) is a
+#   margin for the host, not TEIA capacity. Acceptance/abort criteria: host/capacity-check.sh, DEPLOY.md.
 #
 # Usage (from deploy/teia-staging): see DEPLOY.md. Validate first with ./validate.sh.
 name: teia-staging
