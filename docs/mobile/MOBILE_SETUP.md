@@ -46,7 +46,7 @@ flutter build apk --debug --flavor dev -t lib/main_dev.dart --dart-define-from-f
 
 - Run `flutter doctor --android-licenses` once.
 - If `flutter doctor` reports that `cmdline-tools` is missing, install "Android SDK Command-line Tools" from the Android Studio SDK Manager. Gradle builds still work without it.
-- Release builds: see [MOBILE_RELEASE_RUNBOOK.md](MOBILE_RELEASE_RUNBOOK.md). Signing comes only from a `key.properties` outside git (`TEIA_KEY_PROPERTIES`); without it release outputs are unsigned, never debug-signed. Staging/prod release builds stop early when `API_BASE_URL` is missing or not https.
+- Signed staging APK for the private pilot: `bash tool/build_signed_staging_apk.sh <name> <number>` ([ANDROID_PILOT.md](ANDROID_PILOT.md)). Release builds: see [MOBILE_RELEASE_RUNBOOK.md](MOBILE_RELEASE_RUNBOOK.md). Signing comes only from a `key.properties` outside git (`TEIA_KEY_PROPERTIES`); without it release outputs are unsigned, never debug-signed. Staging/prod release builds stop early when `API_BASE_URL` is missing or not https.
 
 ## macOS / iOS
 

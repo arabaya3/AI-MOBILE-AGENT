@@ -1,6 +1,6 @@
 # TEIA AI — Mobile release runbook
 
-Step-by-step instructions for the owner. Nothing here was run against a remote system. Placeholders in `<angle brackets>` are owner inputs; no domain, key or account is assumed. Status and evidence are in [MOBILE_RELEASE_READINESS.md](MOBILE_RELEASE_READINESS.md).
+Step-by-step instructions for the owner. The private Android staging pilot has its own guide: [ANDROID_PILOT.md](ANDROID_PILOT.md). Nothing here was run against a remote system. Placeholders in `<angle brackets>` are owner inputs; no domain, key or account is assumed. Status and evidence are in [MOBILE_RELEASE_READINESS.md](MOBILE_RELEASE_READINESS.md).
 
 ## 0. Inputs needed before starting
 

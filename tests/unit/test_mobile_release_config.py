@@ -54,3 +54,25 @@ def test_shared_release_url_cases(case):
 def test_errors_never_echo_credentials():
     found = check.problems({"API_BASE_URL": "https://user:s3cret@api.example.com/api/v1?token=abc"})
     assert found and not any("s3cret" in p or "abc" in p for p in found)
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["api.example.com", "example.com", "api.example.org", "staging.test", "x.invalid", "box.local", "teia.example"],
+)
+def test_distribution_builds_refuse_reserved_test_domains(host):
+    config = {"API_BASE_URL": f"https://{host}/api/v1"}
+    assert not [p for p in check.problems(config) if "reserved" in p]  # fine for rehearsal builds
+    assert any("reserved test domain" in p for p in check.distribution_problems(config))
+
+
+def test_distribution_refuses_reserved_link_hosts_and_accepts_real_names():
+    assert check.distribution_problems({"API_BASE_URL": "https://api.teia-staging.net/api/v1", "APP_LINK_HOSTS": "app.example.com"})
+    assert check.distribution_problems({"API_BASE_URL": "https://api.teia-staging.net/api/v1"}) == []
+
+
+def test_distribution_flag_on_the_command_line(tmp_path):
+    path = tmp_path / "staging.json"
+    path.write_text(json.dumps({"API_BASE_URL": "https://api.example.com/api/v1"}))
+    assert check.main(["check", str(path)]) == 0
+    assert check.main(["check", "--distribution", str(path)]) == 1
