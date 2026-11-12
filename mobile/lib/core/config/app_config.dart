@@ -71,7 +71,9 @@ class AppConfig {
           '${environment.name} builds require an https API_BASE_URL.',
         );
       }
-      if (_isIpLiteral(uri.host) || _isLocalHost(uri.host)) {
+      if (_isIpLiteral(uri.host) ||
+          _isLocalHost(uri.host) ||
+          !_publicHost.hasMatch(uri.host)) {
         throw ConfigException(
           '${environment.name} builds require a public host name, not an IP or local address.',
         );
@@ -92,7 +94,7 @@ class AppConfig {
     for (final host in linkHosts) {
       if (_isIpLiteral(host) ||
           _isLocalHost(host) ||
-          !RegExp(r'^[a-z0-9.-]+$').hasMatch(host)) {
+          !_publicHost.hasMatch(host)) {
         throw ConfigException('APP_LINK_HOSTS contains an invalid host: $host');
       }
     }
@@ -102,6 +104,12 @@ class AppConfig {
       trustedLinkHosts: linkHosts,
     );
   }
+
+  /// Same host rule as the Android Gradle check and tool/check_release_config.py
+  /// (shared cases in config/release_url_cases.json).
+  static final _publicHost = RegExp(
+    r'^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$',
+  );
 
   static bool _isIpLiteral(String host) =>
       InternetAddress.tryParse(host) != null;

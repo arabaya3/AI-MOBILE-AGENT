@@ -1,4 +1,6 @@
 import java.io.FileInputStream
+import java.net.URI
+import java.net.URISyntaxException
 import java.util.Base64
 import java.util.Properties
 
@@ -91,21 +93,57 @@ fun dartDefines(): Map<String, String> {
     }
 }
 
+// Same rules as tool/check_release_config.py and AppConfig.parse; the shared cases are in
+// config/release_url_cases.json (run `gradlew :app:verifyReleaseConfigRules`).
+val releaseHostPattern = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\\.[a-z]{2,}$")
+
+/** Why [url] is not a usable release API_BASE_URL, or null. Never echoes the URL (it may hold credentials). */
+fun releaseApiUrlProblem(url: String): String? {
+    if (url.isBlank()) return "API_BASE_URL is missing or empty"
+    val uri = try {
+        URI(url.trim())
+    } catch (e: URISyntaxException) {
+        return "API_BASE_URL is not a valid URL"
+    }
+    if (uri.scheme?.lowercase() != "https") return "API_BASE_URL must use https"
+    if (uri.rawUserInfo != null) return "API_BASE_URL must not contain credentials"
+    if (uri.rawQuery != null || uri.rawFragment != null) return "API_BASE_URL must not contain a query or a fragment"
+    val host = uri.host?.lowercase()?.trim('[', ']')
+        ?: return "API_BASE_URL must have a valid host name"
+    if (host.contains(':') || Regex("^[0-9.]+$").matches(host)) return "API_BASE_URL must use a host name, not an IP address"
+    if (host == "localhost" || host.endsWith(".localhost")) return "API_BASE_URL must not point at localhost"
+    if (!releaseHostPattern.matches(host)) return "API_BASE_URL host is not a public host name"
+    return null
+}
+
 tasks.configureEach {
     val isReleaseTask = Regex("^pre(Staging|Prod)ReleaseBuild$").matches(name)
     if (isReleaseTask) {
         doFirst {
-            val defines = dartDefines()
-            val api = defines["API_BASE_URL"].orEmpty()
-            val host = Regex("^https://([^/:?#@]+)").find(api)?.groupValues?.get(1).orEmpty()
-            val isIp = Regex("^[0-9.]+$|:").containsMatchIn(host)
-            if (host.isEmpty() || isIp || host == "localhost" || host.endsWith(".localhost")) {
+            val problem = releaseApiUrlProblem(dartDefines()["API_BASE_URL"].orEmpty())
+            if (problem != null) {
                 throw GradleException(
-                    "Release build $name needs API_BASE_URL as an https URL with a public host name " +
-                        "(pass --dart-define-from-file=config/<flavor>.json). Got: '${if (api.isEmpty()) "<missing>" else api}'."
+                    "Release build $name: $problem. Pass --dart-define-from-file=config/<flavor>.json " +
+                        "and check it with tool/check_release_config.py."
                 )
             }
         }
+    }
+}
+
+tasks.register("verifyReleaseConfigRules") {
+    description = "Checks the Gradle release URL rules against config/release_url_cases.json."
+    val casesFile = rootProject.file("../config/release_url_cases.json")
+    inputs.file(casesFile)
+    doLast {
+        @Suppress("UNCHECKED_CAST")
+        val cases = (groovy.json.JsonSlurper().parse(casesFile) as Map<String, Any>)["cases"] as List<Map<String, Any>>
+        val wrong = cases.filter { (releaseApiUrlProblem(it["url"] as String) == null) != (it["valid"] as Boolean) }
+        if (wrong.isNotEmpty()) {
+            throw GradleException("Release URL rules disagree with ${wrong.size} shared case(s): " +
+                wrong.joinToString { "#" + cases.indexOf(it) })
+        }
+        println("verifyReleaseConfigRules: ${cases.size} shared cases OK")
     }
 }
 

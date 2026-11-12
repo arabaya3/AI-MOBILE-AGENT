@@ -48,11 +48,18 @@ class SessionManager {
   int get epoch => _current.epoch;
   Stream<SessionSnapshot> get changes => _changes.stream;
 
-  Future<RestoreResult> restore() async {
+  /// [prepare] runs in the same storage queue right before the read; if it throws, nothing is
+  /// read and storage is reported unavailable.
+  Future<RestoreResult> restore({
+    Future<void> Function(TokenStore store)? prepare,
+  }) async {
     final startedAt = _current.epoch;
     String? stored;
     try {
-      stored = await _serial(_store.read);
+      stored = await _serial(() async {
+        if (prepare != null) await prepare(_store);
+        return _store.read();
+      });
     } catch (_) {
       return startedAt == _current.epoch
           ? RestoreResult.storageUnavailable

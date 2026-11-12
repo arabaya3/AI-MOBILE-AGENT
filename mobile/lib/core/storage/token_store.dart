@@ -31,19 +31,24 @@ class SecureTokenStore implements TokenStore {
   Future<void> delete() => _storage.delete(key: _key);
 }
 
-const _installMarkerKey = 'install.marker';
+const installMarkerKey = 'install.marker';
 
 /// The iOS Keychain survives uninstalling the app, while preferences do not. On the first start
 /// of a fresh install (no marker yet) a token left by an earlier install is deleted, so a
 /// reinstall never resumes the previous user's session. Existing installs that predate the marker
 /// are signed out once.
+///
+/// Throws if the token cannot be deleted or the marker cannot be saved; the marker is written only
+/// after the deletion succeeded, so a failed attempt is repeated on the next try.
 Future<void> forgetTokenFromPreviousInstall(
   SharedPreferences prefs,
   TokenStore store,
 ) async {
-  if (prefs.getBool(_installMarkerKey) ?? false) return;
+  if (prefs.getBool(installMarkerKey) ?? false) return;
   await store.delete();
-  await prefs.setBool(_installMarkerKey, true);
+  if (!await prefs.setBool(installMarkerKey, true)) {
+    throw StateError('install marker not saved');
+  }
 }
 
 class InMemoryTokenStore implements TokenStore {

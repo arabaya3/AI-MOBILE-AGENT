@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/providers.dart';
+import '../../../core/storage/token_store.dart';
 import '../../../core/session/session_manager.dart';
 import '../data/auth_api.dart';
 import '../data/auth_models.dart';
@@ -64,7 +65,12 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> initialize() async {
     state = const AuthStarting();
-    switch (await _session.restore()) {
+    // Fails closed: the stored credential is read only after a previous install's token is gone.
+    // A failed cleanup reports storage as unavailable; retrying comes back here and cleans first.
+    final prefs = ref.read(sharedPreferencesProvider);
+    switch (await _session.restore(
+      prepare: (store) => forgetTokenFromPreviousInstall(prefs, store),
+    )) {
       case RestoreResult.restored:
         await _verify();
       case RestoreResult.empty:

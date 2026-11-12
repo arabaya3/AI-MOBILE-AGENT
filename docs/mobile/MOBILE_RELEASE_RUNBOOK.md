@@ -30,7 +30,7 @@ cp config/prod.example.json config/prod.json          # git-ignored
 python tool/check_release_config.py config/prod.json  # must print OK
 ```
 
-The same checks run three times: this script (all platforms), a Gradle pre-build check for staging/prod release builds (Android stops in seconds with a clear message), and the app's own startup validation (shows a configuration error screen, makes no calls). `config/*.example.json` deliberately fail.
+The same rules run in three places, kept in agreement by the shared cases in `config/release_url_cases.json`: this script (all platforms), a Gradle pre-build check for staging/prod release builds (Android stops in seconds and names the broken rule without printing the URL), and the app's own startup validation (shows a configuration error screen, makes no calls). `config/*.example.json` deliberately fail. `cd android && ./gradlew :app:verifyReleaseConfigRules` re-checks the Gradle rules against the shared cases.
 
 ## 3. Android
 

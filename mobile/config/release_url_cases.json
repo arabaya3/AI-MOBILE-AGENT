@@ -1,0 +1,22 @@
+{
+  "_comment": "API_BASE_URL rules for staging/prod release builds, shared by the Gradle check (verifyReleaseConfigRules), tool/check_release_config.py and AppConfig.parse tests. Hosts use reserved example names.",
+  "cases": [
+    {"url": "https://api.example.com/api/v1", "valid": true},
+    {"url": "https://api.example.com:8443/api/v1", "valid": true},
+    {"url": "https://api.example.com", "valid": true},
+    {"url": "", "valid": false},
+    {"url": "http://api.example.com/api/v1", "valid": false},
+    {"url": "https://user:secret@api.example.com/api/v1", "valid": false},
+    {"url": "https://user@api.example.com/api/v1", "valid": false},
+    {"url": "https://api.example.com/api/v1?key=secret", "valid": false},
+    {"url": "https://api.example.com/api/v1#frag", "valid": false},
+    {"url": "https://203.0.113.7/api/v1", "valid": false},
+    {"url": "https://[2001:db8::1]/api/v1", "valid": false},
+    {"url": "https://localhost/api/v1", "valid": false},
+    {"url": "https://api.localhost/api/v1", "valid": false},
+    {"url": "https://intranet/api/v1", "valid": false},
+    {"url": "https://api_bad.example.com/api/v1", "valid": false},
+    {"url": "https://-bad.example.com/api/v1", "valid": false},
+    {"url": "api.example.com/api/v1", "valid": false}
+  ]
+}

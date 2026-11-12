@@ -13,7 +13,8 @@ import re
 import sys
 from urllib.parse import urlsplit
 
-HOST = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$")
+# Same pattern as the Gradle check and AppConfig.parse (labels may not start or end with "-").
+HOST = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$")
 
 
 def problems(config: dict) -> list[str]:

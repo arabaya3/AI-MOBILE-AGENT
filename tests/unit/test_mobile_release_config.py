@@ -40,3 +40,17 @@ def test_a_complete_config_passes(tmp_path, capsys):
 def test_the_committed_examples_are_not_releasable():
     for name in ("staging.example.json", "prod.example.json"):
         assert check.main(["check", str(SCRIPT.parents[1] / "config" / name)]) == 1
+
+
+CASES = json.loads((SCRIPT.parents[1] / "config" / "release_url_cases.json").read_text(encoding="utf-8"))["cases"]
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c["url"] or "<empty>" for c in CASES])
+def test_shared_release_url_cases(case):
+    """The same cases run in Gradle (verifyReleaseConfigRules) and in the Flutter AppConfig tests."""
+    assert (not check.problems({"API_BASE_URL": case["url"]})) is case["valid"]
+
+
+def test_errors_never_echo_credentials():
+    found = check.problems({"API_BASE_URL": "https://user:s3cret@api.example.com/api/v1?token=abc"})
+    assert found and not any("s3cret" in p or "abc" in p for p in found)
