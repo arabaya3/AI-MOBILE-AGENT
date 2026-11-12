@@ -328,6 +328,7 @@ class _UploadCard extends ConsumerWidget {
         switch (upload.error) {
           null => l10n.docErrorGeneric,
           final e when e.code == 'duplicate_conflict' => l10n.docErrorDuplicate,
+          final e when e.code == 'processing_busy' => l10n.docErrorBusy,
           final e => describeApiException(l10n, e),
         },
         StatusTone.error,

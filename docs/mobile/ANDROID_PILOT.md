@@ -7,7 +7,7 @@ A signed **staging** APK (`com.teia.aiassistant.staging`, label "TEIA AI Staging
 | Input | Status | Needed for |
 |---|---|---|
 | Owner-controlled staging API and web HTTPS hosts | **Missing**: no `mobile/config/staging.json`; only `staging.example.json` (empty) | building the APK |
-| Isolated staging database, object storage, SMTP, vector store | **Missing**: none configured. The repository `.env` is the shared non-isolated configuration and must not be used for staging | running the pilot |
+| Isolated staging database, object storage, SMTP, vector store | **Missing**: none configured; a ready-to-review deployment package for 65.108.244.83 is in `deploy/teia-staging/` (READINESS.md). The repository `.env` is the shared non-isolated configuration and must not be used for staging | running the pilot |
 | Android signing key outside git | **Missing**: no `key.properties`, `TEIA_KEY_PROPERTIES` unset. A keystore of an unrelated project exists on the build machine and must not be used | signing |
 | Authorized Android phone over adb | **Missing**: `adb devices` lists none | installing and the checklist |
 

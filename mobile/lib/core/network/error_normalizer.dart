@@ -87,7 +87,11 @@ ApiException normalizeHttpError({
             );
   }
   if (statusCode >= 500) {
-    return ServerException(statusCode: statusCode, message: message);
+    return ServerException(
+      statusCode: statusCode,
+      message: message,
+      code: code,
+    );
   }
   return UnexpectedResponseException(
     statusCode: statusCode,

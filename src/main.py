@@ -12,7 +12,7 @@ from fastapi.responses import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.observability.observability import record_http_request
-from src.core.settings.config import settings
+from src.core.settings.config import assert_deployable_settings, settings
 from src.core.security.rate_limiter import rate_limiter
 from src.core.security.upload_limit import UploadSizeLimitMiddleware
 from src.core.observability.metrics import metrics
@@ -41,6 +41,7 @@ async def lifespan(app: FastAPI):
     
     # Startup
     logger.info("Starting application initialization...")
+    assert_deployable_settings()
     assert_provider_configuration()
     await init_db()
     

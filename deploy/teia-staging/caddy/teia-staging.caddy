@@ -1,0 +1,42 @@
+# TEIA staging sites, appended to the existing Caddyfile of the IIH IVR Caddy container (Caddy 2.8).
+# Upstreams are container names on the teia-staging-edge network. Inside the Caddy container, 127.0.0.1
+# is the Caddy container itself, not the host, so the API is addressed by name, not by localhost.
+# Hosts are proposed sslip.io names (unverified until DNS resolves and certificates are issued).
+
+teia-api.65-108-244-83.sslip.io {
+	# Uploads are capped at 25 MiB by the API; allow the multipart/streaming overhead on top.
+	request_body {
+		max_size 26MB
+	}
+	# Not for the internet even if metrics get enabled by mistake.
+	respond /metrics 404
+
+	reverse_proxy teia-staging-api:8000 {
+		# Stream SSE (chat replies, notifications) without buffering.
+		flush_interval -1
+		transport http {
+			dial_timeout 5s
+			# Uploads are processed inside the request (PROCESSING_TIMEOUT_SECONDS=300): wait for headers
+			# a little longer than that.
+			response_header_timeout 330s
+		}
+	}
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=86400"
+		X-Content-Type-Options nosniff
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+teia.65-108-244-83.sslip.io {
+	reverse_proxy teia-staging-web:80
+	header {
+		-Server
+		Strict-Transport-Security "max-age=86400"
+	}
+}

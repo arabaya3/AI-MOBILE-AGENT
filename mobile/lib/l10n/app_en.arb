@@ -837,5 +837,6 @@
   "spaceUsageExplain": "All members, from recorded usage. Replies without reported usage are not included. Costs are estimates from list prices.",
   "usageNoRequests": "No recorded usage in this period.",
   "myUsageAction": "My usage",
-  "openSourceLicenses": "Open-source licenses"
+  "openSourceLicenses": "Open-source licenses",
+  "docErrorBusy": "Another document is being processed right now. Nothing was uploaded; try again in a moment."
 }

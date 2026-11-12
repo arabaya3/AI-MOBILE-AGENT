@@ -106,7 +106,11 @@ class QuotaExceededException extends ApiException {
 }
 
 class ServerException extends ApiException {
-  const ServerException({required int super.statusCode, super.message});
+  const ServerException({
+    required int super.statusCode,
+    super.message,
+    super.code,
+  });
 }
 
 class UnexpectedResponseException extends ApiException {

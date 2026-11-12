@@ -327,8 +327,10 @@ class DocumentsController extends Notifier<DocumentsState> {
     return null;
   }
 
-  /// The server answered and refused the file; resending the same file would fail the same way.
+  /// The server answered and refused the file. Resending would fail the same way, except for
+  /// `processing_busy` (another document is processing; nothing was stored, so trying later is safe).
   static bool _isDefinitive(ApiException e) =>
+      (e is ServerException && e.code == 'processing_busy') ||
       e is PayloadTooLargeException ||
       e is UnsupportedMediaException ||
       e is ValidationException ||
