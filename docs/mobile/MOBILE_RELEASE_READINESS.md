@@ -50,6 +50,10 @@ Status on branch `feature/mobile-release-prep` (from `dev` at `c31eca8`, the Pha
 | Committed web lockfile out of sync | `npm ci` with the committed `Front-End/package-lock.json` fails: "Missing: jsdom@26.1.0 … Invalid: lock file's vite@7.2.5 does not satisfy vite@5.4.19". CI uses `npm install --no-package-lock`, so web builds are not reproducible from the lockfile. The owner's local lockfile change was not touched (checksum unchanged) and decides the fix |
 | Web client IP fallback | `Front-End/src/api/client.ts` falls back to a raw IP over the page's protocol when `VITE_API_BASE_URL` is unset (pre-existing; web). Production web builds must set `VITE_API_BASE_URL` |
 
+### Android pilot (2026-11-12)
+
+Prepared, not started: staging builds now carry a visible STAGING ribbon (3 tests); `tool/build_signed_staging_apk.sh` builds and verifies a signed staging APK and refuses reserved test domains, unsigned or debug-signed APKs, debuggable builds, cleartext and local hosts (15 automated fixture tests in CI; success, wrong-signer and unsigned paths also checked once with real Android tools and a deleted test-only certificate; config and signer pin are mandatory). No signed pilot build exists yet. Blocked on a staging HTTPS host, the permanent signing key, an isolated staging backend and a connected phone — see [ANDROID_PILOT.md](ANDROID_PILOT.md) §7.
+
 ### Blocked on owner inputs
 
 | Item | Needs |
