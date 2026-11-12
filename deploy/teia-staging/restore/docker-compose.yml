@@ -1,0 +1,107 @@
+# TEIA restore rehearsal: a separate, disposable stack for restoring a backup set (restore.sh).
+# Distinct project, network and volume names (teia-restore-*), so it never touches teia-staging-* data.
+# One internal network without internet and without the edge network: Caddy cannot reach it, it cannot
+# send email or call AI providers, and no host port is published. Uses the already-built API image.
+name: teia-restore
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "2" }
+
+services:
+  api:
+    image: teia-staging-api:${TEIA_STAGING_TAG:-local}
+    env_file: ${TEIA_ENV_FILE:-../teia-staging.env}
+    environment:
+      APP_ENV: staging
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: teia_restore
+      QDRANT_URL: http://qdrant:6333
+      AWS_S3_ENDPOINT_URL: http://objects:8333
+      AWS_S3_FORCE_PATH_STYLE: "true"
+      SYSTEM_PROMPTS_PATH: /data/prompts/system_prompts.json
+      MAX_CONCURRENT_DOCUMENT_PROCESSING: "1"
+      ENABLE_RERANKING: "false"
+      REDIS_ENABLED: "false"
+      EMAIL_ENABLED: "false"
+    volumes:
+      - prompts:/data/prompts
+    depends_on:
+      db: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+      objects: { condition: service_healthy }
+    networks: [restore]
+    mem_limit: 1280m
+    memswap_limit: 1280m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)"]
+      interval: 10s
+      timeout: 10s
+      start_period: 60s
+      retries: 6
+    logging: *logging
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: teia_restore
+      POSTGRES_USER: ${POSTGRES_USER:-teia_staging}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in teia-staging.env}
+    command: ["postgres", "-c", "shared_buffers=96MB", "-c", "max_connections=20"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [restore]
+    mem_limit: 384m
+    memswap_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.5
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?set QDRANT_API_KEY in teia-staging.env}
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes: [qdrant:/qdrant/storage]
+    networks: [restore]
+    mem_limit: 512m
+    memswap_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333 && printf \"GET /readyz HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"200\" <&3'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  objects:
+    image: chrislusf/seaweedfs:3.97
+    entrypoint: ["/bin/sh", "/etc/teia/objects-entrypoint.sh"]
+    environment:
+      S3_ACCESS_KEY: ${AWS_ACCESS_KEY_ID:?set AWS_ACCESS_KEY_ID in teia-staging.env}
+      S3_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY in teia-staging.env}
+    volumes:
+      - objects:/data
+      - ../objects-entrypoint.sh:/etc/teia/objects-entrypoint.sh:ro
+    networks: [restore]
+    mem_limit: 512m
+    memswap_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333/healthz || wget -q -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+networks:
+  restore:
+    name: teia-restore-internal
+    internal: true
+
+volumes:
+  pgdata: { name: teia-restore-pgdata }
+  qdrant: { name: teia-restore-qdrant }
+  objects: { name: teia-restore-objects }
+  prompts: { name: teia-restore-prompts }

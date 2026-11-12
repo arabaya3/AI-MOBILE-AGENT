@@ -3,3 +3,4 @@ teia-staging.env
 *.env
 !teia-staging.env.example
 backups/
+.edge-ready-*

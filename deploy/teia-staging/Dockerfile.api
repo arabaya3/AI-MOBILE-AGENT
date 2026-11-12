@@ -20,5 +20,7 @@ USER teia
 
 EXPOSE 8000
 # One worker: the live-notification broadcaster and the in-process rate-limit cache are per process.
+# No uvicorn access log: it prints raw request lines (the notification stream carries ?token=<JWT>);
+# the app logs each request itself with the path only (share tokens masked, no query string).
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", \
-     "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-keep-alive", "75"]
+     "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-keep-alive", "75", "--no-access-log"]

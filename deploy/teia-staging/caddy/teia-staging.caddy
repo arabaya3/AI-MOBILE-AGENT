@@ -3,6 +3,27 @@
 # is the Caddy container itself, not the host, so the API is addressed by name, not by localhost.
 # Hosts are proposed sslip.io names (unverified until DNS resolves and certificates are issued).
 
+# Access-log privacy. TEIA URLs carry bearer secrets: /api/v1/shared/<share token>, the notification
+# stream's ?token=<JWT>, and web links /join-space?token=, /auth?token= (password reset), /verify-email?token=.
+# Every query string and everything after /shared/ is replaced, and headers that can carry the same
+# secrets (Authorization, Cookie, Referer, Set-Cookie) are dropped before a log line is written.
+# Verified with synthetic tokens against caddy:2.8-alpine (caddy/test-log-redaction.sh).
+(teia_staging_redacted_log) {
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "(/shared/|\?).*$" "${1}REDACTED"
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				request>headers>Referer delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+}
+
 teia-api.65-108-244-83.sslip.io {
 	# Uploads are capped at 25 MiB by the API; allow the multipart/streaming overhead on top.
 	request_body {
@@ -21,22 +42,30 @@ teia-api.65-108-244-83.sslip.io {
 			response_header_timeout 330s
 		}
 	}
+	# Caddy writes handler errors (for example an unreachable upstream) to its default logger with the
+	# raw request URI, outside the filter above. Handled errors are logged at DEBUG only, so the status is
+	# answered here without logging a token (assumes the global log level is not DEBUG; README checks it).
+	handle_errors {
+		respond "{err.status_code} {err.status_text}" {err.status_code}
+	}
 
 	header {
 		-Server
 		Strict-Transport-Security "max-age=86400"
 		X-Content-Type-Options nosniff
 	}
-	log {
-		output stdout
-		format json
-	}
+	import teia_staging_redacted_log
 }
 
 teia.65-108-244-83.sslip.io {
 	reverse_proxy teia-staging-web:80
+	handle_errors {
+		respond "{err.status_code} {err.status_text}" {err.status_code}
+	}
 	header {
 		-Server
 		Strict-Transport-Security "max-age=86400"
+		Referrer-Policy no-referrer
 	}
+	import teia_staging_redacted_log
 }
