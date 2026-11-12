@@ -1,0 +1,26 @@
+# TEIA API for staging. Dependencies come from requirements.lock.txt (exact versions; no local AI models:
+# sentence-transformers/torch are not installed because reranking and semantic chunking stay off).
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY deploy/teia-staging/requirements.lock.txt /tmp/requirements.lock.txt
+RUN pip install -r /tmp/requirements.lock.txt && rm /tmp/requirements.lock.txt
+
+COPY src/ ./src/
+COPY configs/ ./configs/
+RUN useradd --system --uid 10001 --home /app teia \
+    && mkdir -p /data/prompts /app/logs /app/data /tmp/teia-uploads \
+    && chown -R teia /data /app/logs /app/data /tmp/teia-uploads
+USER teia
+
+EXPOSE 8000
+# One worker: the live-notification broadcaster and the in-process rate-limit cache are per process.
+# No uvicorn access log: it prints raw request lines (the notification stream carries ?token=<JWT>);
+# the app logs each request itself with the path only (share tokens masked, no query string).
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", \
+     "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-keep-alive", "75", "--no-access-log"]

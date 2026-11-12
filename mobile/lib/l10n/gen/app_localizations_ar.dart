@@ -1831,4 +1831,8 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get openSourceLicenses => 'تراخيص البرمجيات مفتوحة المصدر';
+
+  @override
+  String get docErrorBusy =>
+      'تجري معالجة مستند آخر الآن. لم يُرفع أي شيء؛ حاول مرة أخرى بعد قليل.';
 }

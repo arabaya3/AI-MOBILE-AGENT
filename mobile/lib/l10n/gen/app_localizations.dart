@@ -3307,6 +3307,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open-source licenses'**
   String get openSourceLicenses;
+
+  /// No description provided for @docErrorBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Another document is being processed right now. Nothing was uploaded; try again in a moment.'**
+  String get docErrorBusy;
 }
 
 class _AppLocalizationsDelegate

@@ -1834,4 +1834,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openSourceLicenses => 'Open-source licenses';
+
+  @override
+  String get docErrorBusy =>
+      'Another document is being processed right now. Nothing was uploaded; try again in a moment.';
 }

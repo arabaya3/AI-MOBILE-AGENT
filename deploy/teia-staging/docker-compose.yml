@@ -1,0 +1,163 @@
+# TEIA staging: an isolated compose project for the private pilot (2-5 users, one document at a time).
+# Proposed for 65.108.244.83 next to IIH IVR and MedicalHub; nothing here touches those projects.
+#
+#   Networks
+#     teia-staging-internal  internal (no internet): api, db, qdrant, objects
+#     teia-staging-egress    outbound only for the api (AI provider, SMTP)
+#     teia-staging-edge      api + web, joined by the existing Caddy (see caddy/README.md)
+#   No service publishes a host port. Memory limits are tested targets, not verified server capacity.
+#   memswap_limit == mem_limit on purpose: TEIA containers get NO swap, so a service over its limit is
+#   OOM-killed inside its own cgroup instead of pushing other apps into swap. Host swap (host/swap.sh) is a
+#   margin for the host, not TEIA capacity. Acceptance/abort criteria: host/capacity-check.sh, DEPLOY.md.
+#
+# Usage (from deploy/teia-staging): see DEPLOY.md. Validate first with ./validate.sh.
+name: teia-staging
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/teia-staging/Dockerfile.api
+    image: teia-staging-api:${TEIA_STAGING_TAG:-local}
+    env_file: teia-staging.env
+    environment:
+      APP_ENV: staging
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      QDRANT_URL: http://qdrant:6333
+      AWS_S3_ENDPOINT_URL: http://objects:8333
+      AWS_S3_FORCE_PATH_STYLE: "true"
+      SYSTEM_PROMPTS_PATH: /data/prompts/system_prompts.json
+      MAX_CONCURRENT_DOCUMENT_PROCESSING: "1"
+      # 512 MiB failed a valid 24 MiB CSV (MemoryError -> too_complex); 1024 processed it (measured).
+      EXTRACTION_MEMORY_LIMIT_MB: "1024"
+      ENABLE_RERANKING: "false"
+      CHAT_PROVIDER_STUB: "false"
+      EMBEDDING_PROVIDER_STUB: "false"
+      REDIS_ENABLED: "false"
+    volumes:
+      - prompts:/data/prompts
+    depends_on:
+      db: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+      objects: { condition: service_healthy }
+    networks:
+      internal: {}
+      egress: {}
+      edge:
+        aliases: [teia-staging-api]   # the name the Caddy site block proxies to
+    # Measured cgroup peak 843 MiB (24 MiB CSV, extraction subprocess included) at a 1 GiB limit.
+    mem_limit: 1280m
+    memswap_limit: 1280m
+    cpus: 1.5
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging: *logging
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-teia_staging}
+      POSTGRES_USER: ${POSTGRES_USER:-teia_staging}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in teia-staging.env}
+    command: ["postgres", "-c", "shared_buffers=96MB", "-c", "max_connections=40", "-c", "work_mem=4MB"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    mem_limit: 384m
+    memswap_limit: 384m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.5
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?set QDRANT_API_KEY in teia-staging.env}
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes:
+      - qdrant:/qdrant/storage
+    networks: [internal]
+    mem_limit: 512m
+    memswap_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      # The image has no curl/wget; bash's /dev/tcp checks the HTTP port answers.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333 && printf \"GET /readyz HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"200\" <&3'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  objects:
+    # S3-compatible object storage (SeaweedFS). MinIO's public images could not be pulled when this was
+    # prepared (Docker Hub: repository unavailable; quay.io: 401), so a single-node SeaweedFS is used.
+    image: chrislusf/seaweedfs:3.97
+    entrypoint: ["/bin/sh", "/etc/teia/objects-entrypoint.sh"]
+    environment:
+      S3_ACCESS_KEY: ${AWS_ACCESS_KEY_ID:?set AWS_ACCESS_KEY_ID in teia-staging.env}
+      S3_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY in teia-staging.env}
+    volumes:
+      - objects:/data
+      - ./objects-entrypoint.sh:/etc/teia/objects-entrypoint.sh:ro
+    networks: [internal]
+    # 256 MiB restarted during a 25 MB upload; measured peak 424 MiB at 512 MiB.
+    mem_limit: 512m
+    memswap_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333/healthz || wget -q -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/teia-staging/Dockerfile.web
+      args:
+        VITE_API_BASE_URL: ${TEIA_WEB_API_BASE_URL:?set TEIA_WEB_API_BASE_URL in the shell or .env next to this file}
+    image: teia-staging-web:${TEIA_STAGING_TAG:-local}
+    networks:
+      edge:
+        aliases: [teia-staging-web]
+    mem_limit: 64m
+    memswap_limit: 64m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
+networks:
+  internal:
+    name: teia-staging-internal
+    internal: true
+  egress:
+    name: teia-staging-egress
+  edge:
+    name: teia-staging-edge
+
+volumes:
+  pgdata: { name: teia-staging-pgdata }
+  qdrant: { name: teia-staging-qdrant }
+  objects: { name: teia-staging-objects }
+  prompts: { name: teia-staging-prompts }

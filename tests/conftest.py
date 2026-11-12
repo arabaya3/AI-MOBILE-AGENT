@@ -133,6 +133,16 @@ def detached_sessions(request, monkeypatch):
     monkeypatch.setattr(database, "AsyncSessionLocal", request.getfixturevalue("session_factory"))
 
 
+@pytest.fixture(autouse=True)
+async def fresh_engine_pool():
+    """The app's module-level engine (used by the document processing gate) pools connections bound to
+    the event loop that opened them; each test runs in its own loop, so empty the pool afterwards."""
+    yield
+    from src.services.databases.postgresql import database
+
+    await database.engine.dispose()
+
+
 @pytest.fixture
 def email_sink(monkeypatch):
     EmailSink.messages = []

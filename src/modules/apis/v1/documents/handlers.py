@@ -19,6 +19,7 @@ from src.services.security.file_inspection import (
     sanitize_filename,
 )
 from . import ingest, pipeline
+from .processing_gate import processing_slot
 from .schemas import (
     AccessibleDocument,
     DocumentPermissionGrantRequest,
@@ -122,9 +123,12 @@ async def handle_stream_upload(
     received = None
     try:
         received = await receive_to_temp(request.stream(), limit=limit, directory=pipeline.WORK_DIR)
-        result = await ingest.ingest(
-            db, user=user, space=space, received=received, filename=name, ext=ext, upload_id=upload_id
-        )
+        # Taken after the body arrived (a slow upload does not block others) and before anything is
+        # stored, so a refused upload can be retried with the same upload ID.
+        async with processing_slot():
+            result = await ingest.ingest(
+                db, user=user, space=space, received=received, filename=name, ext=ext, upload_id=upload_id
+            )
     except UploadRejected as exc:
         raise _rejection(exc) from exc
     finally:
@@ -156,9 +160,10 @@ async def handle_retry_document(document_id: str, user: User, db: AsyncSession, 
     doc = await _accessible_document(db, user, document_id, space_id)
     if not document_out(doc, user=user, is_admin=is_admin).can_retry:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This document cannot be retried")
-    if not await pipeline.claim_for_retry(db, doc.id):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Processing is already running")
-    await ingest.retry(db, doc, Path(doc.s3_url).suffix.lower())
+    async with processing_slot():
+        if not await pipeline.claim_for_retry(db, doc.id):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Processing is already running")
+        await ingest.retry(db, doc, Path(doc.s3_url).suffix.lower())
     await db.refresh(doc)
     return document_out(doc, user=user, is_admin=is_admin)
 
@@ -188,7 +193,8 @@ async def handle_upload_document(
         received = await receive_to_temp(
             _upload_file_chunks(file), limit=int(settings.MAX_UPLOAD_BYTES), directory=pipeline.WORK_DIR
         )
-        result = await ingest.ingest(db, user=user, space=space, received=received, filename=name, ext=ext)
+        async with processing_slot():
+            result = await ingest.ingest(db, user=user, space=space, received=received, filename=name, ext=ext)
     except UploadRejected as exc:
         tracer.end_span(span, status_message=exc.code)
         raise _rejection(exc, legacy=True) from exc
@@ -238,13 +244,14 @@ async def handle_vectorize_document(document_id: str, user: User, db: AsyncSessi
     doc = await _accessible_document(db, user, document_id, space_id)
     if not doc.chunks_data:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document has no extracted text")
-    await pipeline._set_state(db, doc, pipeline.INDEXING)
-    try:
-        details = await pipeline.index_document(doc)
-    except Exception as exc:  # noqa: BLE001
-        await pipeline._set_state(db, doc, pipeline.FAILED, "indexing_failed")
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Document indexing failed") from exc
-    await pipeline._set_state(db, doc, pipeline.READY)
+    async with processing_slot():
+        await pipeline._set_state(db, doc, pipeline.INDEXING)
+        try:
+            details = await pipeline.index_document(doc)
+        except Exception as exc:  # noqa: BLE001
+            await pipeline._set_state(db, doc, pipeline.FAILED, "indexing_failed")
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Document indexing failed") from exc
+        await pipeline._set_state(db, doc, pipeline.READY)
     return DocumentVectorizeResponse(
         document_id=doc.id,
         chunks_indexed=details["chunks_indexed"],

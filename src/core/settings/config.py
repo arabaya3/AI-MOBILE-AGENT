@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     AWS_S3_SPACE_BUCKET_PREFIX: str = ""
     # S3-compatible endpoint (e.g. a local MinIO); empty uses AWS.
     AWS_S3_ENDPOINT_URL: str = ""
+    # Self-hosted S3 services (SeaweedFS, Garage) reached by a container name need path-style URLs.
+    AWS_S3_FORCE_PATH_STYLE: bool = False
 
     # Security / JWT
     SECRET_KEY: str = "change-me"
@@ -112,6 +114,8 @@ class Settings(BaseSettings):
     # Performance
     MAX_FILE_SIZE_MB: int = 100
     PROCESSING_TIMEOUT_SECONDS: int = 300
+    # Deployment-wide cap on documents processed at once (advisory locks in Postgres); 0 = unlimited.
+    MAX_CONCURRENT_DOCUMENT_PROCESSING: int = 0
     # Hard per-file upload limit (25 MiB), enforced while the body is read.
     MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024
     EXTRACTION_MEMORY_LIMIT_MB: int = 2048
@@ -412,3 +416,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+LOCAL_ENVIRONMENTS = {"development", "test"}
+_WEAK_SECRETS = {"", "change-me", "changeme", "secret", "your-secret-key"}
+
+
+def deployment_problems(config: Settings) -> list[str]:
+    """Settings that must never reach a non-local deployment. Values are never included."""
+    if config.APP_ENV.strip().lower() in LOCAL_ENVIRONMENTS:
+        return []
+    found = []
+    secret = (config.SECRET_KEY or "").strip()
+    if secret.lower() in _WEAK_SECRETS or len(secret) < 32:
+        found.append("SECRET_KEY must be set to a random value of at least 32 characters")
+    if any(origin.strip() == "*" for origin in config.CORS_ALLOW_ORIGINS):
+        found.append("CORS_ALLOW_ORIGINS must list explicit origins")
+    return found
+
+
+def assert_deployable_settings(config: Settings | None = None) -> None:
+    problems = deployment_problems(config or settings)
+    if problems:
+        raise RuntimeError("Refusing to start: " + "; ".join(problems))

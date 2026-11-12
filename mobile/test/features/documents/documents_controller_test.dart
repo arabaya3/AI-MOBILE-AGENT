@@ -215,6 +215,38 @@ void main() {
     },
   );
 
+  test(
+    'a busy server is reported as such, with nothing to reconcile',
+    () async {
+      final backend = FakeBackend()
+        ..json('GET /documents/accessible', 200, <Object>[]);
+      backend.onAny(
+        (o) => o.method == 'PUT'
+            ? jsonBody(503, {
+                'detail': {
+                  'code': 'processing_busy',
+                  'message': 'Another document is being processed.',
+                },
+              })
+            : null,
+      );
+      final c = await docsContainer(backend);
+      await settle();
+      await c
+          .read(documentsControllerProvider.notifier)
+          .upload(source('a.txt', [65, 66]));
+      expect(stateOf(c).uploads.single.phase, UploadPhase.failed);
+      expect(stateOf(c).uploads.single.error!.code, 'processing_busy');
+      expect(
+        backend.adapter.requests.where(
+          (r) =>
+              r.uri.path.contains('/documents/uploads/') && r.method == 'GET',
+        ),
+        isEmpty,
+      );
+    },
+  );
+
   test('a server rejection is final and never retried', () async {
     final backend = FakeBackend()
       ..json('GET /documents/accessible', 200, <Object>[]);

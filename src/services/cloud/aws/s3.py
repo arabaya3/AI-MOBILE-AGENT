@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 import aioboto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from src.core.settings.config import settings
@@ -23,7 +24,8 @@ class S3Service:
         self.endpoint_url = (getattr(settings, "AWS_S3_ENDPOINT_URL", "") or "").strip() or None
 
     def client(self):
-        return self.session.client("s3", endpoint_url=self.endpoint_url)
+        config = Config(s3={"addressing_style": "path"}) if getattr(settings, "AWS_S3_FORCE_PATH_STYLE", False) else None
+        return self.session.client("s3", endpoint_url=self.endpoint_url, config=config)
 
     @staticmethod
     def parse_url(s3_url: str) -> tuple[str, str]:

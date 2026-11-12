@@ -1,0 +1,6 @@
+# Never commit the filled environment or local backups.
+teia-staging.env
+*.env
+!teia-staging.env.example
+backups/
+.edge-ready-*
