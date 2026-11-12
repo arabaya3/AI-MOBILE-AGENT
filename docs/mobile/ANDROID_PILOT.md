@@ -37,9 +37,11 @@ cd mobile
 cp config/staging.example.json config/staging.json     # git-ignored
 # set {"API_BASE_URL": "https://<staging API host>/api/v1", "APP_LINK_HOSTS": ""}
 export TEIA_KEY_PROPERTIES=<path outside git>/key.properties
-export TEIA_EXPECTED_CERT_SHA256=<upload certificate SHA-256>
+export TEIA_EXPECTED_CERT_SHA256=<pilot certificate SHA-256>    # required, also for --verify-only
 bash tool/build_signed_staging_apk.sh <build-name, e.g. 1.0.0> <build-number, increases every build>
 ```
+
+Verifying an existing APK uses the same requirements: `bash tool/build_signed_staging_apk.sh --verify-only <apk>` fails unless `config/staging.json` (or `TEIA_STAGING_CONFIG`) is distribution-valid **and** `TEIA_EXPECTED_CERT_SHA256` is set; there is no unqualified OK.
 
 The script stops on the first problem and prints no secrets:
 
@@ -48,13 +50,22 @@ The script stops on the first problem and prints no secrets:
 | `check_release_config.py --distribution` | http, credentials/query/fragment, IPs, localhost, invalid hosts, **reserved test domains** (`example.com/.net/.org`, `*.example`, `*.test`, `*.invalid`, `*.local`, `*.localhost`), unknown keys |
 | signing input | missing `key.properties` |
 | Gradle pre-build check | same URL rules (shared cases in `config/release_url_cases.json`) |
+| required inputs | missing or non-distributable config; missing or malformed `TEIA_EXPECTED_CERT_SHA256` |
 | `apksigner verify --print-certs` | unsigned or corrupt APK, no v2 signature, the Android debug key, a signer other than `TEIA_EXPECTED_CERT_SHA256` |
 | `aapt2` badging / manifest | wrong package, debuggable, cleartext allowed, dev link scheme, dev network security config |
-| compiled Dart code (`libapp.so`, every ABI) | missing configured host; any `localhost`, `10.0.2.2`, `127.0.0.1` or `example.*` host |
+| compiled Dart code (`libapp.so`, every ABI, extracted to a temporary directory and searched in full) | missing configured host; any `localhost`, `10.0.2.2`, `127.0.0.1` or `example.*` host |
 
 On success it prints the package, the signer certificate SHA-256 and the APK SHA-256, and writes `app-staging-release.apk.sha256`. Output: `mobile/build/app/outputs/flutter-apk/app-staging-release.apk`. Share it only with pilot phones over a private channel; it is not published anywhere.
 
-Verified locally so far (no key, no host available): the script refuses a missing config, a reserved host, a missing key, the debug-signed dev APK and an unsigned staging release APK. For that unsigned staging APK (built against `api.pilot-check.invalid`, then deleted) the manifest and code checks were confirmed by hand: correct package and label, not debuggable, cleartext off, backup off, no dev scheme, host compiled into all three ABIs. The success path of the script has **not** run, because it needs the real key.
+### What has and has not been verified
+
+| Level | Status |
+|---|---|
+| **Automated verifier tests** (`tool/test_apk_verifier.sh`, runs in the Mobile CI job) | 15 cases on synthetic zip "APKs" with 24 MiB `libapp.so` payloads and fixture `apksigner`/`aapt2` outputs: valid APK with the host a few bytes into each payload, fingerprint formats, checksum file, wrong signer, missing config, reserved-domain config, missing and malformed pin, reserved host in one ABI, emulator host, an ABI without the host, debug key, unsigned, debuggable, cleartext. No key, nothing installable |
+| **Real tools with a test-only certificate** (run once by hand, 2026-11-12) | A staging release APK built against the fixture host `api.pilot-fixture.net`, signed with a one-day certificate named "TEIA TEST-ONLY verifier certificate - not for distribution" in a temporary directory: verified OK with real `apksigner`/`aapt2` (3 ABIs); a wrong pin and the unsigned APK were refused. The certificate, keystore and APKs were deleted immediately; they are not the pilot key and were never distributed |
+| **Signed pilot build** | **Not done.** Needs the owner's staging host and the permanent signing key (§7) |
+
+Also observed: the previous version piped `unzip -p` into `grep -q` under `pipefail`; on a 24 MiB input with an early match that pipeline exits 141 (SIGPIPE) although the host is present. The verifier now captures tool output and extracts files before searching.
 
 ## 4. Install and upgrade
 

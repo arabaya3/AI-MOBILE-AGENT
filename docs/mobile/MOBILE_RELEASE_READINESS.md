@@ -52,7 +52,7 @@ Status on branch `feature/mobile-release-prep` (from `dev` at `c31eca8`, the Pha
 
 ### Android pilot (2026-11-12)
 
-Prepared, not started: staging builds now carry a visible STAGING ribbon (3 tests); `tool/build_signed_staging_apk.sh` builds and verifies a signed staging APK and refuses reserved test domains, unsigned or debug-signed APKs, debuggable builds, cleartext and local hosts (refusal paths verified; the signed success path needs the real key). Blocked on a staging HTTPS host, the permanent signing key, an isolated staging backend and a connected phone — see [ANDROID_PILOT.md](ANDROID_PILOT.md) §7.
+Prepared, not started: staging builds now carry a visible STAGING ribbon (3 tests); `tool/build_signed_staging_apk.sh` builds and verifies a signed staging APK and refuses reserved test domains, unsigned or debug-signed APKs, debuggable builds, cleartext and local hosts (15 automated fixture tests in CI; success, wrong-signer and unsigned paths also checked once with real Android tools and a deleted test-only certificate; config and signer pin are mandatory). No signed pilot build exists yet. Blocked on a staging HTTPS host, the permanent signing key, an isolated staging backend and a connected phone — see [ANDROID_PILOT.md](ANDROID_PILOT.md) §7.
 
 ### Blocked on owner inputs
 
