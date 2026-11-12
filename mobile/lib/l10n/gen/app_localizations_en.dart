@@ -1831,4 +1831,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get myUsageAction => 'My usage';
+
+  @override
+  String get openSourceLicenses => 'Open-source licenses';
 }

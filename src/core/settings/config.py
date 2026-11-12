@@ -172,6 +172,10 @@ class Settings(BaseSettings):
     # A provider stream that sends nothing for this long is ended as a provider error and closed.
     PROVIDER_STREAM_IDLE_TIMEOUT_SECONDS: int = 120
 
+    # Global system prompts file. Must be on storage shared by every worker and replica and kept
+    # across deploys (a mounted volume); empty means configs/system_prompts.json under the working dir.
+    SYSTEM_PROMPTS_PATH: str = ""
+
     # Password reset
     PASSWORD_RESET_TTL_MINUTES: int = 60
 

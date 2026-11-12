@@ -180,7 +180,17 @@ class _ConversationViewState extends ConsumerState<_ConversationView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        // The title's own direction decides where it is cut (an English title in Arabic UI ends
+        // with "…" on the right, not the left).
+        title: Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textDirection: detectTextDirection(
+            title,
+            fallback: Directionality.of(context),
+          ),
+        ),
         actions: [
           if (state.sessionId != null)
             ConversationMenu(

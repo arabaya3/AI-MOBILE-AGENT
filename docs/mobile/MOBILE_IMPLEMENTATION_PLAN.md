@@ -656,12 +656,11 @@ Verified:
   - Screenshots: `docs/mobile/screenshots/phase5/`.
 
 ### Phase 6 — Verification and release preparation
-- **Scope:** full integration suite on Android (emulator and a device) and iOS (macOS), plus accessibility, RTL and performance passes, icons and splash, signing outside the repository, store metadata, privacy forms, and production HTTPS configuration.
-- **Acceptance:**
-  - Signed release builds.
-  - No cleartext traffic and no secrets in the binary.
-  - Release checklist signed off.
-  - Blocked until the §8 dependencies are resolved.
+- **Status (2026-11-11, branch `feature/mobile-release-prep`):** local release preparation done; distribution blocked on owner inputs. Results, evidence and artifact types: [MOBILE_RELEASE_READINESS.md](MOBILE_RELEASE_READINESS.md). Procedures: [MOBILE_RELEASE_RUNBOOK.md](MOBILE_RELEASE_RUNBOOK.md).
+- **Fixed:** release builds were signed with the debug key; staging/prod release builds accepted a missing API URL; the iOS Keychain kept the previous install's session; `SYSTEM_PROMPTS_PATH` could not be configured; LTR titles were truncated on the wrong side in Arabic; two Arabic terms for *space*; no license notices.
+- **Added:** config preflight script, optional verified App Links for staging/prod, association-file and signing templates, toolchain bound in `pubspec.yaml`.
+- **Rehearsed:** migrations on an isolated database (pre-mobile upgrade and fresh install, each twice) with identical resulting schemas; Phase 5 API journey on the upgraded database.
+- **Remaining acceptance:** signed builds, device/TestFlight runs, owner HTTPS, verified links, production migrations and store submission (owner).
 
 ---
 
@@ -716,7 +715,7 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 - Staging and production HTTPS endpoints under owner control (D2).
 - Availability and ownership of the `com.teia.aiassistant*` identifiers on Google Play and the Apple Developer account (D9).
 - Approved brand assets (D9).
-- Owner review of flagged Arabic terminology (D3).
+- Owner review of flagged Arabic terminology (D3), including the unified term for *space* (Phase 6).
 - A macOS environment for iOS builds and signing.
 - Configured SMTP for password-reset email in each environment. Without it, reset requests are accepted silently and nothing is sent, by design.
 - Rotation of the provider keys that were committed to the upstream repository history.
@@ -775,7 +774,7 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 | Export md/json | ✔ | ✔ Markdown (Phase 4) | Share sheet file and copy; JSON export on web only |
 | Share links (create / revoke) | ✔ (create; fixed in S) | ✔ (Phase 2) | Revocation UI on mobile; web gets the API |
 | Document upload / list / open / chunks | ✔ | ✔ upload, list, status, retry, open (Phase 3); chunks view later | 25 MiB, states, upload IDs |
-| Document delete | ✘ (admin hide) | ✘ | No backend endpoint; hide stays web-only |
+| Document delete | ✘ (admin hide) | ✘ (admin hide, Phase 5) | No delete endpoint |
 | In-app notifications | ✔ (Phase 5, S26 fixed) | ✔ (Phase 4) | Live over header-authenticated SSE on both |
 | Background push | ✘ | ✘ (deferred, D4) | |
 | Requests (space) | ✔ | ✔ own requests (Phase 4), tool access (Phase 5), review for admins (Phase 5) | Self-review refused |
@@ -789,7 +788,8 @@ Deferred: refresh tokens, push device registration (D4), document delete, a job 
 | Space admin: usage | ✔ (+ dashboard charts) | ✔ totals and per model (Phase 5) | Dashboard charts web only |
 | Rename space | ✔ | ✔ (Phase 5) | |
 | Deactivate space | ✔ | ✘ **Web only** | Irreversible from the app; inactive spaces disappear from lists |
-| Invitation acceptance by link | ✔ `/join-space` (Phase 5) | ✔ dev link / paste | Verified links need the owner domain |
+| Invitation acceptance by link | ✔ `/join-space` (Phase 5) | ✔ dev link (Android) / paste; verified App Links / Universal Links configurable (Phase 6) | Needs the owner host, published association files and signing fingerprints |
+| Open-source license notices | — | ✔ (Phase 6) | Account → Open-source licenses |
 | Workspace system prompts | ✘ (per-user only) | ✘ **Missing capability** | No space-scoped storage or enforcement in the backend (S9) |
 | **Super admin**: all spaces, global usage, global admin dashboard, global user requests, user list | ✔ | ✘ **Web only in v1** | D1 |
 | Global system prompts | ✔ super admins only (Phase 5 review) | ✘ **Web only** | D5, S29 |

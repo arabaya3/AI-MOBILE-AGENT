@@ -27,12 +27,11 @@ Future<void> bootstrap(AppEnvironment environment) async {
     return;
   }
 
+  final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     overrides: [
       appConfigProvider.overrideWithValue(config),
-      sharedPreferencesProvider.overrideWithValue(
-        await SharedPreferences.getInstance(),
-      ),
+      sharedPreferencesProvider.overrideWithValue(prefs),
     ],
   );
   runApp(

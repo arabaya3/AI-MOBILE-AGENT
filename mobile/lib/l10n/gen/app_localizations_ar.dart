@@ -1338,16 +1338,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get upcomingNotifications => 'الإشعارات';
 
   @override
-  String get manageSpaceTitle => 'إدارة المساحة';
+  String get manageSpaceTitle => 'إدارة مساحة العمل';
 
   @override
-  String get adminOverviewTitle => 'المساحة';
+  String get adminOverviewTitle => 'مساحة العمل';
 
   @override
-  String get renameSpaceAction => 'إعادة تسمية المساحة';
+  String get renameSpaceAction => 'إعادة تسمية مساحة العمل';
 
   @override
-  String get spaceNameLabel => 'اسم المساحة';
+  String get spaceNameLabel => 'اسم مساحة العمل';
 
   @override
   String get spaceNameInvalid => 'استخدم من 2 إلى 80 حرفًا.';
@@ -1371,7 +1371,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminDocumentsTitle => 'الوصول إلى المستندات';
 
   @override
-  String get adminUsageTitle => 'استخدام المساحة';
+  String get adminUsageTitle => 'استخدام مساحة العمل';
 
   @override
   String get adminWebOnlyNote =>
@@ -1381,14 +1381,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminSaved => 'تم الحفظ.';
 
   @override
-  String get adminAccessLost => 'لم تعد مسؤولًا عن إدارة هذه المساحة.';
+  String get adminAccessLost => 'لم تعد مسؤولًا عن إدارة مساحة العمل هذه.';
 
   @override
   String get adminLastAdmin =>
-      'يجب أن يبقى في المساحة مسؤول نشط واحد على الأقل. اجعل شخصًا آخر مسؤولًا أولًا.';
+      'يجب أن يبقى في مساحة العمل مسؤول نشط واحد على الأقل. اجعل شخصًا آخر مسؤولًا أولًا.';
 
   @override
-  String get adminSpaceInactive => 'هذه المساحة غير نشطة.';
+  String get adminSpaceInactive => 'مساحة العمل هذه غير نشطة.';
 
   @override
   String get adminUnsupportedChoice => 'أحد الخيارات غير مدعوم في هذه الخدمة.';
@@ -1408,7 +1408,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get membersEmptyTitle => 'لا يوجد أعضاء';
 
   @override
-  String get membersEmptyBody => 'ادعُ أشخاصًا لإضافتهم إلى هذه المساحة.';
+  String get membersEmptyBody => 'ادعُ أشخاصًا لإضافتهم إلى مساحة العمل هذه.';
 
   @override
   String get membersNoMatch => 'لا يوجد عضو يطابق هذا البحث.';
@@ -1423,7 +1423,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get memberGoneTitle => 'العضو غير موجود';
 
   @override
-  String get memberGoneBody => 'لم يعد هذا الشخص مدرجًا في هذه المساحة.';
+  String get memberGoneBody => 'لم يعد هذا الشخص مدرجًا في مساحة العمل هذه.';
 
   @override
   String get memberIsYou => 'هذا أنت.';
@@ -1432,7 +1432,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get memberAccessTitle => 'الدور والوصول';
 
   @override
-  String get memberAdminRole => 'مسؤول المساحة';
+  String get memberAdminRole => 'مسؤول مساحة العمل';
 
   @override
   String get memberAdminRoleExplain =>
@@ -1449,7 +1449,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get makeAdminBody =>
-      'سيتمكن من إدارة كل شيء في هذه المساحة، بما في ذلك المسؤولون الآخرون.';
+      'سيتمكن من إدارة كل شيء في مساحة العمل هذه، بما في ذلك المسؤولون الآخرون.';
 
   @override
   String get makeAdminAction => 'جعله مسؤولًا';
@@ -1459,7 +1459,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get removeAdminBody =>
-      'سيبقى عضوًا لكنه لن يتمكن من إدارة هذه المساحة.';
+      'سيبقى عضوًا لكنه لن يتمكن من إدارة مساحة العمل هذه.';
 
   @override
   String get removeOwnAdminTitle => 'هل تريد إزالة دور المسؤول عنك؟';
@@ -1472,14 +1472,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get removeAdminAction => 'إزالة دور المسؤول';
 
   @override
-  String get revokeAccessTitle => 'هل تريد إزالة الوصول إلى هذه المساحة؟';
+  String get revokeAccessTitle => 'هل تريد إزالة الوصول إلى مساحة العمل هذه؟';
 
   @override
   String get revokeOwnAccessTitle => 'هل تريد إزالة وصولك أنت؟';
 
   @override
   String get revokeAccessBody =>
-      'لن يتمكن من فتح المساحة أو محادثاتها أو مستنداتها. تُحفظ سجلاته، ويمكن إعادة الوصول لاحقًا.';
+      'لن يتمكن من فتح مساحة العمل أو محادثاتها أو مستنداتها. تُحفظ سجلاته، ويمكن إعادة الوصول لاحقًا.';
 
   @override
   String get revokeAccessAction => 'إزالة الوصول';
@@ -1489,7 +1489,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get restoreAccessBody =>
-      'سيتمكن من استخدام هذه المساحة مرة أخرى بإعداداته السابقة.';
+      'سيتمكن من استخدام مساحة العمل هذه مرة أخرى بإعداداته السابقة.';
 
   @override
   String get restoreAccessAction => 'إعادة الوصول';
@@ -1499,7 +1499,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get memberLimitsExplain =>
-      'الحدود غير المحددة تتبع الإعداد الافتراضي للمساحة. الحد المحدد هنا ينطبق على هذا العضو فقط.';
+      'الحدود غير المحددة تتبع الإعداد الافتراضي لمساحة العمل. الحد المحدد هنا ينطبق على هذا العضو فقط.';
 
   @override
   String get memberExtraModelsTitle => 'نماذج إضافية';
@@ -1509,7 +1509,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get memberAdditionsExplain =>
-      'مُنحت لهذا العضو إضافة إلى سياسة المساحة، غالبًا عبر طلب تمت الموافقة عليه.';
+      'مُنحت لهذا العضو إضافة إلى سياسة مساحة العمل، غالبًا عبر طلب تمت الموافقة عليه.';
 
   @override
   String get memberNoAdditions => 'لا شيء';
@@ -1518,7 +1518,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get removeGrantTitle => 'هل تريد إزالة هذا الوصول؟';
 
   @override
-  String get removeGrantBody => 'سيحتفظ العضو بما تسمح به سياسة المساحة.';
+  String get removeGrantBody => 'سيحتفظ العضو بما تسمح به سياسة مساحة العمل.';
 
   @override
   String get removeGrantAction => 'إزالة';
@@ -1531,17 +1531,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String limitInherited(String value) {
-    return 'الافتراضي للمساحة: $value';
+    return 'الافتراضي لمساحة العمل: $value';
   }
 
   @override
-  String get limitInheritedShort => 'يتبع الإعداد الافتراضي للمساحة';
+  String get limitInheritedShort => 'يتبع الإعداد الافتراضي لمساحة العمل';
 
   @override
   String get limitExplicitShort => 'محدد لهذا العضو';
 
   @override
-  String get limitUseDefault => 'استخدام الإعداد الافتراضي للمساحة';
+  String get limitUseDefault => 'استخدام الإعداد الافتراضي لمساحة العمل';
 
   @override
   String get limitSetValue => 'تحديد حد';
@@ -1559,7 +1559,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get quotaMonthlyToolRequests => 'استخدامات الأدوات كل 30 يومًا';
 
   @override
-  String get spaceDefaultsTitle => 'الإعدادات الافتراضية للمساحة';
+  String get spaceDefaultsTitle => 'الإعدادات الافتراضية لمساحة العمل';
 
   @override
   String get spaceDefaultsExplain =>
@@ -1590,7 +1590,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get allowedToolsExplain =>
-      'قد يستخدمها المساعد في هذه المساحة. إذا لم يُحدد أي منها، يُطبق الإعداد الافتراضي للخدمة.';
+      'قد يستخدمها المساعد في مساحة العمل هذه. إذا لم يُحدد أي منها، يُطبق الإعداد الافتراضي للخدمة.';
 
   @override
   String get catalogEmpty => 'لا يتوفر شيء.';
@@ -1732,7 +1732,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get requestSummaryUpload => 'إذن رفع المستندات';
 
   @override
-  String get requestSummaryJoin => 'يريد الانضمام إلى هذه المساحة';
+  String get requestSummaryJoin => 'يريد الانضمام إلى مساحة العمل هذه';
 
   @override
   String get requestReasonLabel => 'السبب';
@@ -1770,7 +1770,7 @@ class AppLocalizationsAr extends AppLocalizations {
       'يرى الأعضاء المستندات التي رفعوها أو مُنحت لهم. المستندات المخفية يراها المسؤولون فقط.';
 
   @override
-  String get adminDocumentsEmpty => 'لا توجد مستندات في هذه المساحة بعد.';
+  String get adminDocumentsEmpty => 'لا توجد مستندات في مساحة العمل هذه بعد.';
 
   @override
   String get documentHiddenSwitch => 'إخفاء عن الأعضاء';
@@ -1828,4 +1828,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get myUsageAction => 'استخدامي';
+
+  @override
+  String get openSourceLicenses => 'تراخيص البرمجيات مفتوحة المصدر';
 }

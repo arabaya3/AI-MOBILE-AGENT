@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "<com.teia.aiassistant | com.teia.aiassistant.staging>",
+      "sha256_cert_fingerprints": [
+        "<SHA-256 of the Play App Signing key, from Play Console > Setup > App signing>",
+        "<SHA-256 of the upload key, only if you also install upload-signed builds directly>"
+      ]
+    }
+  }
+]

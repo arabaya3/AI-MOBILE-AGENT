@@ -43,7 +43,8 @@ Future<SharedPreferences> _prepare(
   required double textScale,
   Locale? deviceLocale,
 }) async {
-  SharedPreferences.setMockInitialValues(prefs);
+  // Tests model an existing install unless they say otherwise (see the install marker tests).
+  SharedPreferences.setMockInitialValues({installMarkerKey: true, ...prefs});
   tester.view.physicalSize = size * tester.view.devicePixelRatio;
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   if (deviceLocale != null) {

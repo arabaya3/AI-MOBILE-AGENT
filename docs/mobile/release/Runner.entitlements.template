@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Copy to ios/Runner/Runner.entitlements once the owner's link host and Team ID exist, set
+     CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements for the staging/prod configurations, and
+     enable Associated Domains for the App ID in the Apple Developer account. -->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:<owner link host></string>
+	</array>
+</dict>
+</plist>

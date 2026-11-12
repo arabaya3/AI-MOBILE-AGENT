@@ -90,3 +90,17 @@ def test_a_save_does_not_revert_another_workers_newer_keys(prompts_path):
     on_disk = json.loads(prompts_path.read_text(encoding="utf-8"))
     assert on_disk["tools_system_prompt"] == "From worker B."
     assert on_disk["stream_system_prompt"] == "From worker A."
+
+
+def test_the_prompt_file_location_is_configurable(monkeypatch, tmp_path):
+    from src.core.settings.config import Settings
+
+    target = tmp_path / "shared" / "prompts.json"
+    monkeypatch.setenv("SYSTEM_PROMPTS_PATH", str(target))
+    configured = Settings()
+    monkeypatch.setattr(store, "settings", configured)
+    assert store._prompts_path() == target
+    store.save_system_prompts({"stream_system_prompt": "On the shared volume."})
+    assert json.loads(target.read_text(encoding="utf-8"))["stream_system_prompt"] == "On the shared volume."
+    monkeypatch.undo()
+    store.load_system_prompts()

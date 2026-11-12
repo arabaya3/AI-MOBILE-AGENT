@@ -15,7 +15,7 @@ Future<ProviderContainer> makeContainer(
   List<Override> overrides = const [],
   bool liveNotifications = false,
 }) async {
-  SharedPreferences.setMockInitialValues(prefs);
+  SharedPreferences.setMockInitialValues({installMarkerKey: true, ...prefs});
   final container = ProviderContainer(
     overrides: [
       appConfigProvider.overrideWithValue(testConfig()),
